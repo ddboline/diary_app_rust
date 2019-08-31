@@ -17,8 +17,7 @@ pub struct S3Interface {
 }
 
 impl S3Interface {
-    pub fn new() -> Self {
-        let config = Config::init_config().expect("Failed to load config");
+    pub fn new(config: Config) -> Self {
         S3Interface {
             s3_client: S3Instance::new(&config.aws_region_name),
             pool: PgPool::new(&config.database_url),
@@ -26,7 +25,7 @@ impl S3Interface {
         }
     }
 
-    pub fn export_to_s3(&self) -> Result<(), Error> {
+    pub fn export_to_s3(&self) -> Result<Vec<DiaryEntries>, Error> {
         let s3_key_map: HashMap<NaiveDate, DateTime<Utc>> = self
             .s3_client
             .get_list_of_keys(&self.config.diary_bucket, None)?
@@ -48,20 +47,32 @@ impl S3Interface {
             })
             .collect();
         let results: Result<Vec<_>, Error> = DiaryEntries::get_modified_map(&self.pool)?
-            .into_iter()
+            .into_par_iter()
             .map(|(diary_date, last_modified)| {
                 let should_update = match s3_key_map.get(&diary_date) {
-                    Some(lm) => *lm < last_modified,
+                    Some(lm) => (*lm - last_modified).num_seconds() > 1,
                     None => true,
                 };
                 if should_update {
-                    println!("{}", diary_date);
+                    for entry in DiaryEntries::get_by_date(diary_date, &self.pool)? {
+                        println!(
+                            "export s3 date {} lines {}",
+                            entry.diary_date,
+                            entry.diary_text.match_indices('\n').count()
+                        );
+                        let key = format!("{}.txt", entry.diary_date);
+                        self.s3_client.upload_from_string(
+                            &entry.diary_text,
+                            &self.config.diary_bucket,
+                            &key,
+                        )?;
+                        return Ok(Some(entry));
+                    }
                 }
-                Ok(())
+                Ok(None)
             })
             .collect();
-        results?;
-        Ok(())
+        Ok(results?.into_iter().filter_map(|x| x).collect())
     }
 
     pub fn import_from_s3(&self) -> Result<Vec<DiaryEntries>, Error> {
@@ -85,7 +96,9 @@ impl S3Interface {
                             let size = obj.size.unwrap_or(0);
 
                             let should_modify = match existing_map.get(&date) {
-                                Some(current_modified) => *current_modified < last_modified,
+                                Some(current_modified) => {
+                                    (*current_modified - last_modified).num_seconds() < -1
+                                }
                                 None => true,
                             };
                             if size > 0 && should_modify {
@@ -105,7 +118,7 @@ impl S3Interface {
             })
             .map(|entry| {
                 println!(
-                    "date {} lines {}",
+                    "import s3 date {} lines {}",
                     entry.diary_date,
                     entry.diary_text.match_indices('\n').count()
                 );

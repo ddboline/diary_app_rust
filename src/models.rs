@@ -1,5 +1,5 @@
 use chrono::{DateTime, NaiveDate, Utc};
-use diesel::{ExpressionMethods, QueryDsl, RunQueryDsl};
+use diesel::{ExpressionMethods, QueryDsl, RunQueryDsl, TextExpressionMethods};
 use failure::{err_msg, Error};
 use std::collections::HashMap;
 
@@ -73,6 +73,42 @@ impl DiaryEntries {
         let conn = pool.get()?;
         diary_entries
             .filter(diary_date.eq(date))
+            .load(&conn)
+            .map_err(err_msg)
+    }
+
+    pub fn get_by_text(search_text: &str, pool: &PgPool) -> Result<Vec<Self>, Error> {
+        use crate::schema::diary_entries::dsl::{diary_entries, diary_text};
+        let conn = pool.get()?;
+        diary_entries
+            .filter(diary_text.like(&format!("%{}%", search_text)))
+            .load(&conn)
+            .map_err(err_msg)
+    }
+}
+
+impl DiaryCache {
+    pub fn insert_entry(&self, pool: &PgPool) -> Result<(), Error> {
+        use crate::schema::diary_cache::dsl::diary_cache;
+        let conn = pool.get()?;
+        diesel::insert_into(diary_cache)
+            .values(self)
+            .execute(&conn)
+            .map_err(err_msg)
+            .map(|_| ())
+    }
+
+    pub fn get_cache_entries(pool: &PgPool) -> Result<Vec<Self>, Error> {
+        use crate::schema::diary_cache::dsl::diary_cache;
+        let conn = pool.get()?;
+        diary_cache.load(&conn).map_err(err_msg)
+    }
+
+    pub fn get_by_text(search_text: &str, pool: &PgPool) -> Result<Vec<Self>, Error> {
+        use crate::schema::diary_cache::dsl::{diary_cache, diary_text};
+        let conn = pool.get()?;
+        diary_cache
+            .filter(diary_text.like(&format!("%{}%", search_text)))
             .load(&conn)
             .map_err(err_msg)
     }

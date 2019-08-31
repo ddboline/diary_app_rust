@@ -138,6 +138,25 @@ impl S3Instance {
         })
     }
 
+    pub fn upload_from_string(
+        &self,
+        input_str: &str,
+        bucket_name: &str,
+        key_name: &str,
+    ) -> Result<(), Error> {
+        let target = PutObjectRequest {
+            bucket: bucket_name.to_string(),
+            key: key_name.to_string(),
+            body: Some(input_str.to_string().into_bytes().into()),
+            ..Default::default()
+        };
+        self.s3_client
+            .put_object(target)
+            .sync()
+            .map_err(err_msg)
+            .map(|_| ())
+    }
+
     pub fn download_to_string(&self, bucket_name: &str, key_name: &str) -> Result<String, Error> {
         exponential_retry(|| {
             let source = GetObjectRequest {

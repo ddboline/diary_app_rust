@@ -1,4 +1,4 @@
-use chrono::{DateTime, NaiveDate, Utc, Duration};
+use chrono::{DateTime, NaiveDate, Utc};
 use failure::{err_msg, Error};
 use jwalk::WalkDir;
 use std::fs::File;
@@ -14,8 +14,7 @@ pub struct LocalInterface {
 }
 
 impl LocalInterface {
-    pub fn new() -> Self {
-        let config = Config::init_config().expect("Failed to load config");
+    pub fn new(config: Config) -> Self {
         LocalInterface {
             pool: PgPool::new(&config.database_url),
             config,
@@ -44,7 +43,7 @@ impl LocalInterface {
 
                         let should_modify = match existing_map.get(&date) {
                             Some(current_modified) => {
-                                (*current_modified - modified) < Duration::seconds(1)
+                                (*current_modified - modified).num_seconds() < -1
                             }
                             None => true,
                         };
@@ -65,7 +64,7 @@ impl LocalInterface {
             .map(|result| {
                 result.and_then(|entry| {
                     println!(
-                        "date {} lines {}",
+                        "import local date {} lines {}",
                         entry.diary_date,
                         entry.diary_text.match_indices('\n').count()
                     );
