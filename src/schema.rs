@@ -8,14 +8,15 @@ table! {
 table! {
     diary_cache (diary_datetime) {
         diary_datetime -> Timestamptz,
-        diary_text -> Nullable<Text>,
+        diary_text -> Text,
     }
 }
 
 table! {
     diary_entries (diary_date) {
         diary_date -> Date,
-        diary_text -> Nullable<Text>,
+        diary_text -> Text,
+        last_modified -> Timestamptz,
     }
 }
 

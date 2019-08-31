@@ -1,4 +1,5 @@
 use failure::{err_msg, Error};
+use futures::Stream;
 use rusoto_core::Region;
 use rusoto_s3::{
     Bucket, CopyObjectRequest, CreateBucketRequest, DeleteBucketRequest, DeleteObjectRequest,
@@ -118,13 +119,13 @@ impl S3Instance {
 
     pub fn upload(&self, fname: &str, bucket_name: &str, key_name: &str) -> Result<(), Error> {
         exponential_retry(|| {
-            if Path::new(&fname).exists() {
+            if !Path::new(fname).exists() {
                 return Err(err_msg("File doesn't exist"));
             }
             exponential_retry(|| {
                 self.s3_client
                     .upload_from_file(
-                        &fname,
+                        fname,
                         PutObjectRequest {
                             bucket: bucket_name.to_string(),
                             key: key_name.to_string(),
@@ -134,6 +135,25 @@ impl S3Instance {
                     .map_err(err_msg)
             })?;
             Ok(())
+        })
+    }
+
+    pub fn download_to_string(&self, bucket_name: &str, key_name: &str) -> Result<String, Error> {
+        exponential_retry(|| {
+            let source = GetObjectRequest {
+                bucket: bucket_name.to_string(),
+                key: key_name.to_string(),
+                ..Default::default()
+            };
+            let mut resp = self.s3_client.get_object(source).sync()?;
+            let body = resp.body.take().expect("no body");
+
+            let mut buf = Vec::new();
+            let src = body.take(512 * 1024).wait();
+            for chunk in src {
+                buf.push(String::from_utf8_lossy(chunk?.as_ref()).into_owned());
+            }
+            Ok(buf.join(""))
         })
     }
 
@@ -256,6 +276,17 @@ impl S3Instance {
         Ok(())
     }
 }
+
+// fn copy<W>(src: &mut StreamingBody, dest: &mut W) -> Result<(), Error>
+// where
+//     W: Write,
+// {
+//     let src = src.take(512 * 1024).wait();
+//     for chunk in src {
+//         dest.write_all(chunk?.as_ref())?;
+//     }
+//     Ok(())
+// }
 
 #[cfg(test)]
 mod tests {
