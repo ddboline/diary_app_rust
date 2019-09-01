@@ -15,11 +15,11 @@ pub struct DiaryAppInterface {
 }
 
 impl DiaryAppInterface {
-    pub fn new(config: Config) -> Self {
+    pub fn new(config: Config, pool: PgPool) -> Self {
         Self {
-            local: LocalInterface::new(config.clone()),
-            s3: S3Interface::new(config.clone()),
-            pool: PgPool::new(&config.database_url),
+            local: LocalInterface::new(config.clone(), pool.clone()),
+            s3: S3Interface::new(config.clone(), pool.clone()),
+            pool,
             config,
         }
     }
@@ -50,5 +50,13 @@ impl DiaryAppInterface {
             .collect();
         de_entries.extend_from_slice(&dc_entries);
         Ok(de_entries)
+    }
+
+    pub fn sync_entries(&self) -> Result<Vec<DiaryEntries>, Error> {
+        let mut new_entries = self.local.import_from_local()?;
+        new_entries.extend_from_slice(&self.s3.import_from_s3()?);
+        new_entries.extend_from_slice(&self.s3.export_to_s3()?);
+
+        Ok(new_entries)
     }
 }

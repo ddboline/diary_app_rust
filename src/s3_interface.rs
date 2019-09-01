@@ -17,10 +17,10 @@ pub struct S3Interface {
 }
 
 impl S3Interface {
-    pub fn new(config: Config) -> Self {
+    pub fn new(config: Config, pool: PgPool) -> Self {
         S3Interface {
             s3_client: S3Instance::new(&config.aws_region_name),
-            pool: PgPool::new(&config.database_url),
+            pool,
             config,
         }
     }
@@ -40,7 +40,7 @@ impl S3Interface {
                                 .as_ref()
                                 .and_then(|lm| DateTime::parse_from_rfc3339(&lm).ok())
                                 .map(|d| d.with_timezone(&Utc))
-                                .unwrap_or_else(|| Utc::now());
+                                .unwrap_or_else(Utc::now);
                             Some((date, last_modified))
                         })
                 })
@@ -54,7 +54,10 @@ impl S3Interface {
                     None => true,
                 };
                 if should_update {
-                    for entry in DiaryEntries::get_by_date(diary_date, &self.pool)? {
+                    if let Some(entry) = DiaryEntries::get_by_date(diary_date, &self.pool)?
+                        .into_iter()
+                        .nth(0)
+                    {
                         println!(
                             "export s3 date {} lines {}",
                             entry.diary_date,
