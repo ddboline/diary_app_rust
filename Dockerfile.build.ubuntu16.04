@@ -1,0 +1,9 @@
+FROM rust_stable:xenial_latest
+MAINTAINER Daniel Boline
+
+WORKDIR /diary_app_rust
+
+ADD Cargo.toml /diary_app_rust
+ADD src /diary_app_rust/src
+ADD scripts /diary_app_rust/scripts
+ADD Makefile /diary_app_rust

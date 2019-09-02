@@ -28,6 +28,14 @@ pub struct AuthorizedUsers {
     pub telegram_userid: Option<i64>,
 }
 
+impl AuthorizedUsers {
+    pub fn get_authorized_users(pool: &PgPool) -> Result<Vec<AuthorizedUsers>, Error> {
+        use crate::schema::authorized_users::dsl::authorized_users;
+        let conn = pool.get()?;
+        authorized_users.load(&conn).map_err(err_msg)
+    }
+}
+
 impl DiaryEntries {
     pub fn insert_entry(&self, pool: &PgPool) -> Result<(), Error> {
         use crate::schema::diary_entries::dsl::diary_entries;

@@ -10,6 +10,7 @@ pub struct ConfigInner {
     pub diary_bucket: String,
     pub diary_path: String,
     pub aws_region_name: String,
+    pub telegram_bot_token: String,
 }
 
 #[derive(Default, Debug, Clone)]
@@ -48,6 +49,7 @@ impl Config {
             diary_path: var("DIARY_PATH")
                 .unwrap_or_else(|_| format!("{}/Dropbox/epistle", home_dir)),
             aws_region_name: var("AWS_REGION_NAME").unwrap_or_else(|_| "us-east-1".to_string()),
+            telegram_bot_token: var("TELEGRAM_BOT_TOKEN").unwrap_or_else(|_| "".to_string()),
         };
 
         Ok(Config(Arc::new(conf)))

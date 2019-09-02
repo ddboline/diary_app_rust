@@ -28,9 +28,15 @@ impl FromStr for DiaryAppCommands {
 
 #[derive(StructOpt, Debug, Clone)]
 pub struct DiaryAppOpts {
-    #[structopt(parse(try_from_str), default_value = "sync")]
+    #[structopt(parse(try_from_str))]
+    /// Available commands are "(s)earch", "(i)nsert", "sync"
     pub command: DiaryAppCommands,
-    #[structopt(short = "t", long = "text")]
+    #[structopt(
+        short = "t",
+        long = "text",
+        required_if("command", "search"),
+        required_if("command", "insert")
+    )]
     pub text: Vec<String>,
 }
 
