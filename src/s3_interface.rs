@@ -3,6 +3,7 @@ use failure::Error;
 use log::debug;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use std::collections::HashMap;
+use std::io::{stdout, Write};
 
 use crate::config::Config;
 use crate::models::DiaryEntries;
@@ -26,6 +27,7 @@ impl S3Interface {
     }
 
     pub fn export_to_s3(&self) -> Result<Vec<DiaryEntries>, Error> {
+        let stdout = stdout();
         let s3_key_map: HashMap<NaiveDate, DateTime<Utc>> = self
             .s3_client
             .get_list_of_keys(&self.config.diary_bucket, None)?
@@ -58,11 +60,12 @@ impl S3Interface {
                         .into_iter()
                         .nth(0)
                     {
-                        println!(
+                        writeln!(
+                            stdout.lock(),
                             "export s3 date {} lines {}",
                             entry.diary_date,
                             entry.diary_text.match_indices('\n').count()
-                        );
+                        )?;
                         let key = format!("{}.txt", entry.diary_date);
                         self.s3_client.upload_from_string(
                             &entry.diary_text,
@@ -79,6 +82,7 @@ impl S3Interface {
     }
 
     pub fn import_from_s3(&self) -> Result<Vec<DiaryEntries>, Error> {
+        let stdout = stdout();
         let existing_map = DiaryEntries::get_modified_map(&self.pool)?;
 
         debug!("{}", self.config.diary_bucket);
@@ -95,7 +99,7 @@ impl S3Interface {
                                 .as_ref()
                                 .and_then(|lm| DateTime::parse_from_rfc3339(&lm).ok())
                                 .map(|d| d.with_timezone(&Utc))
-                                .unwrap_or_else(|| Utc::now());
+                                .unwrap_or_else(Utc::now);
                             let size = obj.size.unwrap_or(0);
 
                             let should_modify = match existing_map.get(&date) {
@@ -120,11 +124,12 @@ impl S3Interface {
                 })
             })
             .map(|entry| {
-                println!(
+                writeln!(
+                    stdout.lock(),
                     "import s3 date {} lines {}",
                     entry.diary_date,
                     entry.diary_text.match_indices('\n').count()
-                );
+                )?;
                 if existing_map.contains_key(&entry.diary_date) {
                     entry.update_entry(&self.pool)?;
                 } else {

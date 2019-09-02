@@ -5,7 +5,7 @@ use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use std::collections::{BTreeMap, HashSet};
 use std::fs::remove_file;
 use std::fs::File;
-use std::io::{Read, Write};
+use std::io::{stdout, Read, Write};
 
 use crate::config::Config;
 use crate::models::DiaryEntries;
@@ -50,11 +50,12 @@ impl LocalInterface {
                 Ok(format!("{} {}", year, date_list.len()))
             })
             .collect();
-        println!("{}", results?.join("\n"));
+        writeln!(stdout().lock(), "{}", results?.join("\n"))?;
         Ok(())
     }
 
     pub fn cleanup_local(&self) -> Result<(), Error> {
+        let stdout = stdout();
         let dates: Result<HashSet<_>, Error> = WalkDir::new(&self.config.diary_path)
             .sort(true)
             .preload_metadata(true)
@@ -70,7 +71,7 @@ impl LocalInterface {
 
                     if date <= previous_date {
                         let filepath = format!("{}/{}", self.config.diary_path, filename);
-                        println!("{}", filepath);
+                        writeln!(stdout.lock(), "{}", filepath)?;
                         remove_file(&filepath)?;
                         return Ok(None);
                     }
@@ -91,6 +92,7 @@ impl LocalInterface {
     }
 
     pub fn import_from_local(&self) -> Result<Vec<DiaryEntries>, Error> {
+        let stdout = stdout();
         let existing_map = DiaryEntries::get_modified_map(&self.pool)?;
 
         WalkDir::new(&self.config.diary_path)
@@ -132,11 +134,12 @@ impl LocalInterface {
             .filter_map(|d| d.transpose())
             .map(|result| {
                 result.and_then(|entry| {
-                    println!(
+                    writeln!(
+                        stdout.lock(),
                         "import local date {} lines {}",
                         entry.diary_date,
                         entry.diary_text.match_indices('\n').count()
-                    );
+                    )?;
                     if existing_map.contains_key(&entry.diary_date) {
                         entry.update_entry(&self.pool)?;
                     } else {

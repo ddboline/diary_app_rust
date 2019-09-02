@@ -1,4 +1,5 @@
 use failure::{err_msg, Error};
+use std::io::{stdout, Write};
 use std::str::FromStr;
 use structopt::StructOpt;
 
@@ -51,7 +52,7 @@ impl DiaryAppOpts {
         match opts.command {
             DiaryAppCommands::Search => {
                 let result = dap.search_text(&opts.text.join(" "))?;
-                println!("{}", result.join("\n"));
+                writeln!(stdout().lock(), "{}", result.join("\n"))?;
             }
             DiaryAppCommands::Insert => {
                 dap.cache_text(&opts.text.join(" "))?;
