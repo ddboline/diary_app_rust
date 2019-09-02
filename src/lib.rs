@@ -3,6 +3,7 @@ extern crate diesel;
 
 pub mod config;
 pub mod diary_app_interface;
+pub mod diary_app_opts;
 pub mod local_interface;
 pub mod models;
 pub mod pgpool;

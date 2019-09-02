@@ -112,4 +112,14 @@ impl DiaryCache {
             .load(&conn)
             .map_err(err_msg)
     }
+
+    pub fn delete_entry(&self, pool: &PgPool) -> Result<(), Error> {
+        use crate::schema::diary_cache::dsl::{diary_cache, diary_datetime};
+        let conn = pool.get()?;
+        diesel::delete(diary_cache)
+            .filter(diary_datetime.eq(self.diary_datetime))
+            .execute(&conn)
+            .map_err(err_msg)
+            .map(|_| ())
+    }
 }

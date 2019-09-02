@@ -1,4 +1,4 @@
-use chrono::Utc;
+use chrono::{Duration, NaiveDate, Utc};
 use failure::Error;
 
 use crate::config::Config;
@@ -34,6 +34,25 @@ impl DiaryAppInterface {
     }
 
     pub fn search_text(&self, search_text: &str) -> Result<Vec<String>, Error> {
+        if let Ok(date) = NaiveDate::parse_from_str(search_text, "%Y-%m-%d") {
+            let mut de_entries: Vec<_> = DiaryEntries::get_by_date(date, &self.pool)?
+                .into_iter()
+                .map(|entry| format!("{}\n{}", entry.diary_date, entry.diary_text))
+                .collect();
+            let dc_entries: Vec<_> = DiaryCache::get_cache_entries(&self.pool)?
+                .into_iter()
+                .filter_map(|entry| {
+                    if entry.diary_datetime.naive_local().date() == date {
+                        Some(format!("{}\n{}", entry.diary_datetime, entry.diary_text))
+                    } else {
+                        None
+                    }
+                })
+                .collect();
+            de_entries.extend_from_slice(&dc_entries);
+            return Ok(de_entries);
+        }
+
         let mut de_entries: Vec<_> = DiaryEntries::get_by_text(search_text, &self.pool)?
             .into_iter()
             .map(|entry| format!("{}\n{}", entry.diary_date, entry.diary_text))
@@ -58,5 +77,29 @@ impl DiaryAppInterface {
         new_entries.extend_from_slice(&self.s3.export_to_s3()?);
 
         Ok(new_entries)
+    }
+
+    pub fn sync_merge_cache_to_entries(&self) -> Result<(), Error> {
+        let results: Result<Vec<_>, Error> = DiaryCache::get_cache_entries(&self.pool)?
+            .into_iter()
+            .map(|entry| {
+                let previous_date = (Utc::now() - Duration::days(4)).naive_local().date();
+                let entry_date = entry.diary_datetime.naive_local().date();
+                if entry_date <= previous_date {
+                    if let Some(mut current_entry) =
+                        DiaryEntries::get_by_date(entry_date, &self.pool)?
+                            .into_iter()
+                            .nth(0)
+                    {
+                        current_entry.diary_text =
+                            format!("{}\n{}", current_entry.diary_text, entry.diary_text);
+                        current_entry.update_entry(&self.pool)?;
+                        entry.delete_entry(&self.pool)?;
+                    }
+                }
+                Ok(())
+            })
+            .collect();
+        results.map(|_| ())
     }
 }
