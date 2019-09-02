@@ -2,7 +2,7 @@ use chrono::{DateTime, Datelike, Duration, NaiveDate, Utc};
 use failure::{err_msg, Error};
 use jwalk::WalkDir;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashSet};
 use std::fs::remove_file;
 use std::fs::File;
 use std::io::{Read, Write};
@@ -27,8 +27,8 @@ impl LocalInterface {
             .map(|(k, _)| k)
             .collect();
         date_list.sort();
-        let year_map: HashMap<i32, Vec<_>> =
-            date_list.into_iter().fold(HashMap::new(), |mut acc, d| {
+        let year_map: BTreeMap<i32, Vec<_>> =
+            date_list.into_iter().fold(BTreeMap::new(), |mut acc, d| {
                 let year = d.year();
                 acc.entry(year).or_insert_with(Vec::new).push(d);
                 acc
@@ -36,11 +36,10 @@ impl LocalInterface {
         let results: Result<Vec<_>, Error> = year_map
             .into_par_iter()
             .map(|(year, date_list)| {
-                println!("{} {}", year, date_list.len());
                 let mut f =
                     File::create(format!("{}/diary_{}.txt", &self.config.diary_path, year))?;
-                for date in date_list {
-                    let entries = DiaryEntries::get_by_date(date, &self.pool)?;
+                for date in &date_list {
+                    let entries = DiaryEntries::get_by_date(*date, &self.pool)?;
                     if !entries.is_empty() {
                         writeln!(f, "{}\n", date)?;
                         for entry in entries {
@@ -48,10 +47,11 @@ impl LocalInterface {
                         }
                     }
                 }
-                Ok(())
+                Ok(format!("{} {}", year, date_list.len()))
             })
             .collect();
-        results.map(|_| ())
+        println!("{}", results?.join("\n"));
+        Ok(())
     }
 
     pub fn cleanup_local(&self) -> Result<(), Error> {
