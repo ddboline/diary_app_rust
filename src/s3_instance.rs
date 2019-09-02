@@ -309,6 +309,7 @@ impl S3Instance {
 
 #[cfg(test)]
 mod tests {
+    use std::io::{Write, stdout};
     use crate::s3_instance::S3Instance;
 
     #[test]
@@ -320,7 +321,7 @@ mod tests {
             .and_then(|b| b.name.clone())
             .unwrap_or_else(|| "".to_string());
         let klist = s3_instance.get_list_of_keys(&bucket, None).unwrap();
-        println!("{} {}", bucket, klist.len());
+        writeln!(stdout().lock(), "{} {}", bucket, klist.len()).unwrap();
         assert!(klist.len() > 0);
     }
 }
