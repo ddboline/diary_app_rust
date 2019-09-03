@@ -1,6 +1,9 @@
 #[macro_use]
 extern crate diesel;
 
+#[macro_use]
+extern crate serde_derive;
+
 pub mod config;
 pub mod diary_app_interface;
 pub mod diary_app_opts;

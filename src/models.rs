@@ -14,7 +14,7 @@ pub struct DiaryEntries {
     pub last_modified: DateTime<Utc>,
 }
 
-#[derive(Queryable, Insertable, Clone, Debug)]
+#[derive(Queryable, Insertable, Clone, Debug, Serialize, Deserialize)]
 #[table_name = "diary_cache"]
 pub struct DiaryCache {
     pub diary_datetime: DateTime<Utc>,

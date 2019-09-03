@@ -1,5 +1,5 @@
 use chrono::{Duration, NaiveDate, Utc};
-use failure::Error;
+use failure::{err_msg, Error};
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 
 use crate::config::Config;
@@ -102,5 +102,12 @@ impl DiaryAppInterface {
             })
             .collect();
         results.map(|_| ())
+    }
+
+    pub fn serialize_cache(&self) -> Result<Vec<String>, Error> {
+        DiaryCache::get_cache_entries(&self.pool)?
+            .into_iter()
+            .map(|entry| serde_json::to_string(&entry).map_err(err_msg))
+            .collect()
     }
 }

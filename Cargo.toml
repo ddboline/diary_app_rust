@@ -30,6 +30,9 @@ crossbeam-utils = "0.6"
 lazy_static = "1.4"
 telegram-bot = "0.6"
 tokio-core = "0.1"
+serde = "1.0"
+serde_derive = "1.0"
+serde_json = "1.0"
 
 [[bin]]
 name = "diary-app-rust"

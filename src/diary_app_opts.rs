@@ -12,6 +12,7 @@ pub enum DiaryAppCommands {
     Search,
     Insert,
     Sync,
+    Serialize,
 }
 
 impl FromStr for DiaryAppCommands {
@@ -22,6 +23,7 @@ impl FromStr for DiaryAppCommands {
             "search" | "s" => Ok(DiaryAppCommands::Search),
             "insert" | "i" => Ok(DiaryAppCommands::Insert),
             "sync" => Ok(DiaryAppCommands::Sync),
+            "ser" | "serialize" => Ok(DiaryAppCommands::Serialize),
             _ => Err(err_msg("Parse failure")),
         }
     }
@@ -30,7 +32,7 @@ impl FromStr for DiaryAppCommands {
 #[derive(StructOpt, Debug, Clone)]
 pub struct DiaryAppOpts {
     #[structopt(parse(try_from_str))]
-    /// Available commands are "(s)earch", "(i)nsert", "sync"
+    /// Available commands are "(s)earch", "(i)nsert", "sync", "serialize"
     pub command: DiaryAppCommands,
     #[structopt(
         short = "t",
@@ -43,6 +45,7 @@ pub struct DiaryAppOpts {
 
 impl DiaryAppOpts {
     pub fn process_args() -> Result<(), Error> {
+        let stdout = stdout();
         let opts = DiaryAppOpts::from_args();
 
         let config = Config::init_config()?;
@@ -52,7 +55,7 @@ impl DiaryAppOpts {
         match opts.command {
             DiaryAppCommands::Search => {
                 let result = dap.search_text(&opts.text.join(" "))?;
-                writeln!(stdout().lock(), "{}", result.join("\n"))?;
+                writeln!(stdout.lock(), "{}", result.join("\n"))?;
             }
             DiaryAppCommands::Insert => {
                 dap.cache_text(&opts.text.join(" "))?;
@@ -62,6 +65,11 @@ impl DiaryAppOpts {
                 dap.sync_entries()?;
                 dap.local.cleanup_local()?;
                 dap.local.export_year_to_local()?;
+            }
+            DiaryAppCommands::Serialize => {
+                for entry in dap.serialize_cache()? {
+                    writeln!(stdout.lock(), "{}", entry)?;
+                }
             }
         }
         Ok(())
