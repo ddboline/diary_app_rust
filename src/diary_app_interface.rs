@@ -1,5 +1,6 @@
 use chrono::{Duration, NaiveDate, Utc};
 use failure::Error;
+use rayon::iter::{IntoParallelIterator, ParallelIterator};
 
 use crate::config::Config;
 use crate::local_interface::LocalInterface;
@@ -50,25 +51,25 @@ impl DiaryAppInterface {
                 })
                 .collect();
             de_entries.extend_from_slice(&dc_entries);
-            return Ok(de_entries);
+            Ok(de_entries)
+        } else {
+            let mut de_entries: Vec<_> = DiaryEntries::get_by_text(search_text, &self.pool)?
+                .into_iter()
+                .map(|entry| format!("{}\n{}", entry.diary_date, entry.diary_text))
+                .collect();
+            let dc_entries: Vec<_> = DiaryCache::get_by_text(search_text, &self.pool)?
+                .into_iter()
+                .map(|entry| {
+                    format!(
+                        "{}\n{}",
+                        entry.diary_datetime.format("%Y-%m-%dT%H:%M:%SZ"),
+                        entry.diary_text
+                    )
+                })
+                .collect();
+            de_entries.extend_from_slice(&dc_entries);
+            Ok(de_entries)
         }
-
-        let mut de_entries: Vec<_> = DiaryEntries::get_by_text(search_text, &self.pool)?
-            .into_iter()
-            .map(|entry| format!("{}\n{}", entry.diary_date, entry.diary_text))
-            .collect();
-        let dc_entries: Vec<_> = DiaryCache::get_by_text(search_text, &self.pool)?
-            .into_iter()
-            .map(|entry| {
-                format!(
-                    "{}\n{}",
-                    entry.diary_datetime.format("%Y-%m-%dT%H:%M:%SZ"),
-                    entry.diary_text
-                )
-            })
-            .collect();
-        de_entries.extend_from_slice(&dc_entries);
-        Ok(de_entries)
     }
 
     pub fn sync_entries(&self) -> Result<Vec<DiaryEntries>, Error> {
@@ -81,7 +82,7 @@ impl DiaryAppInterface {
 
     pub fn sync_merge_cache_to_entries(&self) -> Result<(), Error> {
         let results: Result<Vec<_>, Error> = DiaryCache::get_cache_entries(&self.pool)?
-            .into_iter()
+            .into_par_iter()
             .map(|entry| {
                 let previous_date = (Utc::now() - Duration::days(4)).naive_local().date();
                 let entry_date = entry.diary_datetime.naive_local().date();

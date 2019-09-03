@@ -296,21 +296,10 @@ impl S3Instance {
     }
 }
 
-// fn copy<W>(src: &mut StreamingBody, dest: &mut W) -> Result<(), Error>
-// where
-//     W: Write,
-// {
-//     let src = src.take(512 * 1024).wait();
-//     for chunk in src {
-//         dest.write_all(chunk?.as_ref())?;
-//     }
-//     Ok(())
-// }
-
 #[cfg(test)]
 mod tests {
-    use std::io::{Write, stdout};
     use crate::s3_instance::S3Instance;
+    use std::io::{stdout, Write};
 
     #[test]
     fn test_list_buckets() {

@@ -77,8 +77,9 @@ impl S3Interface {
                 }
                 Ok(None)
             })
+            .filter_map(|x| x.transpose())
             .collect();
-        Ok(results?.into_iter().filter_map(|x| x).collect())
+        Ok(results?)
     }
 
     pub fn import_from_s3(&self) -> Result<Vec<DiaryEntries>, Error> {
