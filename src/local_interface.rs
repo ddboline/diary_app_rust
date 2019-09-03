@@ -1,4 +1,4 @@
-use chrono::{DateTime, Datelike, Duration, NaiveDate, Utc};
+use chrono::{DateTime, Datelike, Duration, Local, NaiveDate, Utc};
 use failure::{err_msg, Error};
 use jwalk::WalkDir;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
@@ -67,7 +67,7 @@ impl LocalInterface {
                     .into_string()
                     .map_err(|_| err_msg("Failed parse"))?;
                 if let Ok(date) = NaiveDate::parse_from_str(&filename, "%Y-%m-%d.txt") {
-                    let previous_date = (Utc::now() - Duration::days(4)).naive_local().date();
+                    let previous_date = (Local::now() - Duration::days(4)).naive_local().date();
 
                     if date <= previous_date {
                         let filepath = format!("{}/{}", self.config.diary_path, filename);
@@ -82,7 +82,7 @@ impl LocalInterface {
             .filter_map(|x| x.transpose())
             .collect();
         let dates = dates?;
-        let current_date = Utc::now().naive_local().date();
+        let current_date = Local::now().naive_local().date();
         if !dates.contains(&current_date) {
             let filepath = format!("{}/{}.txt", self.config.diary_path, current_date);
             let mut f = File::create(&filepath)?;
