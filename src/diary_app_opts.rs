@@ -64,6 +64,7 @@ impl DiaryAppOpts {
                 dap.cache_text(&opts.text.join(" "))?;
             }
             DiaryAppCommands::Sync => {
+                dap.sync_ssh()?;
                 dap.sync_merge_cache_to_entries()?;
                 dap.sync_entries()?;
                 dap.local.cleanup_local()?;

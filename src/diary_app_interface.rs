@@ -2,6 +2,9 @@ use chrono::{Duration, NaiveDate, Utc};
 use failure::{err_msg, Error};
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use std::collections::HashSet;
+use std::fs::OpenOptions;
+use std::io::Write;
+use std::path::Path;
 
 use crate::config::Config;
 use crate::local_interface::LocalInterface;
@@ -78,7 +81,6 @@ impl DiaryAppInterface {
         let mut new_entries = self.local.import_from_local()?;
         new_entries.extend_from_slice(&self.s3.import_from_s3()?);
         new_entries.extend_from_slice(&self.s3.export_to_s3()?);
-        self.sync_ssh()?;
 
         Ok(new_entries)
     }
@@ -89,7 +91,13 @@ impl DiaryAppInterface {
             .map(|entry| {
                 let previous_date = (Utc::now() - Duration::days(4)).naive_local().date();
                 let entry_date = entry.diary_datetime.naive_local().date();
-                if entry_date <= previous_date {
+
+                let diary_file = format!("{}/{}.txt", self.config.diary_path, entry_date);
+                if Path::new(&diary_file).exists() {
+                    let mut f = OpenOptions::new().append(true).open(&diary_file)?;
+                    writeln!(f, "\n{}\n{}\n", entry.diary_datetime, entry.diary_text)?;
+                    entry.delete_entry(&self.pool)?;
+                } else {
                     if let Some(mut current_entry) =
                         DiaryEntries::get_by_date(entry_date, &self.pool)?
                             .into_iter()
@@ -99,8 +107,18 @@ impl DiaryAppInterface {
                             format!("{}\n{}", current_entry.diary_text, entry.diary_text);
                         current_entry.update_entry(&self.pool)?;
                         entry.delete_entry(&self.pool)?;
+                    } else {
+                        let new_entry = DiaryEntries {
+                            diary_date: entry_date,
+                            diary_text: entry.diary_text.to_string(),
+                            last_modified: Utc::now(),
+                        };
+                        new_entry.insert_entry(&self.pool)?;
+                        entry.delete_entry(&self.pool)?;
                     }
                 }
+
+                if entry_date <= previous_date {}
                 Ok(())
             })
             .collect();
@@ -125,15 +143,25 @@ impl DiaryAppInterface {
                 .collect();
             let command = format!("/usr/bin/diary-app-rust ser");
             let ssh_inst = SSHInstance::from_url(ssh_url)?;
-            for line in ssh_inst.run_command_stream_stdout(&command)? {
-                let item: DiaryCache = serde_json::from_str(&line)?;
-                if !cache_set.contains(&item.diary_datetime) {
-                    println!("{:?}", item);
-                    item.insert_entry(&self.pool)?;
-                }
+            let inserted_entries: Result<Vec<_>, Error> = ssh_inst
+                .run_command_stream_stdout(&command)?
+                .into_iter()
+                .map(|line| {
+                    let item: DiaryCache = serde_json::from_str(&line)?;
+                    if !cache_set.contains(&item.diary_datetime) {
+                        println!("{:?}", item);
+                        item.insert_entry(&self.pool)?;
+                        Ok(Some(item))
+                    } else {
+                        Ok(None)
+                    }
+                })
+                .filter_map(|result| result.transpose())
+                .collect();
+            if inserted_entries?.len() > 0 {
+                let command = format!("/usr/bin/diary-app-rust clear");
+                ssh_inst.run_command_ssh(&command)?;
             }
-            let command = format!("/usr/bin/diary-app-rust clear");
-            ssh_inst.run_command_ssh(&command)?;
         }
         Ok(())
     }
