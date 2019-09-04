@@ -119,9 +119,10 @@ impl DiaryAppInterface {
             if ssh_url.scheme() != "ssh" {
                 return Ok(());
             }
-            let cache_set: HashSet<_> = DiaryCache::get_cache_entries(&self.pool)?.into_iter().map(|entry| {
-                entry.diary_datetime
-            }).collect();
+            let cache_set: HashSet<_> = DiaryCache::get_cache_entries(&self.pool)?
+                .into_iter()
+                .map(|entry| entry.diary_datetime)
+                .collect();
             let command = format!("/usr/bin/diary-app-rust ser");
             let ssh_inst = SSHInstance::from_url(ssh_url)?;
             for line in ssh_inst.run_command_stream_stdout(&command)? {
@@ -131,6 +132,8 @@ impl DiaryAppInterface {
                     item.insert_entry(&self.pool)?;
                 }
             }
+            let command = format!("/usr/bin/diary-app-rust clear");
+            ssh_inst.run_command_ssh(&command)?;
         }
         Ok(())
     }

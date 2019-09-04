@@ -5,6 +5,7 @@ use structopt::StructOpt;
 
 use crate::config::Config;
 use crate::diary_app_interface::DiaryAppInterface;
+use crate::models::DiaryCache;
 use crate::pgpool::PgPool;
 
 #[derive(Debug, Clone, Copy)]
@@ -13,6 +14,7 @@ pub enum DiaryAppCommands {
     Insert,
     Sync,
     Serialize,
+    ClearCache,
 }
 
 impl FromStr for DiaryAppCommands {
@@ -24,6 +26,7 @@ impl FromStr for DiaryAppCommands {
             "insert" | "i" => Ok(DiaryAppCommands::Insert),
             "sync" => Ok(DiaryAppCommands::Sync),
             "ser" | "serialize" => Ok(DiaryAppCommands::Serialize),
+            "clear" | "clear_cache" => Ok(DiaryAppCommands::ClearCache),
             _ => Err(err_msg("Parse failure")),
         }
     }
@@ -69,6 +72,11 @@ impl DiaryAppOpts {
             DiaryAppCommands::Serialize => {
                 for entry in dap.serialize_cache()? {
                     writeln!(stdout.lock(), "{}", entry)?;
+                }
+            }
+            DiaryAppCommands::ClearCache => {
+                for entry in DiaryCache::get_cache_entries(&dap.pool)? {
+                    entry.delete_entry(&dap.pool)?;
                 }
             }
         }
