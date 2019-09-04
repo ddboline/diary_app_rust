@@ -65,7 +65,9 @@ impl DiaryAppOpts {
             }
             DiaryAppCommands::Sync => {
                 dap.sync_ssh()?;
-                dap.sync_merge_cache_to_entries()?;
+                if dap.config.ssh_url.is_some() {
+                    dap.sync_merge_cache_to_entries()?;
+                }
                 dap.sync_entries()?;
                 dap.local.cleanup_local()?;
                 dap.local.export_year_to_local()?;
