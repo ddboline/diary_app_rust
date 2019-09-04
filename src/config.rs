@@ -3,6 +3,7 @@ use std::env::var;
 use std::ops::Deref;
 use std::path::Path;
 use std::sync::Arc;
+use url::Url;
 
 #[derive(Default, Debug)]
 pub struct ConfigInner {
@@ -11,6 +12,7 @@ pub struct ConfigInner {
     pub diary_path: String,
     pub aws_region_name: String,
     pub telegram_bot_token: String,
+    pub ssh_url: Option<Url>,
 }
 
 #[derive(Default, Debug, Clone)]
@@ -50,6 +52,7 @@ impl Config {
                 .unwrap_or_else(|_| format!("{}/Dropbox/epistle", home_dir)),
             aws_region_name: var("AWS_REGION_NAME").unwrap_or_else(|_| "us-east-1".to_string()),
             telegram_bot_token: var("TELEGRAM_BOT_TOKEN").unwrap_or_else(|_| "".to_string()),
+            ssh_url: var("SSH_URL").ok().and_then(|s| s.parse().ok()),
         };
 
         Ok(Config(Arc::new(conf)))

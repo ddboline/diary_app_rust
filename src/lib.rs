@@ -1,8 +1,9 @@
 #[macro_use]
 extern crate diesel;
-
 #[macro_use]
 extern crate serde_derive;
+#[macro_use]
+extern crate lazy_static;
 
 pub mod config;
 pub mod diary_app_interface;
@@ -13,6 +14,7 @@ pub mod pgpool;
 pub mod s3_instance;
 pub mod s3_interface;
 pub mod schema;
+pub mod ssh_instance;
 
 use failure::{err_msg, Error};
 use log::error;

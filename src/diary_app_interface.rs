@@ -1,12 +1,14 @@
 use chrono::{Duration, NaiveDate, Utc};
 use failure::{err_msg, Error};
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
+use std::collections::HashSet;
 
 use crate::config::Config;
 use crate::local_interface::LocalInterface;
 use crate::models::{DiaryCache, DiaryEntries};
 use crate::pgpool::PgPool;
 use crate::s3_interface::S3Interface;
+use crate::ssh_instance::SSHInstance;
 
 pub struct DiaryAppInterface {
     pub config: Config,
@@ -76,6 +78,7 @@ impl DiaryAppInterface {
         let mut new_entries = self.local.import_from_local()?;
         new_entries.extend_from_slice(&self.s3.import_from_s3()?);
         new_entries.extend_from_slice(&self.s3.export_to_s3()?);
+        self.sync_ssh()?;
 
         Ok(new_entries)
     }
@@ -109,5 +112,42 @@ impl DiaryAppInterface {
             .into_iter()
             .map(|entry| serde_json::to_string(&entry).map_err(err_msg))
             .collect()
+    }
+
+    pub fn sync_ssh(&self) -> Result<(), Error> {
+        if let Some(ssh_url) = self.config.ssh_url.as_ref() {
+            if ssh_url.scheme() != "ssh" {
+                return Ok(());
+            }
+            let cache_set: HashSet<_> = DiaryCache::get_cache_entries(&self.pool)?.into_iter().map(|entry| {
+                entry.diary_datetime
+            }).collect();
+            let command = format!("/usr/bin/diary-app-rust ser");
+            let ssh_inst = SSHInstance::from_url(ssh_url)?;
+            for line in ssh_inst.run_command_stream_stdout(&command)? {
+                let item: DiaryCache = serde_json::from_str(&line)?;
+                if !cache_set.contains(&item.diary_datetime) {
+                    println!("{:?}", item);
+                    item.insert_entry(&self.pool)?;
+                }
+            }
+        }
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::config::Config;
+    use crate::diary_app_interface::DiaryAppInterface;
+    use crate::pgpool::PgPool;
+
+    #[test]
+    fn test_sync_ssh() {
+        let config = Config::init_config().unwrap();
+        let pool = PgPool::new(&config.database_url);
+        let dap = DiaryAppInterface::new(config, pool);
+        dap.sync_ssh().unwrap();
+        assert!(false);
     }
 }
