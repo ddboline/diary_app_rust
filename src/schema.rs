@@ -20,4 +20,8 @@ table! {
     }
 }
 
-allow_tables_to_appear_in_same_query!(authorized_users, diary_cache, diary_entries,);
+allow_tables_to_appear_in_same_query!(
+    authorized_users,
+    diary_cache,
+    diary_entries,
+);
