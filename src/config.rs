@@ -19,11 +19,11 @@ pub struct ConfigInner {
 pub struct Config(Arc<ConfigInner>);
 
 impl Config {
-    pub fn new() -> Config {
+    pub fn new() -> Self {
         Default::default()
     }
 
-    pub fn init_config() -> Result<Config, Error> {
+    pub fn init_config() -> Result<Self, Error> {
         let fname = "config.env";
 
         let home_dir = var("HOME").map_err(|e| err_msg(format!("No HOME directory {}", e)))?;
