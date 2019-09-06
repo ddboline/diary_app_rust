@@ -9,14 +9,13 @@ use s4::S4;
 use std::convert::Into;
 use std::fmt;
 use std::path::Path;
-use std::sync::Arc;
 use url::Url;
 
 use crate::exponential_retry;
 
 #[derive(Clone)]
 pub struct S3Instance {
-    s3_client: Arc<S3Client>,
+    s3_client: S3Client,
     max_keys: Option<usize>,
 }
 
@@ -29,7 +28,7 @@ impl fmt::Debug for S3Instance {
 impl Default for S3Instance {
     fn default() -> Self {
         Self {
-            s3_client: Arc::new(S3Client::new(Region::UsEast1)),
+            s3_client: S3Client::new(Region::UsEast1),
             max_keys: None,
         }
     }
@@ -39,7 +38,7 @@ impl S3Instance {
     pub fn new(aws_region_name: &str) -> Self {
         let region: Region = aws_region_name.parse().ok().unwrap_or(Region::UsEast1);
         Self {
-            s3_client: Arc::new(S3Client::new(region)),
+            s3_client: S3Client::new(region),
             max_keys: None,
         }
     }

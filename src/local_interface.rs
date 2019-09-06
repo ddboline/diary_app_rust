@@ -3,14 +3,14 @@ use failure::Error;
 use jwalk::WalkDir;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use std::collections::{BTreeMap, HashSet};
-use std::fs::remove_file;
-use std::fs::File;
-use std::io::{stdout, Read, Write};
+use std::fs::{read_to_string, remove_file, File};
+use std::io::{stdout, Write};
 
 use crate::config::Config;
 use crate::models::DiaryEntries;
 use crate::pgpool::PgPool;
 
+#[derive(Clone, Debug)]
 pub struct LocalInterface {
     pub config: Config,
     pub pool: PgPool,
@@ -36,8 +36,8 @@ impl LocalInterface {
         let results: Result<Vec<_>, Error> = year_map
             .into_par_iter()
             .map(|(year, date_list)| {
-                let mut f =
-                    File::create(format!("{}/diary_{}.txt", &self.config.diary_path, year))?;
+                let fname = format!("{}/diary_{}.txt", &self.config.diary_path, year);
+                let mut f = File::create(fname)?;
                 for date in &date_list {
                     let entries = DiaryEntries::get_by_date(*date, &self.pool)?;
                     if !entries.is_empty() {
@@ -54,7 +54,8 @@ impl LocalInterface {
         Ok(())
     }
 
-    pub fn cleanup_local(&self) -> Result<(), Error> {
+    pub fn cleanup_local(&self) -> Result<Vec<DiaryEntries>, Error> {
+        let mut new_entries = Vec::new();
         let stdout = stdout();
         let dates: Result<HashSet<_>, Error> = WalkDir::new(&self.config.diary_path)
             .sort(true)
@@ -84,8 +85,15 @@ impl LocalInterface {
             let filepath = format!("{}/{}.txt", self.config.diary_path, current_date);
             let mut f = File::create(&filepath)?;
             writeln!(f)?;
+            let d = DiaryEntries {
+                diary_date: current_date,
+                diary_text: "".into(),
+                last_modified: Utc::now(),
+            };
+            d.insert_entry(&self.pool)?;
+            new_entries.push(d);
         }
-        Ok(())
+        Ok(new_entries)
     }
 
     pub fn import_from_local(&self) -> Result<Vec<DiaryEntries>, Error> {
@@ -102,8 +110,6 @@ impl LocalInterface {
                 if let Ok(date) = NaiveDate::parse_from_str(&filename, "%Y-%m-%d.txt") {
                     if let Some(metadata) = entry.metadata.transpose()? {
                         let filepath = format!("{}/{}", self.config.diary_path, filename);
-                        let mut val = String::new();
-                        File::open(&filepath)?.read_to_string(&mut val)?;
                         let modified: DateTime<Utc> = metadata.modified()?.into();
 
                         let should_modify = match existing_map.get(&date) {
@@ -116,7 +122,7 @@ impl LocalInterface {
                         if metadata.len() > 0 && should_modify {
                             let d = DiaryEntries {
                                 diary_date: date,
-                                diary_text: val.into(),
+                                diary_text: read_to_string(&filepath)?.into(),
                                 last_modified: modified,
                             };
                             return Ok(Some(d));

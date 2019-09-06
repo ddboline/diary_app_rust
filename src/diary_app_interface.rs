@@ -1,4 +1,4 @@
-use chrono::{Duration, NaiveDate, Utc};
+use chrono::{NaiveDate, Utc};
 use failure::{err_msg, Error};
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use std::borrow::Cow;
@@ -78,19 +78,24 @@ impl DiaryAppInterface {
         }
     }
 
-    pub fn sync_entries(&self) -> Result<Vec<DiaryEntries>, Error> {
-        let mut new_entries = self.local.import_from_local()?;
-        new_entries.extend_from_slice(&self.s3.import_from_s3()?);
-        new_entries.extend_from_slice(&self.s3.export_to_s3()?);
+    pub fn sync_everything(&self) -> Result<(), Error> {
+        self.sync_ssh()?;
+        if self.config.ssh_url.is_some() {
+            self.sync_merge_cache_to_entries()?;
+        }
+        self.local.import_from_local()?;
+        self.s3.import_from_s3()?;
+        self.local.cleanup_local()?;
+        self.s3.export_to_s3()?;
+        self.local.export_year_to_local()?;
 
-        Ok(new_entries)
+        Ok(())
     }
 
-    pub fn sync_merge_cache_to_entries(&self) -> Result<(), Error> {
-        let results: Result<Vec<_>, Error> = DiaryCache::get_cache_entries(&self.pool)?
+    pub fn sync_merge_cache_to_entries(&self) -> Result<Vec<DiaryEntries>, Error> {
+        DiaryCache::get_cache_entries(&self.pool)?
             .into_par_iter()
             .map(|entry| {
-                let previous_date = (Utc::now() - Duration::days(4)).naive_local().date();
                 let entry_date = entry.diary_datetime.naive_local().date();
 
                 let diary_file = format!("{}/{}.txt", self.config.diary_path, entry_date);
@@ -108,6 +113,7 @@ impl DiaryAppInterface {
                             format!("{}\n{}", &current_entry.diary_text, entry.diary_text).into();
                         current_entry.update_entry(&self.pool)?;
                         entry.delete_entry(&self.pool)?;
+                        return Ok(Some(current_entry));
                     } else {
                         let new_entry = DiaryEntries {
                             diary_date: entry_date,
@@ -116,14 +122,13 @@ impl DiaryAppInterface {
                         };
                         new_entry.insert_entry(&self.pool)?;
                         entry.delete_entry(&self.pool)?;
+                        return Ok(Some(new_entry));
                     }
                 }
-
-                if entry_date <= previous_date {}
-                Ok(())
+                return Ok(None);
             })
-            .collect();
-        results.map(|_| ())
+            .filter_map(|x| x.transpose())
+            .collect()
     }
 
     pub fn serialize_cache(&self) -> Result<Vec<String>, Error> {
@@ -133,10 +138,10 @@ impl DiaryAppInterface {
             .collect()
     }
 
-    pub fn sync_ssh(&self) -> Result<(), Error> {
+    pub fn sync_ssh(&self) -> Result<Vec<DiaryCache>, Error> {
         if let Some(ssh_url) = self.config.ssh_url.as_ref() {
             if ssh_url.scheme() != "ssh" {
-                return Ok(());
+                return Ok(Vec::new());
             }
             let cache_set: HashSet<_> = DiaryCache::get_cache_entries(&self.pool)?
                 .into_iter()
@@ -159,12 +164,15 @@ impl DiaryAppInterface {
                 })
                 .filter_map(|result| result.transpose())
                 .collect();
-            if inserted_entries?.len() > 0 {
+            let inserted_entries = inserted_entries?;
+            if inserted_entries.len() > 0 {
                 let command = format!("/usr/bin/diary-app-rust clear");
                 ssh_inst.run_command_ssh(&command)?;
             }
+            Ok(inserted_entries)
+        } else {
+            Ok(Vec::new())
         }
-        Ok(())
     }
 }
 

@@ -64,13 +64,7 @@ impl DiaryAppOpts {
                 dap.cache_text(opts.text.join(" ").into())?;
             }
             DiaryAppCommands::Sync => {
-                dap.sync_ssh()?;
-                if dap.config.ssh_url.is_some() {
-                    dap.sync_merge_cache_to_entries()?;
-                }
-                dap.sync_entries()?;
-                dap.local.cleanup_local()?;
-                dap.local.export_year_to_local()?;
+                dap.sync_everything()?;
             }
             DiaryAppCommands::Serialize => {
                 for entry in dap.serialize_cache()? {
@@ -79,7 +73,7 @@ impl DiaryAppOpts {
             }
             DiaryAppCommands::ClearCache => {
                 for entry in DiaryCache::get_cache_entries(&dap.pool)? {
-                    writeln!(stdout.lock(), "{}", entry)?;
+                    writeln!(stdout.lock(), "{}", serde_json::to_string(&entry)?)?;
                     entry.delete_entry(&dap.pool)?;
                 }
             }
