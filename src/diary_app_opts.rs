@@ -79,6 +79,7 @@ impl DiaryAppOpts {
             }
             DiaryAppCommands::ClearCache => {
                 for entry in DiaryCache::get_cache_entries(&dap.pool)? {
+                    writeln!(stdout.lock(), "{}", entry)?;
                     entry.delete_entry(&dap.pool)?;
                 }
             }
