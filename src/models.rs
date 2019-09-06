@@ -1,6 +1,7 @@
 use chrono::{DateTime, NaiveDate, Utc};
 use diesel::{ExpressionMethods, QueryDsl, RunQueryDsl, TextExpressionMethods};
 use failure::{err_msg, Error};
+use std::borrow::Cow;
 use std::collections::HashMap;
 
 use crate::pgpool::PgPool;
@@ -8,17 +9,17 @@ use crate::schema::{authorized_users, diary_cache, diary_entries};
 
 #[derive(Queryable, Insertable, Clone, Debug)]
 #[table_name = "diary_entries"]
-pub struct DiaryEntries {
+pub struct DiaryEntries<'a> {
     pub diary_date: NaiveDate,
-    pub diary_text: String,
+    pub diary_text: Cow<'a, str>,
     pub last_modified: DateTime<Utc>,
 }
 
 #[derive(Queryable, Insertable, Clone, Debug, Serialize, Deserialize)]
 #[table_name = "diary_cache"]
-pub struct DiaryCache {
+pub struct DiaryCache<'a> {
     pub diary_datetime: DateTime<Utc>,
-    pub diary_text: String,
+    pub diary_text: Cow<'a, str>,
 }
 
 #[derive(Queryable, Insertable, Clone, Debug)]
@@ -36,7 +37,7 @@ impl AuthorizedUsers {
     }
 }
 
-impl DiaryEntries {
+impl DiaryEntries<'_> {
     pub fn insert_entry(&self, pool: &PgPool) -> Result<(), Error> {
         use crate::schema::diary_entries::dsl::diary_entries;
 
@@ -95,7 +96,7 @@ impl DiaryEntries {
     }
 }
 
-impl DiaryCache {
+impl DiaryCache<'_> {
     pub fn insert_entry(&self, pool: &PgPool) -> Result<(), Error> {
         use crate::schema::diary_cache::dsl::diary_cache;
         let conn = pool.get()?;

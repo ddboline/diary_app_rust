@@ -1,6 +1,7 @@
 use chrono::{Duration, NaiveDate, Utc};
 use failure::{err_msg, Error};
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
+use std::borrow::Cow;
 use std::collections::HashSet;
 use std::fs::OpenOptions;
 use std::io::Write;
@@ -30,10 +31,10 @@ impl DiaryAppInterface {
         }
     }
 
-    pub fn cache_text(&self, diary_text: &str) -> Result<DiaryCache, Error> {
+    pub fn cache_text<'a>(&self, diary_text: Cow<'a, str>) -> Result<DiaryCache<'a>, Error> {
         let dc = DiaryCache {
             diary_datetime: Utc::now(),
-            diary_text: diary_text.to_string(),
+            diary_text: diary_text.into(),
         };
         dc.insert_entry(&self.pool)?;
         Ok(dc)
@@ -104,13 +105,13 @@ impl DiaryAppInterface {
                             .nth(0)
                     {
                         current_entry.diary_text =
-                            format!("{}\n{}", current_entry.diary_text, entry.diary_text);
+                            format!("{}\n{}", &current_entry.diary_text, entry.diary_text).into();
                         current_entry.update_entry(&self.pool)?;
                         entry.delete_entry(&self.pool)?;
                     } else {
                         let new_entry = DiaryEntries {
                             diary_date: entry_date,
-                            diary_text: entry.diary_text.to_string(),
+                            diary_text: entry.diary_text.clone().into(),
                             last_modified: Utc::now(),
                         };
                         new_entry.insert_entry(&self.pool)?;
@@ -174,11 +175,12 @@ mod tests {
     use crate::pgpool::PgPool;
 
     #[test]
-    fn test_sync_ssh() {
+    fn test_search_text() {
         let config = Config::init_config().unwrap();
         let pool = PgPool::new(&config.database_url);
         let dap = DiaryAppInterface::new(config, pool);
-        dap.sync_ssh().unwrap();
-        assert!(false);
+        let results = dap.search_text("2011-05-23").unwrap();
+        assert_eq!(results.len(), 1);
+        assert!(results[0].starts_with("2011-05-23"));
     }
 }

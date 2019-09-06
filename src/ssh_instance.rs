@@ -22,10 +22,10 @@ pub struct SSHInstance {
 
 impl SSHInstance {
     pub fn new(user: &str, host: &str, port: u16) -> Self {
-        LOCK_CACHE.write().insert(host.to_string(), Mutex::new(()));
+        LOCK_CACHE.write().insert(host.into(), Mutex::new(()));
         Self {
-            user: user.to_string(),
-            host: host.to_string(),
+            user: user.into(),
+            host: host.into(),
             port,
         }
     }

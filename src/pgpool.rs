@@ -12,7 +12,7 @@ pub struct PgPool {
 
 impl fmt::Debug for PgPool {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "PgPool {}", self.pgurl)
+        write!(f, "PgPool {}", &self.pgurl)
     }
 }
 
@@ -20,7 +20,7 @@ impl PgPool {
     pub fn new(pgurl: &str) -> PgPool {
         let manager = ConnectionManager::new(pgurl);
         PgPool {
-            pgurl: pgurl.to_string(),
+            pgurl: pgurl.into(),
             pool: Pool::new(manager).expect("Failed to open DB connection"),
         }
     }

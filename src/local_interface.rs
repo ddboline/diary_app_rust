@@ -1,5 +1,5 @@
 use chrono::{DateTime, Datelike, Duration, Local, NaiveDate, Utc};
-use failure::{err_msg, Error};
+use failure::Error;
 use jwalk::WalkDir;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use std::collections::{BTreeMap, HashSet};
@@ -62,10 +62,7 @@ impl LocalInterface {
             .into_iter()
             .map(|entry| {
                 let entry = entry?;
-                let filename = entry
-                    .file_name
-                    .into_string()
-                    .map_err(|_| err_msg("Failed parse"))?;
+                let filename = entry.file_name.to_string_lossy();
                 if let Ok(date) = NaiveDate::parse_from_str(&filename, "%Y-%m-%d.txt") {
                     let previous_date = (Local::now() - Duration::days(4)).naive_local().date();
 
@@ -101,10 +98,7 @@ impl LocalInterface {
             .into_iter()
             .map(|entry| {
                 let entry = entry?;
-                let filename = entry
-                    .file_name
-                    .into_string()
-                    .map_err(|_| err_msg("Failed parse"))?;
+                let filename = entry.file_name.to_string_lossy();
                 if let Ok(date) = NaiveDate::parse_from_str(&filename, "%Y-%m-%d.txt") {
                     if let Some(metadata) = entry.metadata.transpose()? {
                         let filepath = format!("{}/{}", self.config.diary_path, filename);
@@ -122,7 +116,7 @@ impl LocalInterface {
                         if metadata.len() > 0 && should_modify {
                             let d = DiaryEntries {
                                 diary_date: date,
-                                diary_text: val,
+                                diary_text: val.into(),
                                 last_modified: modified,
                             };
                             return Ok(Some(d));

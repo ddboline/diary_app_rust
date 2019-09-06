@@ -61,7 +61,7 @@ impl DiaryAppOpts {
                 writeln!(stdout.lock(), "{}", result.join("\n"))?;
             }
             DiaryAppCommands::Insert => {
-                dap.cache_text(&opts.text.join(" "))?;
+                dap.cache_text(opts.text.join(" ").into())?;
             }
             DiaryAppCommands::Sync => {
                 dap.sync_ssh()?;

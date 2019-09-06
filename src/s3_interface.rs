@@ -115,7 +115,7 @@ impl S3Interface {
                                     .ok()
                                     .map(|val| DiaryEntries {
                                         diary_date: date,
-                                        diary_text: val,
+                                        diary_text: val.into(),
                                         last_modified,
                                     })
                             } else {

@@ -6,6 +6,7 @@ use rusoto_s3::{
     GetObjectRequest, ListObjectsV2Request, Object, PutObjectRequest, S3Client, S3,
 };
 use s4::S4;
+use std::convert::Into;
 use std::fmt;
 use std::path::Path;
 use std::sync::Arc;
@@ -62,7 +63,7 @@ impl S3Instance {
         exponential_retry(|| {
             self.s3_client
                 .create_bucket(CreateBucketRequest {
-                    bucket: bucket_name.to_string(),
+                    bucket: bucket_name.into(),
                     ..Default::default()
                 })
                 .sync()?
@@ -75,7 +76,7 @@ impl S3Instance {
         exponential_retry(|| {
             self.s3_client
                 .delete_bucket(DeleteBucketRequest {
-                    bucket: bucket_name.to_string(),
+                    bucket: bucket_name.into(),
                 })
                 .sync()
                 .map_err(err_msg)
@@ -86,8 +87,8 @@ impl S3Instance {
         exponential_retry(|| {
             self.s3_client
                 .delete_object(DeleteObjectRequest {
-                    bucket: bucket_name.to_string(),
-                    key: key_name.to_string(),
+                    bucket: bucket_name.into(),
+                    key: key_name.into(),
                     ..Default::default()
                 })
                 .sync()
@@ -103,12 +104,11 @@ impl S3Instance {
         key_to: &str,
     ) -> Result<Option<String>, Error> {
         exponential_retry(|| {
-            let copy_source = source.to_string();
             self.s3_client
                 .copy_object(CopyObjectRequest {
-                    copy_source,
-                    bucket: bucket_to.to_string(),
-                    key: key_to.to_string(),
+                    copy_source: source.to_string(),
+                    bucket: bucket_to.into(),
+                    key: key_to.into(),
                     ..Default::default()
                 })
                 .sync()
@@ -127,8 +127,8 @@ impl S3Instance {
                     .upload_from_file(
                         fname,
                         PutObjectRequest {
-                            bucket: bucket_name.to_string(),
-                            key: key_name.to_string(),
+                            bucket: bucket_name.into(),
+                            key: key_name.into(),
                             ..Default::default()
                         },
                     )
@@ -145,8 +145,8 @@ impl S3Instance {
         key_name: &str,
     ) -> Result<(), Error> {
         let target = PutObjectRequest {
-            bucket: bucket_name.to_string(),
-            key: key_name.to_string(),
+            bucket: bucket_name.into(),
+            key: key_name.into(),
             body: Some(input_str.to_string().into_bytes().into()),
             ..Default::default()
         };
@@ -160,8 +160,8 @@ impl S3Instance {
     pub fn download_to_string(&self, bucket_name: &str, key_name: &str) -> Result<String, Error> {
         exponential_retry(|| {
             let source = GetObjectRequest {
-                bucket: bucket_name.to_string(),
-                key: key_name.to_string(),
+                bucket: bucket_name.into(),
+                key: key_name.into(),
                 ..Default::default()
             };
             let mut resp = self.s3_client.get_object(source).sync()?;
@@ -186,20 +186,19 @@ impl S3Instance {
             self.s3_client
                 .download_to_file(
                     GetObjectRequest {
-                        bucket: bucket_name.to_string(),
-                        key: key_name.to_string(),
+                        bucket: bucket_name.into(),
+                        key: key_name.into(),
                         ..Default::default()
                     },
                     fname,
                 )
-                .map(|x| {
+                .map_err(err_msg)
+                .and_then(|x| {
                     x.e_tag
                         .as_ref()
-                        .map(|y| y.trim_matches('"'))
-                        .unwrap_or("")
-                        .to_string()
+                        .map(|y| y.trim_matches('"').into())
+                        .ok_or_else(|| err_msg("Failed download"))
                 })
-                .map_err(err_msg)
         })
     }
 
@@ -216,9 +215,9 @@ impl S3Instance {
             let current_list = exponential_retry(|| {
                 self.s3_client
                     .list_objects_v2(ListObjectsV2Request {
-                        bucket: bucket.to_string(),
+                        bucket: bucket.into(),
                         continuation_token: continuation_token.clone(),
-                        prefix: prefix.map(ToString::to_string),
+                        prefix: prefix.map(Into::into),
                         ..Default::default()
                     })
                     .sync()
@@ -265,9 +264,9 @@ impl S3Instance {
             let current_list = exponential_retry(|| {
                 self.s3_client
                     .list_objects_v2(ListObjectsV2Request {
-                        bucket: bucket.to_string(),
+                        bucket: bucket.into(),
                         continuation_token: continuation_token.clone(),
-                        prefix: prefix.map(ToString::to_string),
+                        prefix: prefix.map(Into::into),
                         ..Default::default()
                     })
                     .sync()

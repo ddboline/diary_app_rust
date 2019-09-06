@@ -76,7 +76,7 @@ pub fn run_bot(telegram_bot_token: &str, pool: PgPool, scope: &Scope) -> Result<
                         }
                         Some("insert") | Some("i") => {
                             let insert_text = data.trim_start_matches(first_word.unwrap()).trim();
-                            if let Ok(cache_entry) = dapp_interface.cache_text(insert_text) {
+                            if let Ok(cache_entry) = dapp_interface.cache_text(insert_text.into()) {
                                 api.spawn(
                                     message.text_reply(format!("cached entry {:?}", cache_entry)),
                                 );
