@@ -103,6 +103,7 @@ impl DiaryAppInterface {
                     let mut f = OpenOptions::new().append(true).open(&diary_file)?;
                     writeln!(f, "\n{}\n{}\n", entry.diary_datetime, entry.diary_text)?;
                     entry.delete_entry(&self.pool)?;
+                    Ok(None)
                 } else {
                     if let Some(mut current_entry) =
                         DiaryEntries::get_by_date(entry_date, &self.pool)?
@@ -113,7 +114,7 @@ impl DiaryAppInterface {
                             format!("{}\n{}", &current_entry.diary_text, entry.diary_text).into();
                         current_entry.update_entry(&self.pool)?;
                         entry.delete_entry(&self.pool)?;
-                        return Ok(Some(current_entry));
+                        Ok(Some(current_entry))
                     } else {
                         let new_entry = DiaryEntries {
                             diary_date: entry_date,
@@ -122,10 +123,9 @@ impl DiaryAppInterface {
                         };
                         new_entry.insert_entry(&self.pool)?;
                         entry.delete_entry(&self.pool)?;
-                        return Ok(Some(new_entry));
+                        Ok(Some(new_entry))
                     }
                 }
-                return Ok(None);
             })
             .filter_map(|x| x.transpose())
             .collect()
