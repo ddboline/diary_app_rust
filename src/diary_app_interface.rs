@@ -1,4 +1,4 @@
-use chrono::{NaiveDate, Utc};
+use chrono::{Local, NaiveDate, Utc};
 use failure::{err_msg, Error};
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use std::borrow::Cow;
@@ -34,7 +34,7 @@ impl DiaryAppInterface {
     pub fn cache_text<'a>(&self, diary_text: Cow<'a, str>) -> Result<DiaryCache<'a>, Error> {
         let dc = DiaryCache {
             diary_datetime: Utc::now(),
-            diary_text: diary_text.into(),
+            diary_text,
         };
         dc.insert_entry(&self.pool)?;
         Ok(dc)
@@ -49,7 +49,13 @@ impl DiaryAppInterface {
             let dc_entries: Vec<_> = DiaryCache::get_cache_entries(&self.pool)?
                 .into_iter()
                 .filter_map(|entry| {
-                    if entry.diary_datetime.naive_local().date() == date {
+                    if entry
+                        .diary_datetime
+                        .with_timezone(&Local)
+                        .naive_local()
+                        .date()
+                        == date
+                    {
                         Some(format!("{}\n{}", entry.diary_datetime, entry.diary_text))
                     } else {
                         None
@@ -96,7 +102,11 @@ impl DiaryAppInterface {
         DiaryCache::get_cache_entries(&self.pool)?
             .into_par_iter()
             .map(|entry| {
-                let entry_date = entry.diary_datetime.naive_local().date();
+                let entry_date = entry
+                    .diary_datetime
+                    .with_timezone(&Local)
+                    .naive_local()
+                    .date();
 
                 let diary_file = format!("{}/{}.txt", self.config.diary_path, entry_date);
                 if Path::new(&diary_file).exists() {
@@ -104,27 +114,26 @@ impl DiaryAppInterface {
                     writeln!(f, "\n{}\n{}\n", entry.diary_datetime, entry.diary_text)?;
                     entry.delete_entry(&self.pool)?;
                     Ok(None)
+                } else if let Some(mut current_entry) =
+                    DiaryEntries::get_by_date(entry_date, &self.pool)?
+                        .into_iter()
+                        .nth(0)
+                {
+                    current_entry.diary_text =
+                        format!("{}\n{}", &current_entry.diary_text, entry.diary_text).into();
+                    println!("insert into {}", diary_file);
+                    current_entry.update_entry(&self.pool)?;
+                    entry.delete_entry(&self.pool)?;
+                    Ok(Some(current_entry))
                 } else {
-                    if let Some(mut current_entry) =
-                        DiaryEntries::get_by_date(entry_date, &self.pool)?
-                            .into_iter()
-                            .nth(0)
-                    {
-                        current_entry.diary_text =
-                            format!("{}\n{}", &current_entry.diary_text, entry.diary_text).into();
-                        current_entry.update_entry(&self.pool)?;
-                        entry.delete_entry(&self.pool)?;
-                        Ok(Some(current_entry))
-                    } else {
-                        let new_entry = DiaryEntries {
-                            diary_date: entry_date,
-                            diary_text: entry.diary_text.clone().into(),
-                            last_modified: Utc::now(),
-                        };
-                        new_entry.insert_entry(&self.pool)?;
-                        entry.delete_entry(&self.pool)?;
-                        Ok(Some(new_entry))
-                    }
+                    let new_entry = DiaryEntries {
+                        diary_date: entry_date,
+                        diary_text: entry.diary_text.clone(),
+                        last_modified: Utc::now(),
+                    };
+                    new_entry.insert_entry(&self.pool)?;
+                    entry.delete_entry(&self.pool)?;
+                    Ok(Some(new_entry))
                 }
             })
             .filter_map(|x| x.transpose())
@@ -147,10 +156,10 @@ impl DiaryAppInterface {
                 .into_iter()
                 .map(|entry| entry.diary_datetime)
                 .collect();
-            let command = format!("/usr/bin/diary-app-rust ser");
+            let command = "/usr/bin/diary-app-rust ser";
             let ssh_inst = SSHInstance::from_url(ssh_url)?;
             let inserted_entries: Result<Vec<_>, Error> = ssh_inst
-                .run_command_stream_stdout(&command)?
+                .run_command_stream_stdout(command)?
                 .into_iter()
                 .map(|line| {
                     let item: DiaryCache = serde_json::from_str(&line)?;
@@ -165,9 +174,9 @@ impl DiaryAppInterface {
                 .filter_map(|result| result.transpose())
                 .collect();
             let inserted_entries = inserted_entries?;
-            if inserted_entries.len() > 0 {
-                let command = format!("/usr/bin/diary-app-rust clear");
-                ssh_inst.run_command_ssh(&command)?;
+            if !inserted_entries.is_empty() {
+                let command = "/usr/bin/diary-app-rust clear";
+                ssh_inst.run_command_ssh(command)?;
             }
             Ok(inserted_entries)
         } else {
