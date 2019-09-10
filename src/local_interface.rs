@@ -83,21 +83,25 @@ impl LocalInterface {
         let current_date = Local::now().naive_local().date();
         if !dates.contains(&current_date) {
             let existing_entries = DiaryEntries::get_by_date(current_date, &self.pool)?;
-            let existing_entries: Vec<_> =
-                existing_entries.into_iter().map(|e| e.diary_text).collect();
-            let existing_entries = existing_entries.join("\n");
 
             let filepath = format!("{}/{}.txt", self.config.diary_path, current_date);
 
             let mut f = File::create(&filepath)?;
-            writeln!(f)?;
-            let d = DiaryEntries {
-                diary_date: current_date,
-                diary_text: existing_entries.into(),
-                last_modified: Utc::now(),
-            };
-            d.insert_entry(&self.pool)?;
-            new_entries.push(d);
+            if existing_entries.is_empty() {
+                writeln!(f)?;
+                let d = DiaryEntries {
+                    diary_date: current_date,
+                    diary_text: "".into(),
+                    last_modified: Utc::now(),
+                };
+                d.insert_entry(&self.pool)?;
+                new_entries.push(d);
+            } else {
+                for entry in existing_entries {
+                    writeln!(f, "{}", &entry.diary_text)?;
+                    new_entries.push(entry);
+                }
+            }
         }
         Ok(new_entries)
     }
