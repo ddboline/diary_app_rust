@@ -1,4 +1,4 @@
-use failure::{err_msg, Error};
+use failure::{format_err, Error};
 use std::env::var;
 use std::ops::Deref;
 use std::path::Path;
@@ -26,7 +26,7 @@ impl Config {
     pub fn init_config() -> Result<Self, Error> {
         let fname = "config.env";
 
-        let home_dir = var("HOME").map_err(|e| err_msg(format!("No HOME directory {}", e)))?;
+        let home_dir = var("HOME").map_err(|e| format_err!("No HOME directory {}", e))?;
 
         let default_fname = format!("{}/.config/diary_app_rust/config.env", home_dir);
 
@@ -46,7 +46,7 @@ impl Config {
 
         let conf = ConfigInner {
             database_url: var("DATABASE_URL")
-                .map_err(|e| err_msg(format!("DATABASE_URL must be set {}", e)))?,
+                .map_err(|e| format_err!("DATABASE_URL must be set {}", e))?,
             diary_bucket: var("DIARY_BUCKET").unwrap_or_else(|_| "diary_bucket".to_string()),
             diary_path: var("DIARY_PATH")
                 .unwrap_or_else(|_| format!("{}/Dropbox/epistle", home_dir)),

@@ -1,4 +1,4 @@
-use failure::{err_msg, Error};
+use failure::{err_msg, format_err, Error};
 use log::debug;
 use parking_lot::{Mutex, RwLock};
 use std::collections::HashMap;
@@ -112,7 +112,7 @@ impl SSHInstance {
                 status = Exec::shell(cmd).join()?.success();
             };
             if !status {
-                Err(err_msg(format!("{} failed", cmd)))
+                Err(format_err!("{} failed", cmd))
             } else {
                 Ok(())
             }

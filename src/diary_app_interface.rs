@@ -1,6 +1,5 @@
 use chrono::{Local, NaiveDate, Utc};
 use failure::{err_msg, Error};
-use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use std::borrow::Cow;
 use std::collections::HashSet;
 use std::fs::OpenOptions;
@@ -100,7 +99,7 @@ impl DiaryAppInterface {
 
     pub fn sync_merge_cache_to_entries(&self) -> Result<Vec<DiaryEntries>, Error> {
         DiaryCache::get_cache_entries(&self.pool)?
-            .into_par_iter()
+            .into_iter()
             .map(|entry| {
                 let entry_date = entry
                     .diary_datetime
@@ -112,6 +111,7 @@ impl DiaryAppInterface {
                 if Path::new(&diary_file).exists() {
                     let mut f = OpenOptions::new().append(true).open(&diary_file)?;
                     writeln!(f, "\n{}\n{}\n", entry.diary_datetime, entry.diary_text)?;
+                    f.flush()?;
                     entry.delete_entry(&self.pool)?;
                     Ok(None)
                 } else if let Some(mut current_entry) =
