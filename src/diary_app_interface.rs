@@ -101,17 +101,13 @@ impl DiaryAppInterface {
         DiaryCache::get_cache_entries(&self.pool)?
             .into_iter()
             .map(|entry| {
-                let entry_date = entry
-                    .diary_datetime
-                    .with_timezone(&Local)
-                    .naive_local()
-                    .date();
+                let entry_datetime = entry.diary_datetime.with_timezone(&Local);
+                let entry_date = entry_datetime.naive_local().date();
 
                 let diary_file = format!("{}/{}.txt", self.config.diary_path, entry_date);
                 if Path::new(&diary_file).exists() {
                     let mut f = OpenOptions::new().append(true).open(&diary_file)?;
-                    writeln!(f, "\n{}\n{}\n", entry.diary_datetime, entry.diary_text)?;
-                    f.flush()?;
+                    writeln!(f, "\n{}\n{}\n", entry_datetime, entry.diary_text)?;
                     entry.delete_entry(&self.pool)?;
                     Ok(None)
                 } else if let Some(mut current_entry) =
