@@ -1,5 +1,4 @@
-#[macro_use]
-extern crate lazy_static;
+use lazy_static::lazy_static;
 
 use crossbeam_utils::thread::{self, Scope};
 use failure::{err_msg, Error};

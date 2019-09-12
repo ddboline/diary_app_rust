@@ -1,3 +1,5 @@
+use diesel::{Queryable, Insertable};
+use serde::{Serialize, Deserialize};
 use chrono::{DateTime, NaiveDate, Utc};
 use diesel::{ExpressionMethods, QueryDsl, RunQueryDsl, TextExpressionMethods};
 use failure::{err_msg, Error};
