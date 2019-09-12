@@ -1,8 +1,8 @@
-use diesel::{Queryable, Insertable};
-use serde::{Serialize, Deserialize};
 use chrono::{DateTime, NaiveDate, Utc};
 use diesel::{ExpressionMethods, QueryDsl, RunQueryDsl, TextExpressionMethods};
+use diesel::{Insertable, Queryable};
 use failure::{err_msg, Error};
+use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
 use std::collections::HashMap;
 

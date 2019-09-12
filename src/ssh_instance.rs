@@ -1,5 +1,5 @@
-use lazy_static::lazy_static;
 use failure::{err_msg, Error};
+use lazy_static::lazy_static;
 use log::debug;
 use parking_lot::{Mutex, RwLock};
 use std::collections::HashMap;
