@@ -1,7 +1,7 @@
 use lazy_static::lazy_static;
 
 use crossbeam_utils::thread::{self, Scope};
-use failure::{err_msg, Error};
+use failure::{format_err, Error};
 use futures::Stream;
 use log::debug;
 use parking_lot::RwLock;
@@ -36,7 +36,7 @@ pub fn run_bot(telegram_bot_token: &str, pool: PgPool, scope: &Scope) -> Result<
 
     let api = Api::configure(telegram_bot_token)
         .build(core.handle())
-        .map_err(|e| err_msg(format!("{}", e)))?;
+        .map_err(|e| format_err!("{}", e))?;
 
     // Fetch new updates via long poll method
     let future = api.stream().for_each(|update| {
@@ -100,7 +100,7 @@ pub fn run_bot(telegram_bot_token: &str, pool: PgPool, scope: &Scope) -> Result<
         Ok(())
     });
 
-    core.run(future).map_err(|e| err_msg(format!("{}", e)))?;
+    core.run(future).map_err(|e| format_err!("{}", e))?;
     drop(userid_handle);
     Ok(())
 }
@@ -125,7 +125,7 @@ fn main() {
     let config = Config::init_config().unwrap();
     let pool = PgPool::new(&config.database_url);
     thread::scope(|scope| run_bot(&config.telegram_bot_token, pool, scope))
-        .map_err(|x| err_msg(format!("{:?}", x)))
+        .map_err(|x| format_err!("{:?}", x))
         .and_then(|r| r)
         .unwrap();
 }

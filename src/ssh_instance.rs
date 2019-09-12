@@ -1,4 +1,4 @@
-use failure::{err_msg, Error};
+use failure::{err_msg, Error, format_err};
 use lazy_static::lazy_static;
 use log::debug;
 use parking_lot::{Mutex, RwLock};
@@ -113,7 +113,7 @@ impl SSHInstance {
                 status = Exec::shell(cmd).join()?.success();
             };
             if !status {
-                Err(err_msg(format!("{} failed", cmd)))
+                Err(format_err!("{} failed", cmd))
             } else {
                 Ok(())
             }

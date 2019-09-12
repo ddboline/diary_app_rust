@@ -67,6 +67,13 @@ impl DiaryEntries<'_> {
             .map(|_| ())
     }
 
+    pub fn upsert_entry(&self, pool: &PgPool) -> Result<(), Error> {
+        match Self::get_by_date(self.diary_date, pool)?.into_iter().nth(0) {
+            Some(_) => self.update_entry(pool),
+            None => self.insert_entry(pool),
+        }
+    }
+
     pub fn get_modified_map(pool: &PgPool) -> Result<HashMap<NaiveDate, DateTime<Utc>>, Error> {
         use crate::schema::diary_entries::dsl::{diary_date, diary_entries, last_modified};
         let conn = pool.get()?;

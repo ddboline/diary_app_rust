@@ -1,6 +1,5 @@
 use chrono::{Local, NaiveDate, Utc};
 use failure::{err_msg, Error};
-use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use std::borrow::Cow;
 use std::collections::HashSet;
 use std::fs::OpenOptions;
@@ -100,7 +99,7 @@ impl DiaryAppInterface {
 
     pub fn sync_merge_cache_to_entries(&self) -> Result<Vec<DiaryEntries>, Error> {
         DiaryCache::get_cache_entries(&self.pool)?
-            .into_par_iter()
+            .into_iter()
             .map(|entry| {
                 let entry_datetime = entry.diary_datetime.with_timezone(&Local);
                 let entry_date = entry_datetime.naive_local().date();
