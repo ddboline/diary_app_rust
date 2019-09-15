@@ -122,12 +122,12 @@ impl DiaryAppInterface {
                         format!("{}\n{}", entry_datetime, entry.diary_text)
                     })
                     .collect();
-                let entry_string = entry_string.join("\n");
+                let entry_string = entry_string.join("\n\n");
 
                 let diary_file = format!("{}/{}.txt", self.config.diary_path, entry_date);
                 let result = if Path::new(&diary_file).exists() {
                     let mut f = OpenOptions::new().append(true).open(&diary_file)?;
-                    writeln!(f, "\n{}\n", entry_string)?;
+                    writeln!(f, "\n\n{}\n\n", entry_string)?;
                     None
                 } else if let Some(mut current_entry) =
                     DiaryEntries::get_by_date(entry_date, &self.pool)?
@@ -135,7 +135,7 @@ impl DiaryAppInterface {
                         .nth(0)
                 {
                     current_entry.diary_text =
-                        format!("{}\n{}\n", &current_entry.diary_text, entry_string).into();
+                        format!("{}\n\n{}", &current_entry.diary_text, entry_string).into();
                     println!("insert into {}", diary_file);
                     current_entry.update_entry(&self.pool)?;
                     Some(current_entry)
