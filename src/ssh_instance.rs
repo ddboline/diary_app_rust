@@ -1,4 +1,4 @@
-use failure::{err_msg, Error, format_err};
+use failure::{err_msg, format_err, Error};
 use lazy_static::lazy_static;
 use log::debug;
 use parking_lot::{Mutex, RwLock};
