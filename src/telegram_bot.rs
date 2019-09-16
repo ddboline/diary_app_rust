@@ -18,15 +18,15 @@ use diary_app_rust::diary_app_interface::DiaryAppInterface;
 use diary_app_rust::models::AuthorizedUsers;
 use diary_app_rust::pgpool::PgPool;
 
+type UserIds = Arc<RwLock<HashSet<UserId>>>;
+type OBuffer = Arc<RwLock<Vec<String>>>;
+
 lazy_static! {
-    static ref TELEGRAM_USERIDS: Arc<RwLock<HashSet<UserId>>> =
-        Arc::new(RwLock::new(HashSet::new()));
-    static ref OUTPUT_BUFFER: Arc<RwLock<Vec<String>>> = Arc::new(RwLock::new(Vec::new()));
+    static ref TELEGRAM_USERIDS: UserIds = Arc::new(RwLock::new(HashSet::new()));
+    static ref OUTPUT_BUFFER: OBuffer = Arc::new(RwLock::new(Vec::new()));
 }
 
 pub fn run_bot(telegram_bot_token: &str, pool: PgPool, scope: &Scope) -> Result<(), Error> {
-    // let (s, r) = unbounded();
-
     let pool_ = pool.clone();
     let userid_handle = scope.spawn(move |_| fill_telegram_user_ids(pool_));
     let config = Config::init_config()?;
