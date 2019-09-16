@@ -1,7 +1,8 @@
 use chrono::{Local, NaiveDate, Utc};
 use failure::{err_msg, Error};
+use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use std::borrow::Cow;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::fs::OpenOptions;
 use std::io::Write;
 use std::path::Path;
@@ -98,39 +99,63 @@ impl DiaryAppInterface {
     }
 
     pub fn sync_merge_cache_to_entries(&self) -> Result<Vec<DiaryEntries>, Error> {
-        DiaryCache::get_cache_entries(&self.pool)?
-            .into_iter()
-            .map(|entry| {
-                let entry_datetime = entry.diary_datetime.with_timezone(&Local);
-                let entry_date = entry_datetime.naive_local().date();
+        let date_entry_map = DiaryCache::get_cache_entries(&self.pool)?.into_iter().fold(
+            HashMap::new(),
+            |mut acc, entry| {
+                let entry_date = entry
+                    .diary_datetime
+                    .with_timezone(&Local)
+                    .naive_local()
+                    .date();
+                acc.entry(entry_date).or_insert_with(Vec::new).push(entry);
+                acc
+            },
+        );
+
+        date_entry_map
+            .into_par_iter()
+            .map(|(entry_date, entry_list)| {
+                let entry_string: Vec<_> = entry_list
+                    .iter()
+                    .map(|entry| {
+                        let entry_datetime = entry.diary_datetime.with_timezone(&Local);
+                        format!("{}\n{}", entry_datetime, entry.diary_text)
+                    })
+                    .collect();
+                let entry_string = entry_string.join("\n\n");
 
                 let diary_file = format!("{}/{}.txt", self.config.diary_path, entry_date);
-                if Path::new(&diary_file).exists() {
+                let result = if Path::new(&diary_file).exists() {
                     let mut f = OpenOptions::new().append(true).open(&diary_file)?;
-                    writeln!(f, "\n{}\n{}\n", entry_datetime, entry.diary_text)?;
-                    entry.delete_entry(&self.pool)?;
-                    Ok(None)
+                    writeln!(f, "\n\n{}\n\n", entry_string)?;
+                    None
                 } else if let Some(mut current_entry) =
                     DiaryEntries::get_by_date(entry_date, &self.pool)?
                         .into_iter()
                         .nth(0)
                 {
                     current_entry.diary_text =
-                        format!("{}\n{}", &current_entry.diary_text, entry.diary_text).into();
+                        format!("{}\n\n{}", &current_entry.diary_text, entry_string).into();
                     println!("insert into {}", diary_file);
                     current_entry.update_entry(&self.pool)?;
-                    entry.delete_entry(&self.pool)?;
-                    Ok(Some(current_entry))
+                    Some(current_entry)
                 } else {
                     let new_entry = DiaryEntries {
                         diary_date: entry_date,
-                        diary_text: entry.diary_text.clone(),
+                        diary_text: entry_string.into(),
                         last_modified: Utc::now(),
                     };
                     new_entry.insert_entry(&self.pool)?;
-                    entry.delete_entry(&self.pool)?;
-                    Ok(Some(new_entry))
-                }
+                    Some(new_entry)
+                };
+
+                let res: Result<Vec<_>, Error> = entry_list
+                    .into_par_iter()
+                    .map(|entry| entry.delete_entry(&self.pool))
+                    .collect();
+                res?;
+
+                Ok(result)
             })
             .filter_map(|x| x.transpose())
             .collect()
