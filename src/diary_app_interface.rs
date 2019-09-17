@@ -1,4 +1,5 @@
 use chrono::{Local, NaiveDate, Utc};
+use crossbeam_utils::thread;
 use failure::{err_msg, Error};
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use std::borrow::Cow;
@@ -89,13 +90,25 @@ impl DiaryAppInterface {
         if self.config.ssh_url.is_some() {
             self.sync_merge_cache_to_entries()?;
         }
-        self.local.import_from_local()?;
-        self.s3.import_from_s3()?;
-        self.local.cleanup_local()?;
-        self.s3.export_to_s3()?;
-        self.local.export_year_to_local()?;
+        let res: Result<(), Error> = thread::scope(|s| {
+            let local = s.spawn(move |_| self.local.import_from_local().map(|_| ()));
+            let s3 = s.spawn(move |_| self.s3.import_from_s3().map(|_| ()));
+            local.join().expect("import_from_local paniced")?;
+            s3.join().expect("import_from_s3 paniced")?;
+            Ok(())
+        })
+        .expect("scoped thread panic");
+        res.and_then(|_| self.local.cleanup_local())?;
 
-        Ok(())
+        let res: Result<(), Error> = thread::scope(|s| {
+            let s3 = s.spawn(move |_| self.s3.export_to_s3().map(|_| ()));
+            let local = s.spawn(move |_| self.local.export_year_to_local().map(|_| ()));
+            local.join().expect("import_from_local paniced")?;
+            s3.join().expect("import_from_s3 paniced")?;
+            Ok(())
+        })
+        .expect("scoped thread panic");
+        res
     }
 
     pub fn sync_merge_cache_to_entries(&self) -> Result<Vec<DiaryEntries>, Error> {

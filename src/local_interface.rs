@@ -1,10 +1,11 @@
-use chrono::{DateTime, Datelike, Duration, Local, NaiveDate, Utc};
+use chrono::{DateTime, Datelike, Duration, Local, NaiveDate, TimeZone, Utc};
 use failure::Error;
 use jwalk::WalkDir;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use std::collections::{BTreeMap, HashSet};
 use std::fs::{read_to_string, remove_file, File};
 use std::io::{stdout, Write};
+use std::path::Path;
 
 use crate::config::Config;
 use crate::models::DiaryEntries;
@@ -22,10 +23,19 @@ impl LocalInterface {
     }
 
     pub fn export_year_to_local(&self) -> Result<(), Error> {
-        let mut date_list: Vec<_> = DiaryEntries::get_modified_map(&self.pool)?
-            .into_iter()
-            .map(|(k, _)| k)
-            .collect();
+        let mod_map = DiaryEntries::get_modified_map(&self.pool)?;
+        let year_mod_map: BTreeMap<i32, DateTime<Utc>> =
+            mod_map.iter().fold(BTreeMap::new(), |mut acc, (k, v)| {
+                let year = k.year();
+                let current_timestamp = acc
+                    .insert(year, *v)
+                    .unwrap_or_else(|| Utc.ymd(0, 1, 1).and_hms(0, 0, 0));
+                if *v < current_timestamp {
+                    acc.insert(year, current_timestamp);
+                }
+                acc
+            });
+        let mut date_list: Vec<_> = mod_map.into_iter().map(|(k, _)| k).collect();
         date_list.sort();
         let year_map: BTreeMap<i32, Vec<_>> =
             date_list.into_iter().fold(BTreeMap::new(), |mut acc, d| {
@@ -37,6 +47,21 @@ impl LocalInterface {
             .into_par_iter()
             .map(|(year, date_list)| {
                 let fname = format!("{}/diary_{}.txt", &self.config.diary_path, year);
+
+                let filepath = Path::new(&fname);
+                if filepath.exists() {
+                    if let Ok(metadata) = filepath.metadata() {
+                        if let Ok(modified) = metadata.modified() {
+                            let modified: DateTime<Utc> = modified.into();
+                            if let Some(maxmod) = year_mod_map.get(&year) {
+                                if modified >= *maxmod {
+                                    return Ok(format!("{} 0", year));
+                                }
+                            }
+                        }
+                    }
+                }
+
                 let mut f = File::create(fname)?;
                 for date in &date_list {
                     let entries = DiaryEntries::get_by_date(*date, &self.pool)?;
