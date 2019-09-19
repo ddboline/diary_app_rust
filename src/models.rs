@@ -96,10 +96,11 @@ impl DiaryEntries<'_> {
     }
 
     pub fn get_by_text(search_text: &str, pool: &PgPool) -> Result<Vec<Self>, Error> {
-        use crate::schema::diary_entries::dsl::{diary_entries, diary_text};
+        use crate::schema::diary_entries::dsl::{diary_date, diary_entries, diary_text};
         let conn = pool.get()?;
         diary_entries
             .filter(diary_text.like(&format!("%{}%", search_text)))
+            .order(diary_date)
             .load(&conn)
             .map_err(err_msg)
     }
