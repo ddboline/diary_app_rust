@@ -108,19 +108,21 @@ impl SSHInstance {
     }
 
     pub fn run_command(&self, cmd: &str) -> Result<(), Error> {
-        if let Some(host_lock) = LOCK_CACHE.read().get(&self.host) {
-            let status: bool;
-            *host_lock.lock() = {
-                debug!("cmd {}", cmd);
-                status = Exec::shell(cmd).join()?.success();
-            };
-            if !status {
-                Err(format_err!("{} failed", cmd))
-            } else {
-                Ok(())
-            }
-        } else {
-            Err(err_msg("Failed to acquire lock"))
-        }
+        LOCK_CACHE
+            .read()
+            .get(&self.host)
+            .ok_or_else(|| err_msg("Failed to acquire lock"))
+            .and_then(|host_lock| {
+                let status: bool;
+                *host_lock.lock() = {
+                    debug!("cmd {}", cmd);
+                    status = Exec::shell(cmd).join()?.success();
+                };
+                if status {
+                    Ok(())
+                } else {
+                    Err(format_err!("{} failed", cmd))
+                }
+            })
     }
 }
