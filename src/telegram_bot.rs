@@ -27,8 +27,19 @@ lazy_static! {
 }
 
 pub fn run_bot(telegram_bot_token: &str, pool: PgPool, scope: &Scope) -> Result<(), Error> {
+    let telegram_bot_token: String = telegram_bot_token.into();
     let pool_ = pool.clone();
     let userid_handle = scope.spawn(move |_| fill_telegram_user_ids(pool_));
+    let telegram_handle = scope.spawn(move |_| telegram_worker(&telegram_bot_token, pool));
+
+    if userid_handle.join().is_err() {
+        panic!("Userid thread paniced, kill everything");
+    }
+    telegram_handle.join().expect("telegram thread paniced")?;
+    Ok(())
+}
+
+fn telegram_worker(telegram_bot_token: &str, pool: PgPool) -> Result<(), Error> {
     let config = Config::init_config()?;
     let dapp_interface = DiaryAppInterface::new(config, pool);
 
@@ -100,9 +111,9 @@ pub fn run_bot(telegram_bot_token: &str, pool: PgPool, scope: &Scope) -> Result<
         Ok(())
     });
 
-    core.run(future).map_err(|e| format_err!("{}", e))?;
-    drop(userid_handle);
-    Ok(())
+    core.run(future)
+        .map_err(|e| format_err!("{}", e))
+        .map(|_| ())
 }
 
 fn fill_telegram_user_ids(pool: PgPool) {
