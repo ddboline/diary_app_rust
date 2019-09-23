@@ -21,7 +21,7 @@ pub struct S3Instance {
 
 impl fmt::Debug for S3Instance {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Arc<S3Instance>")
+        write!(f, "S3Instance")
     }
 }
 
