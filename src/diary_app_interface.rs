@@ -43,10 +43,9 @@ impl DiaryAppInterface {
 
     pub fn search_text(&self, search_text: &str) -> Result<Vec<String>, Error> {
         if let Ok(date) = NaiveDate::parse_from_str(search_text, "%Y-%m-%d") {
-            let mut de_entries: Vec<_> = DiaryEntries::get_by_date(date, &self.pool)?
-                .into_iter()
-                .map(|entry| format!("{}\n{}", entry.diary_date, entry.diary_text))
-                .collect();
+            let entry = DiaryEntries::get_by_date(date, &self.pool)?;
+            let entry = format!("{}\n{}", entry.diary_date, entry.diary_text);
+            let mut de_entries = vec![entry];
             let dc_entries: Vec<_> = DiaryCache::get_cache_entries(&self.pool)?
                 .into_iter()
                 .filter_map(|entry| {
@@ -140,10 +139,8 @@ impl DiaryAppInterface {
                     let mut f = OpenOptions::new().append(true).open(&diary_file)?;
                     writeln!(f, "\n\n{}\n\n", entry_string)?;
                     None
-                } else if let Some(mut current_entry) =
-                    DiaryEntries::get_by_date(entry_date, &self.pool)?
-                        .into_iter()
-                        .nth(0)
+                } else if let Ok(mut current_entry) =
+                    DiaryEntries::get_by_date(entry_date, &self.pool)
                 {
                     current_entry.diary_text =
                         format!("{}\n\n{}", &current_entry.diary_text, entry_string).into();

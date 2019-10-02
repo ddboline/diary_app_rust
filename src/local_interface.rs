@@ -64,13 +64,8 @@ impl LocalInterface {
 
                 let mut f = File::create(fname)?;
                 for date in &date_list {
-                    let entries = DiaryEntries::get_by_date(*date, &self.pool)?;
-                    if !entries.is_empty() {
-                        writeln!(f, "{}\n", date)?;
-                        for entry in entries {
-                            writeln!(f, "{}\n", entry.diary_text)?;
-                        }
-                    }
+                    let entry = DiaryEntries::get_by_date(*date, &self.pool)?;
+                    writeln!(f, "{}\n", entry.diary_text)?;
                 }
                 Ok(format!("{} {}", year, date_list.len()))
             })
@@ -107,12 +102,13 @@ impl LocalInterface {
         let dates = dates?;
         let current_date = Local::now().naive_local().date();
         if !dates.contains(&current_date) {
-            let existing_entries = DiaryEntries::get_by_date(current_date, &self.pool)?;
-
             let filepath = format!("{}/{}.txt", self.config.diary_path, current_date);
-
             let mut f = File::create(&filepath)?;
-            if existing_entries.is_empty() {
+
+            if let Ok(existing_entry) = DiaryEntries::get_by_date(current_date, &self.pool) {
+                writeln!(f, "{}", &existing_entry.diary_text)?;
+                new_entries.push(existing_entry);
+            } else {
                 writeln!(f)?;
                 let d = DiaryEntries {
                     diary_date: current_date,
@@ -121,11 +117,6 @@ impl LocalInterface {
                 };
                 d.insert_entry(&self.pool)?;
                 new_entries.push(d);
-            } else {
-                for entry in existing_entries {
-                    writeln!(f, "{}", &entry.diary_text)?;
-                    new_entries.push(entry);
-                }
             }
         }
         Ok(new_entries)

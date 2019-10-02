@@ -55,11 +55,8 @@ impl S3Interface {
                 let should_update = match s3_key_map.get(&diary_date) {
                     Some((lm, sz)) => {
                         if (last_modified - *lm).num_seconds() > -300 {
-                            if let Some(tmp) = DiaryEntries::get_by_date(diary_date, &self.pool)?
-                                .into_iter()
-                                .nth(0)
-                            {
-                                let ln = tmp.diary_text.len() as i64;
+                            if let Ok(entry) = DiaryEntries::get_by_date(diary_date, &self.pool) {
+                                let ln = entry.diary_text.len() as i64;
                                 if *sz != ln {
                                     println!(
                                         "last_modified {} {} {} {} {}",
@@ -77,10 +74,7 @@ impl S3Interface {
                     None => true,
                 };
                 if should_update {
-                    if let Some(entry) = DiaryEntries::get_by_date(diary_date, &self.pool)?
-                        .into_iter()
-                        .nth(0)
-                    {
+                    if let Ok(entry) = DiaryEntries::get_by_date(diary_date, &self.pool) {
                         writeln!(
                             stdout.lock(),
                             "export s3 date {} lines {}",
@@ -127,13 +121,10 @@ impl S3Interface {
                             let should_modify = match existing_map.get(&date) {
                                 Some(current_modified) => {
                                     if (*current_modified - last_modified).num_seconds() < 300 {
-                                        if let Some(tmp) =
+                                        if let Ok(entry) =
                                             DiaryEntries::get_by_date(date, &self.pool)
-                                                .unwrap()
-                                                .into_iter()
-                                                .nth(0)
                                         {
-                                            let ln = tmp.diary_text.len() as i64;
+                                            let ln = entry.diary_text.len() as i64;
                                             if size != ln {
                                                 println!(
                                                     "last_modified {} {} {} {} {}",

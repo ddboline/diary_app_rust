@@ -68,9 +68,9 @@ impl DiaryEntries<'_> {
     }
 
     pub fn upsert_entry(&self, pool: &PgPool) -> Result<(), Error> {
-        match Self::get_by_date(self.diary_date, pool)?.into_iter().nth(0) {
-            Some(_) => self.update_entry(pool),
-            None => self.insert_entry(pool),
+        match Self::get_by_date(self.diary_date, pool) {
+            Ok(_) => self.update_entry(pool),
+            Err(_) => self.insert_entry(pool),
         }
     }
 
@@ -85,13 +85,13 @@ impl DiaryEntries<'_> {
             .map(|v| v.into_iter().collect())
     }
 
-    pub fn get_by_date(date: NaiveDate, pool: &PgPool) -> Result<Vec<Self>, Error> {
+    pub fn get_by_date(date: NaiveDate, pool: &PgPool) -> Result<Self, Error> {
         use crate::schema::diary_entries::dsl::{diary_date, diary_entries};
 
         let conn = pool.get()?;
         diary_entries
             .filter(diary_date.eq(date))
-            .load(&conn)
+            .first(&conn)
             .map_err(err_msg)
     }
 
