@@ -28,7 +28,7 @@ impl S3Interface {
 
     pub fn export_to_s3(&self) -> Result<Vec<DiaryEntries>, Error> {
         let stdout = stdout();
-        let s3_key_map: HashMap<NaiveDate, DateTime<Utc>> = self
+        let s3_key_map: HashMap<NaiveDate, (DateTime<Utc>, i64)> = self
             .s3_client
             .get_list_of_keys(&self.config.diary_bucket, None)?
             .into_par_iter()
@@ -43,7 +43,8 @@ impl S3Interface {
                                 .and_then(|lm| DateTime::parse_from_rfc3339(&lm).ok())
                                 .map(|d| d.with_timezone(&Utc))
                                 .unwrap_or_else(Utc::now);
-                            Some((date, last_modified))
+                            let size = obj.size.unwrap_or(-1);
+                            Some((date, (last_modified, size)))
                         })
                 })
             })
@@ -52,9 +53,26 @@ impl S3Interface {
             .into_par_iter()
             .map(|(diary_date, last_modified)| {
                 let should_update = match s3_key_map.get(&diary_date) {
-                    Some(lm) => {
-                        debug!("last_modified {} {} {}", diary_date, *lm, last_modified);
-                        (last_modified - *lm).num_seconds() > 300
+                    Some((lm, sz)) => {
+                        if (last_modified - *lm).num_seconds() > -300 {
+                            if let Some(tmp) = DiaryEntries::get_by_date(diary_date, &self.pool)?
+                                .into_iter()
+                                .nth(0)
+                            {
+                                let ln = tmp.diary_text.len() as i64;
+                                if *sz != ln {
+                                    println!(
+                                        "last_modified {} {} {} {} {}",
+                                        diary_date, *lm, last_modified, sz, ln
+                                    );
+                                }
+                                *sz < ln
+                            } else {
+                                false
+                            }
+                        } else {
+                            (last_modified - *lm).num_seconds() > 300
+                        }
                     }
                     None => true,
                 };
@@ -108,8 +126,31 @@ impl S3Interface {
 
                             let should_modify = match existing_map.get(&date) {
                                 Some(current_modified) => {
-                                    debug!("current_modified {} {} {}", date, *current_modified, last_modified);
-                                    (*current_modified - last_modified).num_seconds() < -300
+                                    if (*current_modified - last_modified).num_seconds() < 300 {
+                                        if let Some(tmp) =
+                                            DiaryEntries::get_by_date(date, &self.pool)
+                                                .unwrap()
+                                                .into_iter()
+                                                .nth(0)
+                                        {
+                                            let ln = tmp.diary_text.len() as i64;
+                                            if size != ln {
+                                                println!(
+                                                    "last_modified {} {} {} {} {}",
+                                                    date,
+                                                    *current_modified,
+                                                    last_modified,
+                                                    size,
+                                                    ln
+                                                );
+                                            }
+                                            size > ln
+                                        } else {
+                                            false
+                                        }
+                                    } else {
+                                        (*current_modified - last_modified).num_seconds() < -300
+                                    }
                                 }
                                 None => true,
                             };
