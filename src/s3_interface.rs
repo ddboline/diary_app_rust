@@ -52,7 +52,10 @@ impl S3Interface {
             .into_par_iter()
             .map(|(diary_date, last_modified)| {
                 let should_update = match s3_key_map.get(&diary_date) {
-                    Some(lm) => (*lm - last_modified).num_seconds() > 1,
+                    Some(lm) => {
+                        debug!("last_modified {} {} {}", diary_date, *lm, last_modified);
+                        (last_modified - *lm).num_seconds() > 300
+                    }
                     None => true,
                 };
                 if should_update {
@@ -105,7 +108,8 @@ impl S3Interface {
 
                             let should_modify = match existing_map.get(&date) {
                                 Some(current_modified) => {
-                                    (*current_modified - last_modified).num_seconds() < -1
+                                    debug!("current_modified {} {} {}", date, *current_modified, last_modified);
+                                    (*current_modified - last_modified).num_seconds() < -300
                                 }
                                 None => true,
                             };
