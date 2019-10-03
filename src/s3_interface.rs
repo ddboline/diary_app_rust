@@ -75,7 +75,7 @@ impl S3Interface {
                 };
                 if should_update {
                     if let Ok(entry) = DiaryEntries::get_by_date(diary_date, &self.pool) {
-                        if entry.diary_text.trim().len() == 0 {
+                        if entry.diary_text.trim().is_empty() {
                             return Ok(None);
                         }
                         writeln!(
@@ -163,7 +163,7 @@ impl S3Interface {
                         })
                 })
             })
-            .filter(|entry| entry.diary_text.trim().len() > 0)
+            .filter(|entry| !entry.diary_text.trim().is_empty())
             .map(|entry| {
                 writeln!(
                     stdout.lock(),

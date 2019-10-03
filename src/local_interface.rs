@@ -160,7 +160,7 @@ impl LocalInterface {
             .filter_map(|d| d.transpose())
             .map(|result| {
                 result.and_then(|entry| {
-                    if entry.diary_text.trim().len() > 0 {
+                    if !entry.diary_text.trim().is_empty() {
                         writeln!(
                             stdout.lock(),
                             "import local date {} lines {}",
