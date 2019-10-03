@@ -160,16 +160,18 @@ impl LocalInterface {
             .filter_map(|d| d.transpose())
             .map(|result| {
                 result.and_then(|entry| {
-                    writeln!(
-                        stdout.lock(),
-                        "import local date {} lines {}",
-                        entry.diary_date,
-                        entry.diary_text.match_indices('\n').count()
-                    )?;
-                    if existing_map.contains_key(&entry.diary_date) {
-                        entry.update_entry(&self.pool)?;
-                    } else {
-                        entry.insert_entry(&self.pool)?;
+                    if entry.diary_text.trim().len() > 0 {
+                        writeln!(
+                            stdout.lock(),
+                            "import local date {} lines {}",
+                            entry.diary_date,
+                            entry.diary_text.match_indices('\n').count()
+                        )?;
+                        if existing_map.contains_key(&entry.diary_date) {
+                            entry.update_entry(&self.pool)?;
+                        } else {
+                            entry.insert_entry(&self.pool)?;
+                        }
                     }
                     Ok(entry)
                 })

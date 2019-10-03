@@ -75,6 +75,9 @@ impl S3Interface {
                 };
                 if should_update {
                     if let Ok(entry) = DiaryEntries::get_by_date(diary_date, &self.pool) {
+                        if entry.diary_text.trim().len() == 0 {
+                            return Ok(None);
+                        }
                         writeln!(
                             stdout.lock(),
                             "export s3 date {} lines {}",
@@ -160,6 +163,7 @@ impl S3Interface {
                         })
                 })
             })
+            .filter(|entry| entry.diary_text.trim().len() > 0)
             .map(|entry| {
                 writeln!(
                     stdout.lock(),
