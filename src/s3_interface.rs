@@ -58,7 +58,7 @@ impl S3Interface {
                             if let Ok(entry) = DiaryEntries::get_by_date(diary_date, &self.pool) {
                                 let ln = entry.diary_text.len() as i64;
                                 if *sz != ln {
-                                    println!(
+                                    debug!(
                                         "last_modified {} {} {} {} {}",
                                         diary_date, *lm, last_modified, sz, ln
                                     );
@@ -129,7 +129,7 @@ impl S3Interface {
                                         {
                                             let ln = entry.diary_text.len() as i64;
                                             if size != ln {
-                                                println!(
+                                                debug!(
                                                     "last_modified {} {} {} {} {}",
                                                     date,
                                                     *current_modified,
