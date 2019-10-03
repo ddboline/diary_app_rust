@@ -79,20 +79,20 @@ impl DiaryAppInterface {
         let y_reg = Regex::new(r"(?P<year>\d{4})")?;
 
         let mut dates = Vec::new();
-        if ymd_reg.find(search_text).is_some() {
+        if ymd_reg.is_match(search_text) {
             for cap in ymd_reg.captures_iter(search_text) {
                 let year = cap.name("year").map(|x| x.as_str());
                 let month = cap.name("month").map(|x| x.as_str());
                 let day = cap.name("day").map(|x| x.as_str());
                 dates.extend_from_slice(&self.get_matching_dates(year, month, day)?);
             }
-        } else if ym_reg.find(search_text).is_some() {
+        } else if ym_reg.is_match(search_text) {
             for cap in ym_reg.captures_iter(search_text) {
                 let year = cap.name("year").map(|x| x.as_str());
                 let month = cap.name("month").map(|x| x.as_str());
                 dates.extend_from_slice(&self.get_matching_dates(year, month, None)?);
             }
-        } else if y_reg.find(search_text).is_some() {
+        } else if y_reg.is_match(search_text) {
             for cap in y_reg.captures_iter(search_text) {
                 let year = cap.name("year").map(|x| x.as_str());
                 dates.extend_from_slice(&self.get_matching_dates(year, None, None)?);
