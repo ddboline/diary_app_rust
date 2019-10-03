@@ -4,6 +4,8 @@ use failure::{err_msg, Error};
 use r2d2::{Pool, PooledConnection};
 use std::fmt;
 
+pub type PgPoolConn = PooledConnection<ConnectionManager<PgConnection>>;
+
 #[derive(Clone)]
 pub struct PgPool {
     pgurl: String,
@@ -25,7 +27,7 @@ impl PgPool {
         }
     }
 
-    pub fn get(&self) -> Result<PooledConnection<ConnectionManager<PgConnection>>, Error> {
+    pub fn get(&self) -> Result<PgPoolConn, Error> {
         self.pool.get().map_err(err_msg)
     }
 }

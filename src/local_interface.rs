@@ -115,7 +115,7 @@ impl LocalInterface {
                     diary_text: "".into(),
                     last_modified: Utc::now(),
                 };
-                d.insert_entry(&self.pool)?;
+                d.upsert_entry(&self.pool)?;
                 new_entries.push(d);
             }
         }
@@ -170,7 +170,7 @@ impl LocalInterface {
                         if existing_map.contains_key(&entry.diary_date) {
                             entry.update_entry(&self.pool)?;
                         } else {
-                            entry.insert_entry(&self.pool)?;
+                            entry.upsert_entry(&self.pool)?;
                         }
                     }
                     Ok(entry)

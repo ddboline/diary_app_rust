@@ -217,7 +217,7 @@ impl DiaryAppInterface {
                         diary_text: entry_string.into(),
                         last_modified: Utc::now(),
                     };
-                    new_entry.insert_entry(&self.pool)?;
+                    new_entry.upsert_entry(&self.pool)?;
                     Some(new_entry)
                 };
 

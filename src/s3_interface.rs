@@ -171,11 +171,7 @@ impl S3Interface {
                     entry.diary_date,
                     entry.diary_text.match_indices('\n').count()
                 )?;
-                if existing_map.contains_key(&entry.diary_date) {
-                    entry.update_entry(&self.pool)?;
-                } else {
-                    entry.insert_entry(&self.pool)?;
-                }
+                entry.upsert_entry(&self.pool)?;
                 Ok(entry)
             })
             .collect()

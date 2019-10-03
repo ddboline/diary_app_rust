@@ -1,12 +1,14 @@
 use chrono::{DateTime, NaiveDate, Utc};
-use diesel::{ExpressionMethods, QueryDsl, RunQueryDsl, TextExpressionMethods};
-use diesel::{Insertable, Queryable};
+use diesel::{
+    Connection, ExpressionMethods, Insertable, QueryDsl, Queryable, RunQueryDsl,
+    TextExpressionMethods,
+};
 use failure::{err_msg, Error};
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
 use std::collections::HashMap;
 
-use crate::pgpool::PgPool;
+use crate::pgpool::{PgPool, PgPoolConn};
 use crate::schema::{authorized_users, diary_cache, diary_entries};
 
 #[derive(Queryable, Insertable, Clone, Debug)]
@@ -40,38 +42,48 @@ impl AuthorizedUsers {
 }
 
 impl DiaryEntries<'_> {
-    pub fn insert_entry(&self, pool: &PgPool) -> Result<(), Error> {
+    fn _insert_entry(&self, conn: &PgPoolConn) -> Result<(), Error> {
         use crate::schema::diary_entries::dsl::diary_entries;
 
-        let conn = pool.get()?;
         diesel::insert_into(diary_entries)
             .values(self)
-            .execute(&conn)
+            .execute(conn)
             .map_err(err_msg)
             .map(|_| ())
     }
 
-    pub fn update_entry(&self, pool: &PgPool) -> Result<(), Error> {
+    pub fn insert_entry(&self, pool: &PgPool) -> Result<(), Error> {
+        let conn = pool.get()?;
+        self._insert_entry(&conn)
+    }
+
+    fn _update_entry(&self, conn: &PgPoolConn) -> Result<(), Error> {
         use crate::schema::diary_entries::dsl::{
             diary_date, diary_entries, diary_text, last_modified,
         };
-        let conn = pool.get()?;
 
         diesel::update(diary_entries.filter(diary_date.eq(self.diary_date)))
             .set((
                 diary_text.eq(&self.diary_text),
                 last_modified.eq(Utc::now()),
             ))
-            .execute(&conn)
+            .execute(conn)
             .map_err(err_msg)
             .map(|_| ())
     }
 
+    pub fn update_entry(&self, pool: &PgPool) -> Result<(), Error> {
+        let conn = pool.get()?;
+        self._update_entry(&conn)
+    }
+
     pub fn upsert_entry(&self, pool: &PgPool) -> Result<(), Error> {
-        match Self::get_by_date(self.diary_date, pool) {
-            Ok(_) => self.update_entry(pool),
-            Err(_) => self.insert_entry(pool),
-        }
+        let conn = pool.get()?;
+
+        conn.transaction(|| match Self::_get_by_date(self.diary_date, &conn) {
+            Ok(_) => self._update_entry(&conn),
+            Err(_) => self._insert_entry(&conn),
+        })
     }
 
     pub fn get_modified_map(pool: &PgPool) -> Result<HashMap<NaiveDate, DateTime<Utc>>, Error> {
@@ -85,14 +97,18 @@ impl DiaryEntries<'_> {
             .map(|v| v.into_iter().collect())
     }
 
-    pub fn get_by_date(date: NaiveDate, pool: &PgPool) -> Result<Self, Error> {
+    fn _get_by_date(date: NaiveDate, conn: &PgPoolConn) -> Result<Self, Error> {
         use crate::schema::diary_entries::dsl::{diary_date, diary_entries};
 
-        let conn = pool.get()?;
         diary_entries
             .filter(diary_date.eq(date))
-            .first(&conn)
+            .first(conn)
             .map_err(err_msg)
+    }
+
+    pub fn get_by_date(date: NaiveDate, pool: &PgPool) -> Result<Self, Error> {
+        let conn = pool.get()?;
+        Self::_get_by_date(date, &conn)
     }
 
     pub fn get_by_text(search_text: &str, pool: &PgPool) -> Result<Vec<Self>, Error> {
