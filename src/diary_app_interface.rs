@@ -8,6 +8,7 @@ use std::collections::{HashMap, HashSet};
 use std::fs::OpenOptions;
 use std::io::Write;
 use std::path::Path;
+use log::debug;
 
 use crate::config::Config;
 use crate::local_interface::LocalInterface;
@@ -78,29 +79,32 @@ impl DiaryAppInterface {
         let y_reg = Regex::new(r"(?P<year>\d{4})")?;
 
         let mut dates = Vec::new();
-        if ymd_reg.captures_len() > 0 {
+        if ymd_reg.find(search_text).is_some() {
             for cap in ymd_reg.captures_iter(search_text) {
                 let year = cap.name("year").map(|x| x.as_str());
                 let month = cap.name("month").map(|x| x.as_str());
                 let day = cap.name("day").map(|x| x.as_str());
                 dates.extend_from_slice(&self.get_matching_dates(year, month, day)?);
             }
-        } else if ym_reg.captures_len() > 0 {
+        } else if ym_reg.find(search_text).is_some() {
             for cap in ym_reg.captures_iter(search_text) {
                 let year = cap.name("year").map(|x| x.as_str());
                 let month = cap.name("month").map(|x| x.as_str());
                 dates.extend_from_slice(&self.get_matching_dates(year, month, None)?);
             }
-        } else if y_reg.captures_len() > 0 {
+        } else if y_reg.find(search_text).is_some() {
             for cap in y_reg.captures_iter(search_text) {
                 let year = cap.name("year").map(|x| x.as_str());
                 dates.extend_from_slice(&self.get_matching_dates(year, None, None)?);
             }
         }
 
+        debug!("search dates {}", dates.len());
+
         if !dates.is_empty() {
             let mut de_entries = Vec::new();
             for date in dates {
+                debug!("search date {}", date);
                 let entry = DiaryEntries::get_by_date(date, &self.pool)?;
                 let entry = format!("{}\n{}", entry.diary_date, entry.diary_text);
                 de_entries.push(entry);
