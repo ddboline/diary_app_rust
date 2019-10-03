@@ -1,6 +1,7 @@
 use chrono::{Datelike, Local, NaiveDate, Utc};
 use crossbeam_utils::thread;
 use failure::{err_msg, Error};
+use log::debug;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use regex::Regex;
 use std::borrow::Cow;
@@ -8,7 +9,6 @@ use std::collections::{HashMap, HashSet};
 use std::fs::OpenOptions;
 use std::io::Write;
 use std::path::Path;
-use log::debug;
 
 use crate::config::Config;
 use crate::local_interface::LocalInterface;
@@ -56,15 +56,15 @@ impl DiaryAppInterface {
                 if let Some(y) = year {
                     let result = if let Some(m) = month {
                         let result = if let Some(d) = day {
-                            d == date.day().to_string()
+                            d == format!("{:02}", date.day())
                         } else {
                             true
                         };
-                        result && (m == date.month().to_string())
+                        result && (m == format!("{:02}", date.month()))
                     } else {
                         true
                     };
-                    result && (y == date.year().to_string())
+                    result && (y == format!("{:04}", date.year()))
                 } else {
                     false
                 }
@@ -99,6 +99,7 @@ impl DiaryAppInterface {
             }
         }
 
+        dates.sort();
         debug!("search dates {}", dates.len());
 
         if !dates.is_empty() {
