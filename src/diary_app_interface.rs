@@ -1,7 +1,8 @@
-use chrono::{Local, NaiveDate, Utc};
+use chrono::{Datelike, Local, NaiveDate, Utc};
 use crossbeam_utils::thread;
 use failure::{err_msg, Error};
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
+use regex::Regex;
 use std::borrow::Cow;
 use std::collections::{HashMap, HashSet};
 use std::fs::OpenOptions;
@@ -41,28 +42,86 @@ impl DiaryAppInterface {
         Ok(dc)
     }
 
-    pub fn search_text(&self, search_text: &str) -> Result<Vec<String>, Error> {
-        if let Ok(date) = NaiveDate::parse_from_str(search_text, "%Y-%m-%d") {
-            let entry = DiaryEntries::get_by_date(date, &self.pool)?;
-            let entry = format!("{}\n{}", entry.diary_date, entry.diary_text);
-            let mut de_entries = vec![entry];
-            let dc_entries: Vec<_> = DiaryCache::get_cache_entries(&self.pool)?
-                .into_iter()
-                .filter_map(|entry| {
-                    if entry
-                        .diary_datetime
-                        .with_timezone(&Local)
-                        .naive_local()
-                        .date()
-                        == date
-                    {
-                        Some(format!("{}\n{}", entry.diary_datetime, entry.diary_text))
+    fn get_matching_dates(
+        &self,
+        year: Option<&str>,
+        month: Option<&str>,
+        day: Option<&str>,
+    ) -> Result<Vec<NaiveDate>, Error> {
+        let matching_dates: Vec<_> = DiaryEntries::get_modified_map(&self.pool)?
+            .into_iter()
+            .map(|(d, _)| d)
+            .filter(|date| {
+                if let Some(y) = year {
+                    let result = if let Some(m) = month {
+                        let result = if let Some(d) = day {
+                            d == date.day().to_string()
+                        } else {
+                            true
+                        };
+                        result && (m == date.month().to_string())
                     } else {
-                        None
-                    }
-                })
-                .collect();
-            de_entries.extend_from_slice(&dc_entries);
+                        true
+                    };
+                    result && (y == date.year().to_string())
+                } else {
+                    false
+                }
+            })
+            .collect();
+        Ok(matching_dates)
+    }
+
+    pub fn search_text(&self, search_text: &str) -> Result<Vec<String>, Error> {
+        let ymd_reg = Regex::new(r"(?P<year>\d{4})-(?P<month>\d{2})-(?P<day>\d{2})")?;
+        let ym_reg = Regex::new(r"(?P<year>\d{4})-(?P<month>\d{2})")?;
+        let y_reg = Regex::new(r"(?P<year>\d{4})")?;
+
+        let mut dates = Vec::new();
+        if ymd_reg.captures_len() > 0 {
+            for cap in ymd_reg.captures_iter(search_text) {
+                let year = cap.name("year").map(|x| x.as_str());
+                let month = cap.name("month").map(|x| x.as_str());
+                let day = cap.name("day").map(|x| x.as_str());
+                dates.extend_from_slice(&self.get_matching_dates(year, month, day)?);
+            }
+        } else if ym_reg.captures_len() > 0 {
+            for cap in ym_reg.captures_iter(search_text) {
+                let year = cap.name("year").map(|x| x.as_str());
+                let month = cap.name("month").map(|x| x.as_str());
+                dates.extend_from_slice(&self.get_matching_dates(year, month, None)?);
+            }
+        } else if y_reg.captures_len() > 0 {
+            for cap in y_reg.captures_iter(search_text) {
+                let year = cap.name("year").map(|x| x.as_str());
+                dates.extend_from_slice(&self.get_matching_dates(year, None, None)?);
+            }
+        }
+
+        if !dates.is_empty() {
+            let mut de_entries = Vec::new();
+            for date in dates {
+                let entry = DiaryEntries::get_by_date(date, &self.pool)?;
+                let entry = format!("{}\n{}", entry.diary_date, entry.diary_text);
+                de_entries.push(entry);
+                let dc_entries: Vec<_> = DiaryCache::get_cache_entries(&self.pool)?
+                    .into_iter()
+                    .filter_map(|entry| {
+                        if entry
+                            .diary_datetime
+                            .with_timezone(&Local)
+                            .naive_local()
+                            .date()
+                            == date
+                        {
+                            Some(format!("{}\n{}", entry.diary_datetime, entry.diary_text))
+                        } else {
+                            None
+                        }
+                    })
+                    .collect();
+                de_entries.extend_from_slice(&dc_entries);
+            }
             Ok(de_entries)
         } else {
             let mut de_entries: Vec<_> = DiaryEntries::get_by_text(search_text, &self.pool)?
