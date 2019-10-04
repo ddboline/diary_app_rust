@@ -28,16 +28,17 @@ impl Handler<DiaryAppRequests> for DiaryAppInterface {
     fn handle(&mut self, req: DiaryAppRequests, _: &mut Self::Context) -> Self::Result {
         match req {
             DiaryAppRequests::Search(opts) => {
-                if let Some(text) = opts.text {
+                let body = if let Some(text) = opts.text {
                     let results: Vec<_> = self.search_text(&text)?;
-                    Ok(results.join("\n"))
+                    results.join("\n")
                 } else if let Some(date) = opts.date {
                     let text = format!("{}", date);
                     let results: Vec<_> = self.search_text(&text)?;
-                    Ok(results.join("\n"))
+                    results.join("\n")
                 } else {
-                    Ok("".to_string())
-                }
+                    "".to_string()
+                };
+                Ok(body)
             }
             DiaryAppRequests::Insert(text) => Ok("".to_string()),
             DiaryAppRequests::Sync => Ok("".to_string()),

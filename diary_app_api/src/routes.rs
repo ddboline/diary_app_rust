@@ -27,6 +27,10 @@ pub fn search(
                 return Ok(HttpResponse::Unauthorized()
                     .json(format!("Unauthorized {:?}", state.user_list)));
             }
+            let body = format!(
+                r#"<textarea autofocus readonly="readonly" rows=50 cols=100>{}</textarea>"#,
+                body
+            );
             Ok(form_http_response(body))
         })
     })
