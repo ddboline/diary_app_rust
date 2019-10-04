@@ -63,7 +63,7 @@ fn telegram_worker(telegram_bot_token: &str, pool: PgPool) -> Result<(), Error> 
                         .as_ref()
                         .map(|d| d.as_str())
                     {
-                        Some("search") | Some("s") => {
+                        Some(":search") | Some(":s") => {
                             let search_text = data.trim_start_matches(first_word.unwrap()).trim();
                             OUTPUT_BUFFER.write().clear();
                             if let Ok(mut search_results) = dapp_interface.search_text(search_text)
@@ -77,14 +77,14 @@ fn telegram_worker(telegram_bot_token: &str, pool: PgPool) -> Result<(), Error> 
                                 api.spawn(message.text_reply("..."));
                             }
                         }
-                        Some("next") | Some("n") => {
+                        Some(":next") | Some(":n") => {
                             if let Some(entry) = OUTPUT_BUFFER.write().pop() {
                                 api.spawn(message.text_reply(entry));
                             } else {
                                 api.spawn(message.text_reply("..."));
                             }
                         }
-                        Some("insert") | Some("i") => {
+                        Some(":insert") | Some(":i") => {
                             let insert_text = data.trim_start_matches(first_word.unwrap()).trim();
                             if let Ok(cache_entry) = dapp_interface.cache_text(insert_text.into()) {
                                 api.spawn(
@@ -94,9 +94,15 @@ fn telegram_worker(telegram_bot_token: &str, pool: PgPool) -> Result<(), Error> 
                                 api.spawn(message.text_reply("failed to cache entry"));
                             }
                         }
-                        _ => api.spawn(message.text_reply(
-                            "Possible commands are: search (s), next (n) or insert (i)",
-                        )),
+                        _ => {
+                            if let Ok(cache_entry) = dapp_interface.cache_text(data.into()) {
+                                api.spawn(
+                                    message.text_reply(format!("cached entry {:?}", cache_entry)),
+                                );
+                            } else {
+                                api.spawn(message.text_reply("failed to cache entry"));
+                            }
+                        }
                     }
                 } else {
                     // Answer message with "Hi".
