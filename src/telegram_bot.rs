@@ -13,10 +13,10 @@ use telegram_bot::types::refs::UserId;
 use telegram_bot::{Api, CanReplySendMessage, MessageKind, UpdateKind};
 use tokio_core::reactor::Core;
 
-use diary_app_rust::config::Config;
-use diary_app_rust::diary_app_interface::DiaryAppInterface;
-use diary_app_rust::models::AuthorizedUsers;
-use diary_app_rust::pgpool::PgPool;
+use diary_app_lib::config::Config;
+use diary_app_lib::diary_app_interface::DiaryAppInterface;
+use diary_app_lib::models::AuthorizedUsers;
+use diary_app_lib::pgpool::PgPool;
 
 type UserIds = Arc<RwLock<HashSet<UserId>>>;
 type OBuffer = Arc<RwLock<Vec<String>>>;

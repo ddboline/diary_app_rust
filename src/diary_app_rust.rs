@@ -1,4 +1,4 @@
-use diary_app_rust::diary_app_opts::DiaryAppOpts;
+use diary_app_lib::diary_app_opts::DiaryAppOpts;
 
 fn main() {
     env_logger::init();
