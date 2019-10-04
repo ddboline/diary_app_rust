@@ -19,6 +19,7 @@ crossbeam-utils = "0.6"
 lazy_static = "1.4"
 telegram-bot = "0.6"
 tokio-core = "0.1"
+actix-rt = "0.2"
 
 [workspace]
 members = [
@@ -34,4 +35,9 @@ doc = false
 [[bin]]
 name = "diary-app-bot"
 path = "src/telegram_bot.rs"
+doc = false
+
+[[bin]]
+name = "diary-app-api"
+path = "src/diary_app_api.rs"
 doc = false

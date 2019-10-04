@@ -13,6 +13,10 @@ pub struct ConfigInner {
     pub aws_region_name: String,
     pub telegram_bot_token: String,
     pub ssh_url: Option<Url>,
+    pub port: u32,
+    pub domain: String,
+    pub n_db_workers: usize,
+    pub secret_key: String,
 }
 
 #[derive(Default, Debug, Clone)]
@@ -53,6 +57,16 @@ impl Config {
             aws_region_name: var("AWS_REGION_NAME").unwrap_or_else(|_| "us-east-1".to_string()),
             telegram_bot_token: var("TELEGRAM_BOT_TOKEN").unwrap_or_else(|_| "".to_string()),
             ssh_url: var("SSH_URL").ok().and_then(|s| s.parse().ok()),
+            port: var("PORT")
+                .ok()
+                .and_then(|p| p.parse().ok())
+                .unwrap_or(3042),
+            domain: var("DOMAIN").unwrap_or_else(|_| "localhost".to_string()),
+            n_db_workers: var("N_DB_WORKERS")
+                .ok()
+                .and_then(|n| n.parse().ok())
+                .unwrap_or(2),
+            secret_key: var("SECRET_KEY").unwrap_or_else(|_| "0123".repeat(8)),
         };
 
         Ok(Config(Arc::new(conf)))
