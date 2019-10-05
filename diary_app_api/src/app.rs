@@ -13,7 +13,7 @@ use diary_app_lib::diary_app_interface::DiaryAppInterface;
 use diary_app_lib::pgpool::PgPool;
 
 use super::logged_user::AuthorizedUsers;
-use super::routes::{insert, replace, search, sync};
+use super::routes::{insert, replace, search, search_api, sync};
 
 pub struct AppState {
     pub db: Addr<DiaryAppInterface>,
@@ -58,6 +58,7 @@ pub fn start_app() {
                     .secure(false), // this can only be true if you have https
             ))
             .service(web::resource("/api/search").route(web::get().to_async(search)))
+            .service(web::resource("/api/search_api").route(web::get().to_async(search_api)))
             .service(web::resource("/api/insert").route(web::post().to_async(insert)))
             .service(web::resource("/api/sync").route(web::get().to_async(sync)))
             .service(web::resource("/api/replace").route(web::post().to_async(replace)))

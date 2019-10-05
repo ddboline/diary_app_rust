@@ -4,6 +4,7 @@ use actix_web::HttpResponse;
 use chrono::NaiveDate;
 use failure::Error;
 use futures::Future;
+use maplit::hashmap;
 use serde::{Deserialize, Serialize};
 
 use super::app::AppState;
@@ -16,10 +17,18 @@ fn form_http_response(body: String) -> HttpResponse {
         .body(body)
 }
 
-pub fn search(
+fn to_json<T>(js: &T) -> HttpResponse
+where
+    T: Serialize,
+{
+    HttpResponse::Ok().json2(js)
+}
+
+fn _search(
     query: Query<SearchOptions>,
     user: LoggedUser,
     state: Data<AppState>,
+    do_api: bool,
 ) -> impl Future<Item = HttpResponse, Error = Error> {
     let req = DiaryAppRequests::Search(query.into_inner());
 
@@ -29,9 +38,34 @@ pub fn search(
                 return Ok(HttpResponse::Unauthorized()
                     .json(format!("Unauthorized {:?}", state.user_list)));
             }
-            Ok(form_http_response(body))
+            if do_api {
+                let body = format!(
+                    r#"<textarea autofocus readonly="readonly" rows=50 cols=100>{}</textarea>"#,
+                    body
+                );
+                Ok(form_http_response(body))
+            } else {
+                let body = hashmap! {"text" => body};
+                Ok(to_json(&body))
+            }
         })
     })
+}
+
+pub fn search_api(
+    query: Query<SearchOptions>,
+    user: LoggedUser,
+    state: Data<AppState>,
+) -> impl Future<Item = HttpResponse, Error = Error> {
+    _search(query, user, state, true)
+}
+
+pub fn search(
+    query: Query<SearchOptions>,
+    user: LoggedUser,
+    state: Data<AppState>,
+) -> impl Future<Item = HttpResponse, Error = Error> {
+    _search(query, user, state, false)
 }
 
 #[derive(Serialize, Deserialize)]
@@ -52,7 +86,8 @@ pub fn insert(
                 return Ok(HttpResponse::Unauthorized()
                     .json(format!("Unauthorized {:?}", state.user_list)));
             }
-            Ok(form_http_response(body))
+            let body = hashmap! {"datetime" => body};
+            Ok(to_json(&body))
         })
     })
 }
@@ -71,7 +106,8 @@ pub fn sync(
                     return Ok(HttpResponse::Unauthorized()
                         .json(format!("Unauthorized {:?}", state.user_list)));
                 }
-                Ok(form_http_response(body))
+                let body = hashmap! {"response" => body};
+                Ok(to_json(&body))
             })
         })
 }
@@ -98,7 +134,8 @@ pub fn replace(
                 return Ok(HttpResponse::Unauthorized()
                     .json(format!("Unauthorized {:?}", state.user_list)));
             }
-            Ok(form_http_response(body))
+            let body = hashmap! {"entry" => body};
+            Ok(to_json(&body))
         })
     })
 }

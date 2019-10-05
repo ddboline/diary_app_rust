@@ -9,7 +9,6 @@ use diary_app_lib::diary_app_interface::DiaryAppInterface;
 pub struct SearchOptions {
     pub text: Option<String>,
     pub date: Option<NaiveDate>,
-    pub api: Option<bool>,
 }
 
 pub enum DiaryAppRequests {
@@ -38,14 +37,6 @@ impl Handler<DiaryAppRequests> for DiaryAppInterface {
                 } else {
                     "".to_string()
                 };
-                let body = if opts.api.unwrap_or(false) {
-                    body
-                } else {
-                    format!(
-                        r#"<textarea autofocus readonly="readonly" rows=50 cols=100>{}</textarea>"#,
-                        body
-                    )
-                };
                 Ok(body)
             }
             DiaryAppRequests::Insert(text) => {
@@ -54,20 +45,11 @@ impl Handler<DiaryAppRequests> for DiaryAppInterface {
             }
             DiaryAppRequests::Sync => {
                 let output = self.sync_everything()?;
-                let output = format!(
-                    r#"<textarea autofocus readonly="readonly" rows=50 cols=100>{}</textarea>"#,
-                    output.join("\n")
-                );
-
-                Ok(output)
+                Ok(output.join("\n"))
             }
             DiaryAppRequests::Replace { date, text } => {
                 let entry = self.replace_text(date, text.into())?;
                 let body = format!("{}\n{}", entry.diary_date, entry.diary_text);
-                let body = format!(
-                    r#"<textarea autofocus readonly="readonly" rows=50 cols=100>{}</textarea>"#,
-                    body
-                );
                 Ok(body)
             }
         }
