@@ -39,14 +39,14 @@ fn _search(
                     .json(format!("Unauthorized {:?}", state.user_list)));
             }
             if do_api {
+                let body = hashmap! {"text" => body};
+                Ok(to_json(&body))
+            } else {
                 let body = format!(
                     r#"<textarea autofocus readonly="readonly" rows=50 cols=100>{}</textarea>"#,
                     body
                 );
                 Ok(form_http_response(body))
-            } else {
-                let body = hashmap! {"text" => body};
-                Ok(to_json(&body))
             }
         })
     })
