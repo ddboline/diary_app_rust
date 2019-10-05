@@ -54,6 +54,7 @@ build_test:
 install:
 	cp target/$(build_type)/diary-app-rust /usr/bin/diary-app-rust
 	cp target/$(build_type)/diary-app-bot /usr/bin/diary-app-bot
+	cp target/$(build_type)/diary-app-api /usr/bin/diary-app-api
 
 pull:
 	`aws ecr --region us-east-1 get-login --no-include-email`
