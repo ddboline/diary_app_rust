@@ -7,18 +7,9 @@ build_type := release
 all:
 	mkdir -p build/ && \
 	cp Dockerfile.build.ubuntu18.04 build/Dockerfile && \
-	cp -a Cargo.toml src scripts Makefile build/ && \
+	cp -a Cargo.toml src scripts Makefile diary_app_api diary_app_lib build/ && \
 	cd build/ && \
 	docker build -t diary_app_rust/build_rust:ubuntu18.04 . && \
-	cd ../ && \
-	rm -rf build/
-
-xenial:
-	mkdir -p build/ && \
-	cp Dockerfile.build.ubuntu16.04 build/Dockerfile && \
-	cp -a Cargo.toml src scripts Makefile build/ && \
-	cd build/ && \
-	docker build -t diary_app_rust/build_rust:ubuntu16.04 . && \
 	cd ../ && \
 	rm -rf build/
 
@@ -29,13 +20,6 @@ cleanup:
 
 package:
 	docker run --cidfile $(cidfile) -v `pwd`/target:/diary_app_rust/target diary_app_rust/build_rust:ubuntu18.04 \
-        /diary_app_rust/scripts/build_deb_docker.sh $(version) $(release)
-	docker cp `cat $(cidfile)`:/diary_app_rust/diary-app-rust_$(version)-$(release)_amd64.deb .
-	docker rm `cat $(cidfile)`
-	rm $(cidfile)
-
-package_xenial:
-	docker run --cidfile $(cidfile) -v `pwd`/target:/diary_app_rust/target diary_app_rust/build_rust:ubuntu16.04 \
         /diary_app_rust/scripts/build_deb_docker.sh $(version) $(release)
 	docker cp `cat $(cidfile)`:/diary_app_rust/diary-app-rust_$(version)-$(release)_amd64.deb .
 	docker rm `cat $(cidfile)`
@@ -61,12 +45,6 @@ pull:
 	docker pull 281914939654.dkr.ecr.us-east-1.amazonaws.com/rust_stable:latest
 	docker tag 281914939654.dkr.ecr.us-east-1.amazonaws.com/rust_stable:latest rust_stable:latest
 	docker rmi 281914939654.dkr.ecr.us-east-1.amazonaws.com/rust_stable:latest
-
-pull_xenial:
-	`aws ecr --region us-east-1 get-login --no-include-email`
-	docker pull 281914939654.dkr.ecr.us-east-1.amazonaws.com/rust_stable:xenial_latest
-	docker tag 281914939654.dkr.ecr.us-east-1.amazonaws.com/rust_stable:xenial_latest rust_stable:xenial_latest
-	docker rmi 281914939654.dkr.ecr.us-east-1.amazonaws.com/rust_stable:xenial_latest
 
 dev:
 	docker run -it --rm -v `pwd`:/diary_app_rust rust_stable:latest /bin/bash || true
