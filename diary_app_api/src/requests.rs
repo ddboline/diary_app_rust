@@ -1,15 +1,15 @@
 use actix::{Handler, Message};
-use chrono::{Datelike, NaiveDate};
+use chrono::NaiveDate;
 use failure::Error;
 use serde::{Deserialize, Serialize};
 
 use diary_app_lib::diary_app_interface::DiaryAppInterface;
-use diary_app_lib::pgpool::PgPool;
 
 #[derive(Serialize, Deserialize)]
 pub struct SearchOptions {
     pub text: Option<String>,
     pub date: Option<NaiveDate>,
+    pub api: Option<bool>,
 }
 
 pub enum DiaryAppRequests {
@@ -38,11 +38,38 @@ impl Handler<DiaryAppRequests> for DiaryAppInterface {
                 } else {
                     "".to_string()
                 };
+                let body = if opts.api.unwrap_or(false) {
+                    body
+                } else {
+                    format!(
+                        r#"<textarea autofocus readonly="readonly" rows=50 cols=100>{}</textarea>"#,
+                        body
+                    )
+                };
                 Ok(body)
             }
-            DiaryAppRequests::Insert(text) => Ok("".to_string()),
-            DiaryAppRequests::Sync => Ok("".to_string()),
-            DiaryAppRequests::Replace { date, text } => Ok("".to_string()),
+            DiaryAppRequests::Insert(text) => {
+                let cache = self.cache_text(text.into())?;
+                Ok(format!("{}", cache.diary_datetime))
+            }
+            DiaryAppRequests::Sync => {
+                let output = self.sync_everything()?;
+                let output = format!(
+                    r#"<textarea autofocus readonly="readonly" rows=50 cols=100>{}</textarea>"#,
+                    output.join("\n")
+                );
+
+                Ok(output)
+            }
+            DiaryAppRequests::Replace { date, text } => {
+                let entry = self.replace_text(date, text.into())?;
+                let body = format!("{}\n{}", entry.diary_date, entry.diary_text);
+                let body = format!(
+                    r#"<textarea autofocus readonly="readonly" rows=50 cols=100>{}</textarea>"#,
+                    body
+                );
+                Ok(body)
+            }
         }
     }
 }

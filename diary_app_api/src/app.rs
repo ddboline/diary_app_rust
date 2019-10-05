@@ -13,7 +13,7 @@ use diary_app_lib::diary_app_interface::DiaryAppInterface;
 use diary_app_lib::pgpool::PgPool;
 
 use super::logged_user::AuthorizedUsers;
-use super::routes::search;
+use super::routes::{insert, replace, search, sync};
 
 pub struct AppState {
     pub db: Addr<DiaryAppInterface>,
@@ -57,7 +57,10 @@ pub fn start_app() {
                     .max_age_time(Duration::days(1))
                     .secure(false), // this can only be true if you have https
             ))
-            .service(web::resource("/search").route(web::get().to_async(search)))
+            .service(web::resource("/api/search").route(web::get().to_async(search)))
+            .service(web::resource("/api/insert").route(web::post().to_async(insert)))
+            .service(web::resource("/api/sync").route(web::get().to_async(sync)))
+            .service(web::resource("/api/replace").route(web::post().to_async(replace)))
     })
     .bind(&format!("127.0.0.1:{}", port))
     .unwrap_or_else(|_| panic!("Failed to bind to port {}", port))

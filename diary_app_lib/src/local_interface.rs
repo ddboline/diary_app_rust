@@ -22,7 +22,7 @@ impl LocalInterface {
         LocalInterface { pool, config }
     }
 
-    pub fn export_year_to_local(&self) -> Result<(), Error> {
+    pub fn export_year_to_local(&self) -> Result<Vec<String>, Error> {
         let mod_map = DiaryEntries::get_modified_map(&self.pool)?;
         let year_mod_map: BTreeMap<i32, DateTime<Utc>> =
             mod_map.iter().fold(BTreeMap::new(), |mut acc, (k, v)| {
@@ -70,8 +70,9 @@ impl LocalInterface {
                 Ok(format!("{} {}", year, date_list.len()))
             })
             .collect();
-        writeln!(stdout().lock(), "{}", results?.join("\n"))?;
-        Ok(())
+        let results = results?;
+        writeln!(stdout().lock(), "{}", results.join("\n"))?;
+        Ok(results)
     }
 
     pub fn cleanup_local(&self) -> Result<Vec<DiaryEntries>, Error> {

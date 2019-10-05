@@ -50,6 +50,20 @@ impl DiaryAppInterface {
         Ok(dc)
     }
 
+    pub fn replace_text<'a>(
+        &self,
+        diary_date: NaiveDate,
+        diary_text: Cow<'a, str>,
+    ) -> Result<DiaryEntries<'a>, Error> {
+        let de = DiaryEntries {
+            diary_date,
+            diary_text,
+            last_modified: Utc::now(),
+        };
+        de.upsert_entry(&self.pool)?;
+        Ok(de)
+    }
+
     fn get_matching_dates(
         &self,
         year: Option<&str>,
@@ -155,26 +169,60 @@ impl DiaryAppInterface {
         }
     }
 
-    pub fn sync_everything(&self) -> Result<(), Error> {
+    pub fn sync_everything(&self) -> Result<Vec<String>, Error> {
         thread::scope(|s| {
-            self.sync_ssh()?;
+            let mut output: Vec<_> = self
+                .sync_ssh()?
+                .into_iter()
+                .map(|c| format!("ssh cache {}", c.diary_datetime))
+                .collect();
             if self.config.ssh_url.is_some() {
-                self.sync_merge_cache_to_entries()?;
+                let entries: Vec<_> = self
+                    .sync_merge_cache_to_entries()?
+                    .into_iter()
+                    .map(|c| format!("update {}", c.diary_date))
+                    .collect();
+                output.extend_from_slice(&entries);
             }
 
-            let local = s.spawn(move |_| self.local.import_from_local().map(|_| ()));
-            let s3 = s.spawn(move |_| self.s3.import_from_s3().map(|_| ()));
-            local.join().expect("import_from_local paniced")?;
-            s3.join().expect("import_from_s3 paniced")?;
+            let local = s.spawn(move |_| self.local.import_from_local());
+            let s3 = s.spawn(move |_| self.s3.import_from_s3());
+            let entries: Vec<_> = local
+                .join()
+                .expect("import_from_local paniced")?
+                .into_iter()
+                .map(|c| format!("local import {}", c.diary_date))
+                .collect();
+            output.extend_from_slice(&entries);
+            let entries: Vec<_> = s3
+                .join()
+                .expect("import_from_s3 paniced")?
+                .into_iter()
+                .map(|c| format!("s3 import {}", c.diary_date))
+                .collect();
+            output.extend_from_slice(&entries);
 
-            self.local.cleanup_local()?;
+            let entries: Vec<_> = self
+                .local
+                .cleanup_local()?
+                .into_iter()
+                .map(|c| format!("local cleanup {}", c.diary_date))
+                .collect();
+            output.extend_from_slice(&entries);
 
-            let s3 = s.spawn(move |_| self.s3.export_to_s3().map(|_| ()));
-            let local = s.spawn(move |_| self.local.export_year_to_local().map(|_| ()));
-            local.join().expect("import_from_local paniced")?;
-            s3.join().expect("import_from_s3 paniced")?;
+            let s3 = s.spawn(move |_| self.s3.export_to_s3());
+            let local = s.spawn(move |_| self.local.export_year_to_local());
+            let entries: Vec<_> = local.join().expect("import_from_local paniced")?;
+            output.extend_from_slice(&entries);
+            let entries: Vec<_> = s3
+                .join()
+                .expect("import_from_s3 paniced")?
+                .into_iter()
+                .map(|c| format!("s3 export {}", c.diary_date))
+                .collect();
+            output.extend_from_slice(&entries);
 
-            Ok(())
+            Ok(output)
         })
         .expect("scoped thread panic")
     }
@@ -215,7 +263,7 @@ impl DiaryAppInterface {
                 {
                     current_entry.diary_text =
                         format!("{}\n\n{}", &current_entry.diary_text, entry_string).into();
-                    println!("insert into {}", diary_file);
+                    println!("update {}", diary_file);
                     current_entry.update_entry(&self.pool)?;
                     Some(current_entry)
                 } else {
@@ -224,6 +272,7 @@ impl DiaryAppInterface {
                         diary_text: entry_string.into(),
                         last_modified: Utc::now(),
                     };
+                    println!("upsert {}", diary_file);
                     new_entry.upsert_entry(&self.pool)?;
                     Some(new_entry)
                 };
