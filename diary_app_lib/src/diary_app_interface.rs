@@ -64,6 +64,42 @@ impl DiaryAppInterface {
         Ok(de)
     }
 
+    pub fn get_list_of_dates(
+        &self,
+        min_date: Option<NaiveDate>,
+        max_date: Option<NaiveDate>,
+        start: Option<usize>,
+        limit: Option<usize>,
+    ) -> Result<Vec<NaiveDate>, Error> {
+        let mut dates: Vec<_> = DiaryEntries::get_modified_map(&self.pool)?
+            .into_iter()
+            .filter_map(|(d, _)| {
+                if let Some(min_date) = min_date {
+                    if d < min_date {
+                        return None;
+                    }
+                }
+                if let Some(max_date) = max_date {
+                    if d > max_date {
+                        return None;
+                    }
+                }
+                Some(d)
+            })
+            .collect();
+        dates.sort();
+        dates.reverse();
+        if let Some(start) = start {
+            if start <= dates.len() {
+                dates = dates.split_off(start);
+            }
+        }
+        if let Some(limit) = limit {
+            dates.truncate(limit);
+        }
+        Ok(dates)
+    }
+
     fn get_matching_dates(
         &self,
         year: Option<&str>,

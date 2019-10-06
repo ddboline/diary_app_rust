@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 
 use super::app::AppState;
 use super::logged_user::LoggedUser;
-use super::requests::{DiaryAppRequests, SearchOptions};
+use super::requests::{DiaryAppRequests, ListOptions, SearchOptions};
 
 fn form_http_response(body: String) -> HttpResponse {
     HttpResponse::build(StatusCode::OK)
@@ -39,12 +39,12 @@ fn _search(
                     .json(format!("Unauthorized {:?}", state.user_list)));
             }
             if do_api {
-                let body = hashmap! {"text" => body};
+                let body = hashmap! {"text" => body.join("\n")};
                 Ok(to_json(&body))
             } else {
                 let body = format!(
                     r#"<textarea autofocus readonly="readonly" rows=50 cols=100>{}</textarea>"#,
-                    body
+                    body.join("\n")
                 );
                 Ok(form_http_response(body))
             }
@@ -86,7 +86,7 @@ pub fn insert(
                 return Ok(HttpResponse::Unauthorized()
                     .json(format!("Unauthorized {:?}", state.user_list)));
             }
-            let body = hashmap! {"datetime" => body};
+            let body = hashmap! {"datetime" => body.join("\n")};
             Ok(to_json(&body))
         })
     })
@@ -106,7 +106,7 @@ pub fn sync(
                     return Ok(HttpResponse::Unauthorized()
                         .json(format!("Unauthorized {:?}", state.user_list)));
                 }
-                let body = hashmap! {"response" => body};
+                let body = hashmap! {"response" => body.join("\n")};
                 Ok(to_json(&body))
             })
         })
@@ -134,7 +134,26 @@ pub fn replace(
                 return Ok(HttpResponse::Unauthorized()
                     .json(format!("Unauthorized {:?}", state.user_list)));
             }
-            let body = hashmap! {"entry" => body};
+            let body = hashmap! {"entry" => body.join("\n")};
+            Ok(to_json(&body))
+        })
+    })
+}
+
+pub fn list(
+    query: Query<ListOptions>,
+    user: LoggedUser,
+    state: Data<AppState>,
+) -> impl Future<Item = HttpResponse, Error = Error> {
+    let query = query.into_inner();
+    let req = DiaryAppRequests::List(query);
+    state.db.send(req).from_err().and_then(move |res| {
+        res.and_then(|body| {
+            if !state.user_list.is_authorized(&user) {
+                return Ok(HttpResponse::Unauthorized()
+                    .json(format!("Unauthorized {:?}", state.user_list)));
+            }
+            let body = hashmap! {"list" => body };
             Ok(to_json(&body))
         })
     })

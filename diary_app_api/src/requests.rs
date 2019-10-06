@@ -11,46 +11,63 @@ pub struct SearchOptions {
     pub date: Option<NaiveDate>,
 }
 
+#[derive(Serialize, Deserialize)]
+pub struct ListOptions {
+    pub min_date: Option<NaiveDate>,
+    pub max_date: Option<NaiveDate>,
+    pub start: Option<usize>,
+    pub limit: Option<usize>,
+}
+
 pub enum DiaryAppRequests {
     Search(SearchOptions),
     Insert(String),
     Sync,
     Replace { date: NaiveDate, text: String },
+    List(ListOptions),
 }
 
 impl Message for DiaryAppRequests {
-    type Result = Result<String, Error>;
+    type Result = Result<Vec<String>, Error>;
 }
 
 impl Handler<DiaryAppRequests> for DiaryAppInterface {
-    type Result = Result<String, Error>;
+    type Result = Result<Vec<String>, Error>;
     fn handle(&mut self, req: DiaryAppRequests, _: &mut Self::Context) -> Self::Result {
         match req {
             DiaryAppRequests::Search(opts) => {
                 let body = if let Some(text) = opts.text {
                     let results: Vec<_> = self.search_text(&text)?;
-                    results.join("\n")
+                    results
                 } else if let Some(date) = opts.date {
                     let text = format!("{}", date);
                     let results: Vec<_> = self.search_text(&text)?;
-                    results.join("\n")
+                    results
                 } else {
-                    "".to_string()
+                    vec!["".to_string()]
                 };
                 Ok(body)
             }
             DiaryAppRequests::Insert(text) => {
                 let cache = self.cache_text(text.into())?;
-                Ok(format!("{}", cache.diary_datetime))
+                Ok(vec![format!("{}", cache.diary_datetime)])
             }
             DiaryAppRequests::Sync => {
                 let output = self.sync_everything()?;
-                Ok(output.join("\n"))
+                Ok(output)
             }
             DiaryAppRequests::Replace { date, text } => {
                 let entry = self.replace_text(date, text.into())?;
                 let body = format!("{}\n{}", entry.diary_date, entry.diary_text);
-                Ok(body)
+                Ok(vec![body])
+            }
+            DiaryAppRequests::List(opts) => {
+                let dates: Vec<_> = self
+                    .get_list_of_dates(opts.min_date, opts.max_date, opts.start, opts.limit)?
+                    .into_iter()
+                    .map(|x| x.to_string())
+                    .collect();
+                Ok(dates)
             }
         }
     }
