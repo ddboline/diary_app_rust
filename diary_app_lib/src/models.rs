@@ -3,6 +3,7 @@ use diesel::{
     Connection, ExpressionMethods, Insertable, QueryDsl, Queryable, RunQueryDsl,
     TextExpressionMethods,
 };
+use difference::Changeset;
 use failure::{err_msg, Error};
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
@@ -58,6 +59,7 @@ impl DiaryEntries<'_> {
     }
 
     fn _update_entry(&self, conn: &PgPoolConn) -> Result<(), Error> {
+        println!("update_entry {}", self._get_difference(conn)?);
         use crate::schema::diary_entries::dsl::{
             diary_date, diary_entries, diary_text, last_modified,
         };
@@ -119,6 +121,16 @@ impl DiaryEntries<'_> {
             .order(diary_date)
             .load(&conn)
             .map_err(err_msg)
+    }
+
+    fn _get_difference(&self, conn: &PgPoolConn) -> Result<Changeset, Error> {
+        Self::_get_by_date(self.diary_date, conn)
+            .map(|original| Changeset::new(&original.diary_text, &self.diary_text, "\n"))
+    }
+
+    pub fn get_difference(&self, pool: &PgPool) -> Result<Changeset, Error> {
+        let conn = pool.get()?;
+        self._get_difference(&conn)
     }
 }
 
