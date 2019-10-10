@@ -11,17 +11,17 @@ use super::app::AppState;
 use super::logged_user::LoggedUser;
 use super::requests::{DiaryAppRequests, ListOptions, SearchOptions};
 
-fn form_http_response(body: String) -> HttpResponse {
-    HttpResponse::build(StatusCode::OK)
+fn form_http_response(body: String) -> Result<HttpResponse, Error> {
+    Ok(HttpResponse::build(StatusCode::OK)
         .content_type("text/html; charset=utf-8")
-        .body(body)
+        .body(body))
 }
 
-fn to_json<T>(js: &T) -> HttpResponse
+fn to_json<T>(js: &T) -> Result<HttpResponse, Error>
 where
     T: Serialize,
 {
-    HttpResponse::Ok().json2(js)
+    Ok(HttpResponse::Ok().json2(js))
 }
 
 fn _search(
@@ -35,13 +35,13 @@ fn _search(
         res.and_then(|body| {
             if do_api {
                 let body = hashmap! {"text" => body.join("\n")};
-                Ok(to_json(&body))
+                to_json(&body)
             } else {
                 let body = format!(
                     r#"<textarea autofocus readonly="readonly" rows=50 cols=100>{}</textarea>"#,
                     body.join("\n")
                 );
-                Ok(form_http_response(body))
+                form_http_response(body)
             }
         })
     })
@@ -78,7 +78,7 @@ pub fn insert(
     state.db.send(req).from_err().and_then(move |res| {
         res.and_then(|body| {
             let body = hashmap! {"datetime" => body.join("\n")};
-            Ok(to_json(&body))
+            to_json(&body)
         })
     })
 }
@@ -94,7 +94,7 @@ pub fn sync(
         .and_then(move |res| {
             res.and_then(|body| {
                 let body = hashmap! {"response" => body.join("\n")};
-                Ok(to_json(&body))
+                to_json(&body)
             })
         })
 }
@@ -118,7 +118,7 @@ pub fn replace(
     state.db.send(req).from_err().and_then(move |res| {
         res.and_then(|body| {
             let body = hashmap! {"entry" => body.join("\n")};
-            Ok(to_json(&body))
+            to_json(&body)
         })
     })
 }
@@ -133,7 +133,7 @@ pub fn list(
     state.db.send(req).from_err().and_then(move |res| {
         res.and_then(|body| {
             let body = hashmap! {"list" => body };
-            Ok(to_json(&body))
+            to_json(&body)
         })
     })
 }
