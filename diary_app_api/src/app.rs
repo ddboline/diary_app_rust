@@ -12,21 +12,19 @@ use diary_app_lib::config::Config;
 use diary_app_lib::diary_app_interface::DiaryAppInterface;
 use diary_app_lib::pgpool::PgPool;
 
-use super::logged_user::AuthorizedUsers;
+use super::logged_user::AUTHORIZED_USERS;
 use super::routes::{insert, list, replace, search, search_api, sync};
 
 pub struct AppState {
     pub db: Addr<DiaryAppInterface>,
-    pub user_list: AuthorizedUsers,
 }
 
 pub fn start_app() {
     let config = Config::init_config().expect("Failed to load config");
     let pool = PgPool::new(&config.database_url);
     let dapp = DiaryAppInterface::new(config.clone(), pool.clone());
-    let user_list = AuthorizedUsers::new();
 
-    let _u = user_list.clone();
+    let _u = AUTHORIZED_USERS.clone();
     let _p = pool.clone();
 
     actix_rt::spawn(
@@ -45,10 +43,7 @@ pub fn start_app() {
 
     HttpServer::new(move || {
         App::new()
-            .data(AppState {
-                db: addr.clone(),
-                user_list: user_list.clone(),
-            })
+            .data(AppState { db: addr.clone() })
             .wrap(IdentityService::new(
                 CookieIdentityPolicy::new(config.secret_key.as_bytes())
                     .name("auth")

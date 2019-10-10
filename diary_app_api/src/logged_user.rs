@@ -3,6 +3,7 @@ use actix_web::{dev::Payload, FromRequest, HttpRequest};
 use chrono::{DateTime, Utc};
 use failure::Error;
 use jsonwebtoken::{decode, Validation};
+use lazy_static::lazy_static;
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
@@ -14,6 +15,10 @@ use diary_app_lib::models::AuthorizedUsers as AuthorizedUsersDB;
 use diary_app_lib::pgpool::PgPool;
 
 use super::errors::ServiceError;
+
+lazy_static! {
+    pub static ref AUTHORIZED_USERS: AuthorizedUsers = AuthorizedUsers::new();
+}
 
 #[derive(Debug, Serialize, Deserialize)]
 struct Claims {
@@ -61,7 +66,9 @@ impl FromRequest for LoggedUser {
     fn from_request(req: &HttpRequest, pl: &mut Payload) -> Self::Future {
         if let Some(identity) = Identity::from_request(req, pl)?.identity() {
             let user: LoggedUser = decode_token(&identity)?;
-            return Ok(user);
+            if AUTHORIZED_USERS.is_authorized(&user) {
+                return Ok(user);
+            }
         }
         Err(ServiceError::Unauthorized.into())
     }

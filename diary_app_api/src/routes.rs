@@ -26,7 +26,6 @@ where
 
 fn _search(
     query: Query<SearchOptions>,
-    user: LoggedUser,
     state: Data<AppState>,
     do_api: bool,
 ) -> impl Future<Item = HttpResponse, Error = Error> {
@@ -34,10 +33,6 @@ fn _search(
 
     state.db.send(req).from_err().and_then(move |res| {
         res.and_then(|body| {
-            if !state.user_list.is_authorized(&user) {
-                return Ok(HttpResponse::Unauthorized()
-                    .json(format!("Unauthorized {:?}", state.user_list)));
-            }
             if do_api {
                 let body = hashmap! {"text" => body.join("\n")};
                 Ok(to_json(&body))
@@ -54,18 +49,18 @@ fn _search(
 
 pub fn search_api(
     query: Query<SearchOptions>,
-    user: LoggedUser,
+    _: LoggedUser,
     state: Data<AppState>,
 ) -> impl Future<Item = HttpResponse, Error = Error> {
-    _search(query, user, state, true)
+    _search(query, state, true)
 }
 
 pub fn search(
     query: Query<SearchOptions>,
-    user: LoggedUser,
+    _: LoggedUser,
     state: Data<AppState>,
 ) -> impl Future<Item = HttpResponse, Error = Error> {
-    _search(query, user, state, false)
+    _search(query, state, false)
 }
 
 #[derive(Serialize, Deserialize)]
@@ -75,17 +70,13 @@ pub struct InsertData {
 
 pub fn insert(
     data: Json<InsertData>,
-    user: LoggedUser,
+    _: LoggedUser,
     state: Data<AppState>,
 ) -> impl Future<Item = HttpResponse, Error = Error> {
     let text = data.into_inner().text;
     let req = DiaryAppRequests::Insert(text);
     state.db.send(req).from_err().and_then(move |res| {
         res.and_then(|body| {
-            if !state.user_list.is_authorized(&user) {
-                return Ok(HttpResponse::Unauthorized()
-                    .json(format!("Unauthorized {:?}", state.user_list)));
-            }
             let body = hashmap! {"datetime" => body.join("\n")};
             Ok(to_json(&body))
         })
@@ -93,7 +84,7 @@ pub fn insert(
 }
 
 pub fn sync(
-    user: LoggedUser,
+    _: LoggedUser,
     state: Data<AppState>,
 ) -> impl Future<Item = HttpResponse, Error = Error> {
     state
@@ -102,10 +93,6 @@ pub fn sync(
         .from_err()
         .and_then(move |res| {
             res.and_then(|body| {
-                if !state.user_list.is_authorized(&user) {
-                    return Ok(HttpResponse::Unauthorized()
-                        .json(format!("Unauthorized {:?}", state.user_list)));
-                }
                 let body = hashmap! {"response" => body.join("\n")};
                 Ok(to_json(&body))
             })
@@ -120,7 +107,7 @@ pub struct ReplaceData {
 
 pub fn replace(
     data: Json<ReplaceData>,
-    user: LoggedUser,
+    _: LoggedUser,
     state: Data<AppState>,
 ) -> impl Future<Item = HttpResponse, Error = Error> {
     let data = data.into_inner();
@@ -130,10 +117,6 @@ pub fn replace(
     };
     state.db.send(req).from_err().and_then(move |res| {
         res.and_then(|body| {
-            if !state.user_list.is_authorized(&user) {
-                return Ok(HttpResponse::Unauthorized()
-                    .json(format!("Unauthorized {:?}", state.user_list)));
-            }
             let body = hashmap! {"entry" => body.join("\n")};
             Ok(to_json(&body))
         })
@@ -142,17 +125,13 @@ pub fn replace(
 
 pub fn list(
     query: Query<ListOptions>,
-    user: LoggedUser,
+    _: LoggedUser,
     state: Data<AppState>,
 ) -> impl Future<Item = HttpResponse, Error = Error> {
     let query = query.into_inner();
     let req = DiaryAppRequests::List(query);
     state.db.send(req).from_err().and_then(move |res| {
         res.and_then(|body| {
-            if !state.user_list.is_authorized(&user) {
-                return Ok(HttpResponse::Unauthorized()
-                    .json(format!("Unauthorized {:?}", state.user_list)));
-            }
             let body = hashmap! {"list" => body };
             Ok(to_json(&body))
         })
