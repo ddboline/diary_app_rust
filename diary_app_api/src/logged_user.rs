@@ -140,15 +140,6 @@ impl AuthorizedUsers {
         false
     }
 
-    pub fn cache_authorization(&self, user: &LoggedUser, pool: &PgPool) -> Result<(), Error> {
-        if self.is_authorized(user) {
-            Ok(())
-        } else {
-            user.is_authorized(pool)
-                .and_then(|s| self.store_auth(user, s))
-        }
-    }
-
     pub fn store_auth(&self, user: &LoggedUser, is_auth: bool) -> Result<(), Error> {
         let current_time = Utc::now();
         let status = if is_auth {
