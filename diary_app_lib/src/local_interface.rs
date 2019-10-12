@@ -76,7 +76,6 @@ impl LocalInterface {
     }
 
     pub fn cleanup_local(&self) -> Result<Vec<DiaryEntries>, Error> {
-        let mut new_entries = Vec::new();
         let stdout = stdout();
         let dates: Result<HashSet<_>, Error> = WalkDir::new(&self.config.diary_path)
             .sort(true)
@@ -102,25 +101,29 @@ impl LocalInterface {
             .collect();
         let dates = dates?;
         let current_date = Local::now().naive_local().date();
-        if !dates.contains(&current_date) {
-            let filepath = format!("{}/{}.txt", self.config.diary_path, current_date);
-            let mut f = File::create(&filepath)?;
 
-            if let Ok(existing_entry) = DiaryEntries::get_by_date(current_date, &self.pool) {
-                writeln!(f, "{}", &existing_entry.diary_text)?;
-                new_entries.push(existing_entry);
-            } else {
-                writeln!(f)?;
-                let d = DiaryEntries {
-                    diary_date: current_date,
-                    diary_text: "".into(),
-                    last_modified: Utc::now(),
-                };
-                d.upsert_entry(&self.pool)?;
-                new_entries.push(d);
-            }
-        }
-        Ok(new_entries)
+        (0..=4)
+            .map(|i| (current_date - Duration::days(i)))
+            .filter(|current_date| !dates.contains(&current_date))
+            .map(|current_date| {
+                let filepath = format!("{}/{}.txt", self.config.diary_path, current_date);
+                let mut f = File::create(&filepath)?;
+
+                if let Ok(existing_entry) = DiaryEntries::get_by_date(current_date, &self.pool) {
+                    writeln!(f, "{}", &existing_entry.diary_text)?;
+                    return Ok(existing_entry);
+                } else {
+                    writeln!(f)?;
+                    let d = DiaryEntries {
+                        diary_date: current_date,
+                        diary_text: "".into(),
+                        last_modified: Utc::now(),
+                    };
+                    d.upsert_entry(&self.pool)?;
+                    return Ok(d);
+                }
+            })
+            .collect()
     }
 
     pub fn import_from_local(&self) -> Result<Vec<DiaryEntries>, Error> {
