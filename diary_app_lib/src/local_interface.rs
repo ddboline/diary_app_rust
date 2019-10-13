@@ -102,7 +102,7 @@ impl LocalInterface {
         let dates = dates?;
         let current_date = Local::now().naive_local().date();
 
-        (0..=4)
+        (0..4)
             .map(|i| (current_date - Duration::days(i)))
             .filter(|current_date| !dates.contains(&current_date))
             .map(|current_date| {
