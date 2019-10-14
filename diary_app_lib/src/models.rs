@@ -43,6 +43,14 @@ impl AuthorizedUsers {
 }
 
 impl DiaryEntries<'_> {
+    pub fn new<'a>(diary_date: NaiveDate, diary_text: Cow<'a, str>) -> DiaryEntries<'a> {
+        DiaryEntries {
+            diary_date,
+            diary_text,
+            last_modified: Utc::now(),
+        }
+    }
+
     fn _insert_entry(&self, conn: &PgPoolConn) -> Result<(), Error> {
         use crate::schema::diary_entries::dsl::diary_entries;
 

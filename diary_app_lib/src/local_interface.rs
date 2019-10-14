@@ -114,11 +114,7 @@ impl LocalInterface {
                     return Ok(existing_entry);
                 } else {
                     writeln!(f)?;
-                    let d = DiaryEntries {
-                        diary_date: current_date,
-                        diary_text: "".into(),
-                        last_modified: Utc::now(),
-                    };
+                    let d = DiaryEntries::new(current_date, "".into());
                     d.upsert_entry(&self.pool)?;
                     return Ok(d);
                 }

@@ -55,11 +55,7 @@ impl DiaryAppInterface {
         diary_date: NaiveDate,
         diary_text: Cow<'a, str>,
     ) -> Result<DiaryEntries<'a>, Error> {
-        let de = DiaryEntries {
-            diary_date,
-            diary_text,
-            last_modified: Utc::now(),
-        };
+        let de = DiaryEntries::new(diary_date, diary_text);
         de.upsert_entry(&self.pool)?;
         Ok(de)
     }
@@ -303,11 +299,7 @@ impl DiaryAppInterface {
                     current_entry.update_entry(&self.pool)?;
                     Some(current_entry)
                 } else {
-                    let new_entry = DiaryEntries {
-                        diary_date: entry_date,
-                        diary_text: entry_string.into(),
-                        last_modified: Utc::now(),
-                    };
+                    let new_entry = DiaryEntries::new(entry_date, entry_string.into());
                     println!("upsert {}", diary_file);
                     new_entry.upsert_entry(&self.pool)?;
                     Some(new_entry)
