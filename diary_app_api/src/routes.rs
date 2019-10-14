@@ -137,3 +137,28 @@ pub fn list(
         })
     })
 }
+
+#[derive(Serialize, Deserialize)]
+pub struct EditData {
+    pub date: NaiveDate,
+}
+
+pub fn edit(
+    query: Query<EditData>,
+    _: LoggedUser,
+    state: Data<AppState>,
+) -> impl Future<Item = HttpResponse, Error = Error> {
+    let diary_date = query.into_inner().date;
+    let req = DiaryAppRequests::Search(SearchOptions {
+        date: Some(diary_date),
+        text: None,
+    });
+    state.db.send(req).from_err().and_then(move |res| {
+        res.and_then(|text| {
+            let body = include_str!("../../templates/editor_template.html")
+                .replace("DIARY_DATE", &diary_date.to_string())
+                .replace("CURRENT_DIARY_TEXT", &text.join("\n"));
+            form_http_response(body)
+        })
+    })
+}

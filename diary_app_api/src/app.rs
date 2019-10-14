@@ -13,7 +13,7 @@ use diary_app_lib::diary_app_interface::DiaryAppInterface;
 use diary_app_lib::pgpool::PgPool;
 
 use super::logged_user::AUTHORIZED_USERS;
-use super::routes::{insert, list, replace, search, search_api, sync};
+use super::routes::{edit, insert, list, replace, search, search_api, sync};
 
 pub struct AppState {
     pub db: Addr<DiaryAppInterface>,
@@ -58,6 +58,7 @@ pub fn start_app() {
             .service(web::resource("/api/sync").route(web::get().to_async(sync)))
             .service(web::resource("/api/replace").route(web::post().to_async(replace)))
             .service(web::resource("/api/list").route(web::get().to_async(list)))
+            .service(web::resource("/api/edit").route(web::get().to_async(edit)))
     })
     .bind(&format!("127.0.0.1:{}", port))
     .unwrap_or_else(|_| panic!("Failed to bind to port {}", port))
