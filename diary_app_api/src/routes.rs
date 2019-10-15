@@ -27,13 +27,13 @@ where
 fn _search(
     query: Query<SearchOptions>,
     state: Data<AppState>,
-    do_api: bool,
+    is_api: bool,
 ) -> impl Future<Item = HttpResponse, Error = Error> {
     let req = DiaryAppRequests::Search(query.into_inner());
 
     state.db.send(req).from_err().and_then(move |res| {
         res.and_then(|body| {
-            if do_api {
+            if is_api {
                 let body = hashmap! {"text" => body.join("\n")};
                 to_json(&body)
             } else {
@@ -122,19 +122,43 @@ pub fn replace(
     })
 }
 
-pub fn list(
+pub fn _list(
     query: Query<ListOptions>,
-    _: LoggedUser,
     state: Data<AppState>,
+    is_api: bool,
 ) -> impl Future<Item = HttpResponse, Error = Error> {
     let query = query.into_inner();
     let req = DiaryAppRequests::List(query);
     state.db.send(req).from_err().and_then(move |res| {
         res.and_then(|body| {
-            let body = hashmap! {"list" => body };
-            to_json(&body)
+            if is_api {
+                let body = hashmap! {"list" => body };
+                to_json(&body)
+            } else {
+                let text: Vec<_> = body.into_iter().map(|t| format!(
+                    r#"<input type="button" type="submit" name="{t}" value="{t}" onclick="switchToDate( '{t}' )"><br>"#, t = t)).collect();
+                let body = include_str!("../../templates/list_template.html")
+                    .replace("LIST_TEXT", &text.join("\n"));
+                form_http_response(body)
+            }
         })
     })
+}
+
+pub fn list(
+    query: Query<ListOptions>,
+    _: LoggedUser,
+    state: Data<AppState>,
+) -> impl Future<Item = HttpResponse, Error = Error> {
+    _list(query, state, false)
+}
+
+pub fn list_api(
+    query: Query<ListOptions>,
+    _: LoggedUser,
+    state: Data<AppState>,
+) -> impl Future<Item = HttpResponse, Error = Error> {
+    _list(query, state, true)
 }
 
 #[derive(Serialize, Deserialize)]

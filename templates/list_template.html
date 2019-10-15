@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<body>
+
+<form>
+    <input type="text" name="search_text" id="search_text"/>
+    <input type="button" name="search_button" value="Submit" onclick="searchDiary();"/>
+</form>
+
+LIST_TEXT
+
+<script language="JavaScript" type="text/javascript">
+    function switchToDate( date ) {
+        let url = '../api/display?date=' + date;
+        location.replace(url);
+    }
+    function searchDiary() {
+        let text_form = document.getElementById( 'search_text' );
+        let url = encodeURI('../api/search?text=' + text_form.value);
+        location.replace(url);
+    }
+</script>
+
+</body>
+</html>

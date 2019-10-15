@@ -2,6 +2,9 @@
 <html>
 <body>
 
+<button type="submit" onclick="switchToList()">List</button>
+<br><br>
+
 <textarea name="message" id="diary_editor_form" rows=50 cols=100 form="diary_edit_form">CURRENT_DIARY_TEXT</textarea>
 <br>
 
@@ -26,6 +29,9 @@
     function switchToDisplay() {
         let url = '../api/display?date=DIARY_DATE';
         location.replace(url);
+    }
+    function switchToList() {
+        location.replace('../api/list?limit=10');
     }
 </script>
 
