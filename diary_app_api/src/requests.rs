@@ -4,6 +4,7 @@ use failure::Error;
 use serde::{Deserialize, Serialize};
 
 use diary_app_lib::diary_app_interface::DiaryAppInterface;
+use diary_app_lib::models::DiaryEntries;
 
 #[derive(Serialize, Deserialize)]
 pub struct SearchOptions {
@@ -25,6 +26,7 @@ pub enum DiaryAppRequests {
     Sync,
     Replace { date: NaiveDate, text: String },
     List(ListOptions),
+    Display(NaiveDate),
 }
 
 impl Message for DiaryAppRequests {
@@ -40,9 +42,8 @@ impl Handler<DiaryAppRequests> for DiaryAppInterface {
                     let results: Vec<_> = self.search_text(&text)?;
                     results
                 } else if let Some(date) = opts.date {
-                    let text = format!("{}", date);
-                    let results: Vec<_> = self.search_text(&text)?;
-                    results
+                    let entry = DiaryEntries::get_by_date(date, &self.pool)?;
+                    vec![entry.diary_text.into()]
                 } else {
                     vec!["".to_string()]
                 };
@@ -68,6 +69,10 @@ impl Handler<DiaryAppRequests> for DiaryAppInterface {
                     .map(|x| x.to_string())
                     .collect();
                 Ok(dates)
+            }
+            DiaryAppRequests::Display(date) => {
+                let entry = DiaryEntries::get_by_date(date, &self.pool)?;
+                Ok(vec![entry.diary_text.into()])
             }
         }
     }

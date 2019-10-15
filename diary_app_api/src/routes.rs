@@ -73,8 +73,7 @@ pub fn insert(
     _: LoggedUser,
     state: Data<AppState>,
 ) -> impl Future<Item = HttpResponse, Error = Error> {
-    let text = data.into_inner().text;
-    let req = DiaryAppRequests::Insert(text);
+    let req = DiaryAppRequests::Insert(data.into_inner().text);
     state.db.send(req).from_err().and_then(move |res| {
         res.and_then(|body| {
             let body = hashmap! {"datetime" => body.join("\n")};
@@ -149,13 +148,27 @@ pub fn edit(
     state: Data<AppState>,
 ) -> impl Future<Item = HttpResponse, Error = Error> {
     let diary_date = query.into_inner().date;
-    let req = DiaryAppRequests::Search(SearchOptions {
-        date: Some(diary_date),
-        text: None,
-    });
+    let req = DiaryAppRequests::Display(diary_date);
     state.db.send(req).from_err().and_then(move |res| {
         res.and_then(|text| {
             let body = include_str!("../../templates/editor_template.html")
+                .replace("DIARY_DATE", &diary_date.to_string())
+                .replace("CURRENT_DIARY_TEXT", &text.join("\n"));
+            form_http_response(body)
+        })
+    })
+}
+
+pub fn display(
+    query: Query<EditData>,
+    _: LoggedUser,
+    state: Data<AppState>,
+) -> impl Future<Item = HttpResponse, Error = Error> {
+    let diary_date = query.into_inner().date;
+    let req = DiaryAppRequests::Display(diary_date);
+    state.db.send(req).from_err().and_then(move |res| {
+        res.and_then(|text| {
+            let body = include_str!("../../templates/display_template.html")
                 .replace("DIARY_DATE", &diary_date.to_string())
                 .replace("CURRENT_DIARY_TEXT", &text.join("\n"));
             form_http_response(body)

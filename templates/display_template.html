@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+<body>
+
+<textarea autofocus readonly="readonly" rows=50 cols=100>CURRENT_DIARY_TEXT</textarea>
+
+<form id="diary_edit_form">
+  <input type="button" name="edit" value="Edit" onclick="switchToEditor()">
+</form>
+
+<script language="JavaScript" type="text/javascript">
+    function switchToEditor() {
+        let url = '../api/edit?date=DIARY_DATE';
+        location.replace(url);
+    }
+</script>
+
+</body>
+</html>

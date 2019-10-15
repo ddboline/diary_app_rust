@@ -2,24 +2,30 @@
 <html>
 <body>
 
-<form>
-  <textarea name="message" id="diary_editor_form" rows=50 cols=100>CURRENT_DIARY_TEXT</textarea>
-  <br>
+<textarea name="message" id="diary_editor_form" rows=50 cols=100 form="diary_edit_form">CURRENT_DIARY_TEXT</textarea>
+<br>
+
+<form id="diary_edit_form">
   <input type="button" name="update" value="Update" onclick="submitFormData()">
+  <input type="button" name="cancel" value="Cancel" onclick="switchToDisplay()">
 </form>
 
 <script language="JavaScript" type="text/javascript">
     function submitFormData() {
         let url = '../api/replace';
-        let text = document.getElementById('diary_editor_form');
-        let data = JSON.stringify({'date': 'DIARY_DATE', 'text': text});
+        let text = document.getElementById( 'diary_editor_form' );
+        let data = JSON.stringify({'date': 'DIARY_DATE', 'text': text.value});
         let xmlhttp = new XMLHttpRequest();
         xmlhttp.open('POST', url, true);
         xmlhttp.onload = function see_result() {
-            location.replace('../api/search?date=DIARY_DATE')
+            location.replace('../api/display?date=DIARY_DATE')
         }
         xmlhttp.setRequestHeader('Content-Type', 'application/json');
         xmlhttp.send(data);
+    }
+    function switchToDisplay() {
+        let url = '../api/display?date=DIARY_DATE';
+        location.replace(url);
     }
 </script>
 
