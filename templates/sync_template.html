@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html>
+<body>
+
+<button type="submit" onclick="switchToList()">List</button>
+<br><br>
+
+<textarea autofocus readonly="readonly" rows=50 cols=100>CURRENT_DIARY_TEXT</textarea>
+
+<script language="JavaScript" type="text/javascript">
+    function switchToList() {
+        location.replace('../api/list?limit=10');
+    }
+</script>
+
+</body>
+</html>

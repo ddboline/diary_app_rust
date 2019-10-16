@@ -3,14 +3,14 @@ use diesel::{
     Connection, ExpressionMethods, Insertable, QueryDsl, Queryable, RunQueryDsl,
     TextExpressionMethods,
 };
-use difference::Changeset;
+use difference::{Changeset, Difference};
 use failure::{err_msg, Error};
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
 use std::collections::HashMap;
 
 use crate::pgpool::{PgPool, PgPoolConn};
-use crate::schema::{authorized_users, diary_cache, diary_entries};
+use crate::schema::{authorized_users, diary_cache, diary_conflict, diary_entries};
 
 #[derive(Queryable, Insertable, Clone, Debug)]
 #[table_name = "diary_entries"]
@@ -34,11 +34,112 @@ pub struct AuthorizedUsers {
     pub telegram_userid: Option<i64>,
 }
 
+#[derive(Queryable, Clone, Debug, Serialize, Deserialize)]
+pub struct DiaryConflict<'a> {
+    pub id: i32,
+    pub sync_datetime: DateTime<Utc>,
+    pub diary_date: NaiveDate,
+    pub diff_type: Cow<'a, str>,
+    pub diff_text: Cow<'a, str>,
+}
+
+#[derive(Insertable, Clone, Debug, Serialize, Deserialize)]
+#[table_name = "diary_conflict"]
+pub struct DiaryConflictInsert<'a> {
+    pub sync_datetime: DateTime<Utc>,
+    pub diary_date: NaiveDate,
+    pub diff_type: Cow<'a, str>,
+    pub diff_text: Cow<'a, str>,
+}
+
+impl<'a> From<DiaryConflict<'a>> for DiaryConflictInsert<'a> {
+    fn from(item: DiaryConflict<'a>) -> DiaryConflictInsert<'a> {
+        Self {
+            sync_datetime: item.sync_datetime,
+            diary_date: item.diary_date,
+            diff_type: item.diff_type,
+            diff_text: item.diff_text,
+        }
+    }
+}
+
 impl AuthorizedUsers {
     pub fn get_authorized_users(pool: &PgPool) -> Result<Vec<AuthorizedUsers>, Error> {
         use crate::schema::authorized_users::dsl::authorized_users;
         let conn = pool.get()?;
         authorized_users.load(&conn).map_err(err_msg)
+    }
+}
+
+impl DiaryConflict<'_> {
+    pub fn get_by_date(date: NaiveDate, pool: &PgPool) -> Result<Vec<Self>, Error> {
+        use crate::schema::diary_conflict::dsl::{diary_conflict, diary_date, id};
+        let conn = pool.get()?;
+
+        diary_conflict
+            .filter(diary_date.eq(date))
+            .order(id)
+            .load(&conn)
+            .map_err(err_msg)
+    }
+
+    pub fn get_by_datetime(datetime: DateTime<Utc>, pool: &PgPool) -> Result<Vec<Self>, Error> {
+        use crate::schema::diary_conflict::dsl::{diary_conflict, id, sync_datetime};
+        let conn = pool.get()?;
+        diary_conflict
+            .filter(sync_datetime.eq(datetime))
+            .order(id)
+            .load(&conn)
+            .map_err(err_msg)
+    }
+
+    pub fn insert_from_changeset(
+        diary_date: NaiveDate,
+        changeset: Changeset,
+        conn: &PgPoolConn,
+    ) -> Result<(), Error> {
+        use crate::schema::diary_conflict::dsl::diary_conflict;
+
+        let sync_datetime = Utc::now();
+        let removed_lines: Vec<_> = changeset
+            .diffs
+            .into_iter()
+            .filter_map(|entry| match entry {
+                Difference::Same(s) => Some(DiaryConflictInsert {
+                    sync_datetime,
+                    diary_date,
+                    diff_type: "same".into(),
+                    diff_text: s.into(),
+                }),
+                Difference::Rem(s) => Some(DiaryConflictInsert {
+                    sync_datetime,
+                    diary_date,
+                    diff_type: "rem".into(),
+                    diff_text: s.into(),
+                }),
+                Difference::Add(_) => None,
+            })
+            .collect();
+
+        let n_removed_lines: usize = removed_lines
+            .iter()
+            .map(|x| match x.diff_type.as_ref() {
+                "rem" => 1,
+                _ => 0,
+            })
+            .sum();
+
+        if n_removed_lines > 0 {
+            println!("update_entry {:?}", removed_lines);
+            println!("difference {}", n_removed_lines);
+            diesel::insert_into(diary_conflict)
+                .values(&removed_lines)
+                .execute(conn)
+                .map_err(err_msg)
+                .map(|_| ())
+        } else {
+            Ok(())
+        }
     }
 }
 
@@ -67,7 +168,12 @@ impl DiaryEntries<'_> {
     }
 
     fn _update_entry(&self, conn: &PgPoolConn) -> Result<(), Error> {
-        println!("update_entry {}", self._get_difference(conn)?);
+        let changeset = self._get_difference(conn)?;
+
+        if changeset.distance > 0 {
+            DiaryConflict::insert_from_changeset(self.diary_date, changeset, conn)?;
+        }
+
         use crate::schema::diary_entries::dsl::{
             diary_date, diary_entries, diary_text, last_modified,
         };

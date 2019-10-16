@@ -13,7 +13,10 @@ use diary_app_lib::diary_app_interface::DiaryAppInterface;
 use diary_app_lib::pgpool::PgPool;
 
 use super::logged_user::AUTHORIZED_USERS;
-use super::routes::{display, edit, insert, list, list_api, replace, search, search_api, sync};
+use super::routes::{
+    diary_frontpage, display, edit, insert, list, list_api, list_conflicts, replace, search,
+    search_api, show_conflict, sync, sync_api,
+};
 
 pub struct AppState {
     pub db: Addr<DiaryAppInterface>,
@@ -56,11 +59,18 @@ pub fn start_app() {
             .service(web::resource("/api/search_api").route(web::get().to_async(search_api)))
             .service(web::resource("/api/insert").route(web::post().to_async(insert)))
             .service(web::resource("/api/sync").route(web::get().to_async(sync)))
+            .service(web::resource("/api/sync_api").route(web::get().to_async(sync_api)))
             .service(web::resource("/api/replace").route(web::post().to_async(replace)))
             .service(web::resource("/api/list").route(web::get().to_async(list)))
             .service(web::resource("/api/list_api").route(web::get().to_async(list_api)))
             .service(web::resource("/api/edit").route(web::get().to_async(edit)))
             .service(web::resource("/api/display").route(web::get().to_async(display)))
+            .service(web::resource("/index.html").route(web::get().to_async(diary_frontpage)))
+            .service(
+                web::resource("/api/list_conflicts").route(web::get().to_async(list_conflicts)),
+            )
+            .service(web::resource("/api/show_conflict").route(web::get().to_async(show_conflict)))
+        // .service(web::resource("/api/resolve").route(web::get().to_async(resolve)))
     })
     .bind(&format!("127.0.0.1:{}", port))
     .unwrap_or_else(|_| panic!("Failed to bind to port {}", port))

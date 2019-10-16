@@ -1,11 +1,13 @@
 use chrono::{DateTime, Datelike, Duration, Local, NaiveDate, TimeZone, Utc};
 use failure::Error;
 use jwalk::WalkDir;
+use log::debug;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
-use std::collections::{BTreeMap, HashSet};
-use std::fs::{read_to_string, remove_file, File};
+use std::collections::BTreeMap;
+use std::fs::{metadata, read_to_string, remove_file, File};
 use std::io::{stdout, Write};
 use std::path::Path;
+use std::time::SystemTime;
 
 use crate::config::Config;
 use crate::models::DiaryEntries;
@@ -77,7 +79,9 @@ impl LocalInterface {
 
     pub fn cleanup_local(&self) -> Result<Vec<DiaryEntries>, Error> {
         let stdout = stdout();
-        let dates: Result<HashSet<_>, Error> = WalkDir::new(&self.config.diary_path)
+        let existing_map = DiaryEntries::get_modified_map(&self.pool)?;
+
+        let dates: Result<BTreeMap<_, _>, Error> = WalkDir::new(&self.config.diary_path)
             .sort(true)
             .preload_metadata(true)
             .into_iter()
@@ -91,11 +95,21 @@ impl LocalInterface {
                         let filepath = format!("{}/{}", self.config.diary_path, filename);
                         writeln!(stdout.lock(), "{}", filepath)?;
                         remove_file(&filepath)?;
-                        return Ok(None);
+                        Ok(None)
+                    } else {
+                        let filepath = format!("{}/{}", self.config.diary_path, filename);
+                        let metadata = metadata(&filepath)?;
+                        let size = metadata.len() as usize;
+                        let modified_secs = metadata
+                            .modified()?
+                            .duration_since(SystemTime::UNIX_EPOCH)?
+                            .as_secs() as i64;
+                        let modified = Utc.timestamp(modified_secs, 0);
+                        Ok(Some((date, (modified, size))))
                     }
-                    return Ok(Some(date));
+                } else {
+                    Ok(None)
                 }
-                Ok(None)
             })
             .filter_map(|x| x.transpose())
             .collect();
@@ -104,21 +118,44 @@ impl LocalInterface {
 
         (0..4)
             .map(|i| (current_date - Duration::days(i)))
-            .filter(|current_date| !dates.contains(&current_date))
             .map(|current_date| {
-                let filepath = format!("{}/{}.txt", self.config.diary_path, current_date);
-                let mut f = File::create(&filepath)?;
-
-                if let Ok(existing_entry) = DiaryEntries::get_by_date(current_date, &self.pool) {
-                    writeln!(f, "{}", &existing_entry.diary_text)?;
-                    return Ok(existing_entry);
+                if let Some((file_mod, file_size)) = dates.get(&current_date) {
+                    if let Some(db_mod) = existing_map.get(&current_date) {
+                        if file_mod < db_mod {
+                            if let Ok(existing_entry) =
+                                DiaryEntries::get_by_date(current_date, &self.pool)
+                            {
+                                let existing_size = existing_entry.diary_text.len();
+                                if existing_size > *file_size {
+                                    println!("file db diff {} {}", file_mod, db_mod);
+                                    println!("file db size {} {}", file_size, db_mod);
+                                    let filepath =
+                                        format!("{}/{}.txt", self.config.diary_path, current_date);
+                                    let mut f = File::create(&filepath)?;
+                                    writeln!(f, "{}", &existing_entry.diary_text)?;
+                                }
+                                return Ok(Some(existing_entry));
+                            }
+                        }
+                    }
+                    Ok(None)
                 } else {
-                    writeln!(f)?;
-                    let d = DiaryEntries::new(current_date, "".into());
-                    d.upsert_entry(&self.pool)?;
-                    return Ok(d);
+                    let filepath = format!("{}/{}.txt", self.config.diary_path, current_date);
+                    let mut f = File::create(&filepath)?;
+
+                    if let Ok(existing_entry) = DiaryEntries::get_by_date(current_date, &self.pool)
+                    {
+                        writeln!(f, "{}", &existing_entry.diary_text)?;
+                        Ok(Some(existing_entry))
+                    } else {
+                        writeln!(f)?;
+                        let d = DiaryEntries::new(current_date, "".into());
+                        d.upsert_entry(&self.pool)?;
+                        Ok(Some(d))
+                    }
                 }
             })
+            .filter_map(|x| x.transpose())
             .collect()
     }
 

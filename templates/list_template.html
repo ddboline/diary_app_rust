@@ -3,20 +3,37 @@
 <body>
 
 <form>
+    <input type="button" name="sync_button" value="Sync" onclick="syncDiary();"/>
     <input type="text" name="search_text" id="search_text"/>
     <input type="button" name="search_button" value="Submit" onclick="searchDiary();"/>
 </form>
 
 LIST_TEXT
 
+<br>
+
+NAVIGATION_BUTTONS
+
 <script language="JavaScript" type="text/javascript">
     function switchToDate( date ) {
-        let url = '../api/display?date=' + date;
+        var url = '../api/display?date=' + date;
         location.replace(url);
     }
     function searchDiary() {
-        let text_form = document.getElementById( 'search_text' );
-        let url = encodeURI('../api/search?text=' + text_form.value);
+        var text_form = document.getElementById( 'search_text' );
+        var url = encodeURI('../api/search?text=' + text_form.value);
+        location.replace(url);
+    }
+    function syncDiary() {
+        location.replace('../api/sync');
+    }
+    function gotoEntries( start ) {
+        var url = '../api/list';
+        if (start > 0) {
+            url = url + '?start=' + start + '&limit=10';
+        } else {
+            url = url + '?limit=10';
+        }
         location.replace(url);
     }
 </script>

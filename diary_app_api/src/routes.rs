@@ -1,7 +1,7 @@
 use actix_web::http::StatusCode;
 use actix_web::web::{Data, Json, Query};
 use actix_web::HttpResponse;
-use chrono::NaiveDate;
+use chrono::{DateTime, NaiveDate, Utc};
 use failure::Error;
 use futures::Future;
 use maplit::hashmap;
@@ -25,11 +25,11 @@ where
 }
 
 fn _search(
-    query: Query<SearchOptions>,
+    query: SearchOptions,
     state: Data<AppState>,
     is_api: bool,
 ) -> impl Future<Item = HttpResponse, Error = Error> {
-    let req = DiaryAppRequests::Search(query.into_inner());
+    let req = DiaryAppRequests::Search(query);
 
     state.db.send(req).from_err().and_then(move |res| {
         res.and_then(|body| {
@@ -52,7 +52,7 @@ pub fn search_api(
     _: LoggedUser,
     state: Data<AppState>,
 ) -> impl Future<Item = HttpResponse, Error = Error> {
-    _search(query, state, true)
+    _search(query.into_inner(), state, true)
 }
 
 pub fn search(
@@ -60,7 +60,7 @@ pub fn search(
     _: LoggedUser,
     state: Data<AppState>,
 ) -> impl Future<Item = HttpResponse, Error = Error> {
-    _search(query, state, false)
+    _search(query.into_inner(), state, false)
 }
 
 #[derive(Serialize, Deserialize)]
@@ -82,9 +82,9 @@ pub fn insert(
     })
 }
 
-pub fn sync(
-    _: LoggedUser,
+pub fn _sync(
     state: Data<AppState>,
+    is_api: bool,
 ) -> impl Future<Item = HttpResponse, Error = Error> {
     state
         .db
@@ -92,10 +92,30 @@ pub fn sync(
         .from_err()
         .and_then(move |res| {
             res.and_then(|body| {
-                let body = hashmap! {"response" => body.join("\n")};
-                to_json(&body)
+                if is_api {
+                    let body = hashmap! {"response" => body.join("\n")};
+                    to_json(&body)
+                } else {
+                    let body = include_str!("../../templates/sync_template.html")
+                        .replace("CURRENT_DIARY_TEXT", &body.join("\n"));
+                    form_http_response(body)
+                }
             })
         })
+}
+
+pub fn sync(
+    _: LoggedUser,
+    state: Data<AppState>,
+) -> impl Future<Item = HttpResponse, Error = Error> {
+    _sync(state, false)
+}
+
+pub fn sync_api(
+    _: LoggedUser,
+    state: Data<AppState>,
+) -> impl Future<Item = HttpResponse, Error = Error> {
+    _sync(state, true)
 }
 
 #[derive(Serialize, Deserialize)]
@@ -123,11 +143,10 @@ pub fn replace(
 }
 
 pub fn _list(
-    query: Query<ListOptions>,
+    query: ListOptions,
     state: Data<AppState>,
     is_api: bool,
 ) -> impl Future<Item = HttpResponse, Error = Error> {
-    let query = query.into_inner();
     let req = DiaryAppRequests::List(query);
     state.db.send(req).from_err().and_then(move |res| {
         res.and_then(|body| {
@@ -135,10 +154,41 @@ pub fn _list(
                 let body = hashmap! {"list" => body };
                 to_json(&body)
             } else {
-                let text: Vec<_> = body.into_iter().map(|t| format!(
-                    r#"<input type="button" type="submit" name="{t}" value="{t}" onclick="switchToDate( '{t}' )"><br>"#, t = t)).collect();
+                let text: Vec<_> = body
+                    .into_iter()
+                    .map(|t| {
+                        format!(
+                            r#"
+                    <input type="button"
+                           type="submit"
+                           name="{t}"
+                           value="{t}"
+                           onclick="switchToDate( '{t}' )"
+                    ><br>"#,
+                            t = t
+                        )
+                    })
+                    .collect();
+                let buttons: Vec<_> = if let Some(start) = query.start {
+                    vec![
+                        format!(
+                            r#"<button type="submit" onclick="gotoEntries({})">Previous</button>"#,
+                            start - 10
+                        ),
+                        format!(
+                            r#"<button type="submit" onclick="gotoEntries({})">Next</button>"#,
+                            start + 10
+                        ),
+                    ]
+                } else {
+                    vec![format!(
+                        r#"<button type="submit" onclick="gotoEntries({})">Next</button>"#,
+                        10
+                    )]
+                };
                 let body = include_str!("../../templates/list_template.html")
-                    .replace("LIST_TEXT", &text.join("\n"));
+                    .replace("LIST_TEXT", &text.join("\n"))
+                    .replace("NAVIGATION_BUTTONS", &buttons.join("\n"));
                 form_http_response(body)
             }
         })
@@ -150,7 +200,7 @@ pub fn list(
     _: LoggedUser,
     state: Data<AppState>,
 ) -> impl Future<Item = HttpResponse, Error = Error> {
-    _list(query, state, false)
+    _list(query.into_inner(), state, false)
 }
 
 pub fn list_api(
@@ -158,7 +208,7 @@ pub fn list_api(
     _: LoggedUser,
     state: Data<AppState>,
 ) -> impl Future<Item = HttpResponse, Error = Error> {
-    _list(query, state, true)
+    _list(query.into_inner(), state, true)
 }
 
 #[derive(Serialize, Deserialize)]
@@ -198,4 +248,48 @@ pub fn display(
             form_http_response(body)
         })
     })
+}
+
+pub fn diary_frontpage(
+    _: LoggedUser,
+    state: Data<AppState>,
+) -> impl Future<Item = HttpResponse, Error = Error> {
+    let query = ListOptions {
+        limit: Some(10),
+        ..Default::default()
+    };
+    _list(query, state, false)
+}
+
+pub fn list_conflicts(
+    query: Query<EditData>,
+    _: LoggedUser,
+    state: Data<AppState>,
+) -> impl Future<Item = HttpResponse, Error = Error> {
+    let diary_date = query.into_inner().date;
+    let req = DiaryAppRequests::ListConflicts(diary_date);
+    state
+        .db
+        .send(req)
+        .from_err()
+        .and_then(move |res| res.and_then(|text| form_http_response(text.join("\n"))))
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct ConflictData {
+    pub datetime: DateTime<Utc>,
+}
+
+pub fn show_conflict(
+    query: Query<ConflictData>,
+    _: LoggedUser,
+    state: Data<AppState>,
+) -> impl Future<Item = HttpResponse, Error = Error> {
+    let datetime = query.into_inner().datetime;
+    let req = DiaryAppRequests::ShowConflict(datetime);
+    state
+        .db
+        .send(req)
+        .from_err()
+        .and_then(move |res| res.and_then(|text| form_http_response(text.join("\n"))))
 }

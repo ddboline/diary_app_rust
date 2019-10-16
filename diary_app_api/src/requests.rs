@@ -1,10 +1,11 @@
 use actix::{Handler, Message};
-use chrono::NaiveDate;
+use chrono::{DateTime, NaiveDate, Utc};
 use failure::Error;
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeSet;
 
 use diary_app_lib::diary_app_interface::DiaryAppInterface;
-use diary_app_lib::models::DiaryEntries;
+use diary_app_lib::models::{DiaryConflict, DiaryEntries};
 
 #[derive(Serialize, Deserialize)]
 pub struct SearchOptions {
@@ -12,7 +13,7 @@ pub struct SearchOptions {
     pub date: Option<NaiveDate>,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Default, Copy, Clone)]
 pub struct ListOptions {
     pub min_date: Option<NaiveDate>,
     pub max_date: Option<NaiveDate>,
@@ -27,6 +28,8 @@ pub enum DiaryAppRequests {
     Replace { date: NaiveDate, text: String },
     List(ListOptions),
     Display(NaiveDate),
+    ListConflicts(NaiveDate),
+    ShowConflict(DateTime<Utc>),
 }
 
 impl Message for DiaryAppRequests {
@@ -73,6 +76,23 @@ impl Handler<DiaryAppRequests> for DiaryAppInterface {
             DiaryAppRequests::Display(date) => {
                 let entry = DiaryEntries::get_by_date(date, &self.pool)?;
                 Ok(vec![entry.diary_text.into()])
+            }
+            DiaryAppRequests::ListConflicts(date) => {
+                let conflicts: BTreeSet<_> = DiaryConflict::get_by_date(date, &self.pool)?
+                    .into_iter()
+                    .map(|entry| entry.sync_datetime.to_string())
+                    .collect();
+                Ok(conflicts.into_iter().collect())
+            }
+            DiaryAppRequests::ShowConflict(datetime) => {
+                let conflicts: Vec<_> = DiaryConflict::get_by_datetime(datetime, &self.pool)?
+                    .into_iter()
+                    .map(|entry| match entry.diff_type.as_ref() {
+                        "rem" => format!("-- remove -- {}", entry.diff_text),
+                        _ => format!("{}", entry.diff_text),
+                    })
+                    .collect();
+                Ok(conflicts)
             }
         }
     }
