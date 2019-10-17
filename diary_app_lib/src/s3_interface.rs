@@ -125,7 +125,9 @@ impl S3Interface {
 
                             let should_modify = match existing_map.get(&date) {
                                 Some(current_modified) => {
-                                    if (*current_modified - last_modified).num_seconds() < TIME_BUFFER {
+                                    if (*current_modified - last_modified).num_seconds()
+                                        < TIME_BUFFER
+                                    {
                                         if let Ok(entry) =
                                             DiaryEntries::get_by_date(date, &self.pool)
                                         {
@@ -145,7 +147,8 @@ impl S3Interface {
                                             false
                                         }
                                     } else {
-                                        (*current_modified - last_modified).num_seconds() < -TIME_BUFFER
+                                        (*current_modified - last_modified).num_seconds()
+                                            < -TIME_BUFFER
                                     }
                                 }
                                 None => true,

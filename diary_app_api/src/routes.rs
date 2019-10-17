@@ -97,8 +97,10 @@ pub fn _sync(
                     let body = hashmap! {"response" => body.join("\n")};
                     to_json(&body)
                 } else {
-                    let body = include_str!("../../templates/sync_template.html")
-                        .replace("CURRENT_DIARY_TEXT", &body.join("\n"));
+                    let body = format!(
+                        r#"<textarea autofocus readonly="readonly" rows=50 cols=100>{}</textarea>"#,
+                        body.join("\n")
+                    );
                     form_http_response(body)
                 }
             })
@@ -214,7 +216,8 @@ pub fn _list(
                     };
                     let body = include_str!("../../templates/list_template.html")
                         .replace("LIST_TEXT", &text.join("\n"))
-                        .replace("NAVIGATION_BUTTONS", &buttons.join("\n"));
+                        .replace("NAVIGATION_BUTTONS", &buttons.join("\n"))
+                        .replace("DISPLAY_TEXT", "");
                     form_http_response(body)
                 }
             })
@@ -252,8 +255,8 @@ pub fn edit(
     state.db.send(req).from_err().and_then(move |res| {
         res.and_then(|text| {
             let body = include_str!("../../templates/editor_template.html")
-                .replace("DIARY_DATE", &diary_date.to_string())
-                .replace("CURRENT_DIARY_TEXT", &text.join("\n"));
+                .replace("CURRENT_DIARY_TEXT", &text.join("\n"))
+                .replace("DIARY_DATE", &diary_date.to_string());
             form_http_response(body)
         })
     })
@@ -268,13 +271,11 @@ pub fn display(
     let req = DiaryAppRequests::Display(diary_date);
     state.db.send(req).from_err().and_then(move |res| {
         res.and_then(|text| {
-            let text = format!(
-                r#"<textarea autofocus readonly="readonly" rows=50 cols=100>{}</textarea>"#,
-                text.join("\n")
+            let body = format!(
+                r#"<textarea autofocus readonly="readonly" rows=50 cols=100>{}</textarea><br>{}"#,
+                text.join("\n"),
+                format!(r#"<input type="button" name="edit" value="Edit" onclick="switchToEditor('{}')">"#, diary_date),
             );
-            let body = include_str!("../../templates/display_template.html")
-                .replace("DIARY_DATE", &diary_date.to_string())
-                .replace("CURRENT_DIARY_TEXT", &text);
             form_http_response(body)
         })
     })
@@ -315,7 +316,7 @@ pub fn list_conflicts(
                         type="submit"
                         name="show_{t}"
                         value="Show {t}"
-                        onclick="showConflict( '{t}' )">
+                        onclick="showConflict( '{d}', '{t}' )">
                     <input type="button"
                         type="submit"
                         name="remove_{t}"
@@ -323,7 +324,10 @@ pub fn list_conflicts(
                         onclick="removeConflict( '{t}' )">
                     <br>
                 "#,
-                        t = t
+                        t = t,
+                        d = diary_date
+                            .unwrap_or_else(|| Local::today().naive_local())
+                            .to_string(),
                     )
                 })
                 .collect();
@@ -332,7 +336,8 @@ pub fn list_conflicts(
                 .replace(
                     "NAVIGATION_BUTTONS",
                     r#"<button type="submit" onclick="switchToList()">List</button>"#,
-                );
+                )
+                .replace("DISPLAY_TEXT", "");
             form_http_response(body)
         })
     })
@@ -343,14 +348,19 @@ pub fn show_conflict(
     _: LoggedUser,
     state: Data<AppState>,
 ) -> impl Future<Item = HttpResponse, Error = Error> {
-    let datetime = query.into_inner().datetime.unwrap_or_else(|| Utc::now());
-    let diary_date = datetime.with_timezone(&Local).naive_local().date();
+    let query = query.into_inner();
+    let datetime = query.datetime.unwrap_or_else(Utc::now);
+    let diary_date = query
+        .date
+        .unwrap_or_else(|| datetime.with_timezone(&Local).naive_local().date());
     let req = DiaryAppRequests::ShowConflict(datetime);
     state.db.send(req).from_err().and_then(move |res| {
         res.and_then(|text| {
-            let body = include_str!("../../templates/display_template.html")
-                .replace("DIARY_DATE", &diary_date.to_string())
-                .replace("CURRENT_DIARY_TEXT", &text.join("\n"));
+            let body = format!(
+                r#"{}<br><input type="button" name="edit" value="Edit" onclick="switchToEditor('{}')">"#,
+                text.join("\n"),
+                diary_date
+            );
             form_http_response(body)
         })
     })
@@ -361,7 +371,7 @@ pub fn remove_conflict(
     _: LoggedUser,
     state: Data<AppState>,
 ) -> impl Future<Item = HttpResponse, Error = Error> {
-    let datetime = query.into_inner().datetime.unwrap_or_else(|| Utc::now());
+    let datetime = query.into_inner().datetime.unwrap_or_else(Utc::now);
     let req = DiaryAppRequests::RemoveConflict(datetime);
     state
         .db

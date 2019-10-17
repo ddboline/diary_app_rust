@@ -96,7 +96,7 @@ impl Handler<DiaryAppRequests> for DiaryAppInterface {
                 let conflicts: Vec<_> = DiaryConflict::get_by_datetime(datetime, &self.pool)?
                     .into_iter()
                     .map(|entry| {
-                        let nlines = entry.diff_text.split("\n").count() + 1;
+                        let nlines = entry.diff_text.split('\n').count() + 1;
                         match entry.diff_type.as_ref() {
                             "rem" => format!(
                                 r#"<textarea style="color:Red;" cols=100 rows={}>{}</textarea><br>"#,
