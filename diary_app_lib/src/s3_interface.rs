@@ -10,6 +10,8 @@ use crate::models::DiaryEntries;
 use crate::pgpool::PgPool;
 use crate::s3_instance::S3Instance;
 
+const TIME_BUFFER: i64 = 60;
+
 #[derive(Clone, Debug)]
 pub struct S3Interface {
     config: Config,
@@ -54,7 +56,7 @@ impl S3Interface {
             .map(|(diary_date, last_modified)| {
                 let should_update = match s3_key_map.get(&diary_date) {
                     Some((lm, sz)) => {
-                        if (last_modified - *lm).num_seconds() > -300 {
+                        if (last_modified - *lm).num_seconds() > -TIME_BUFFER {
                             if let Ok(entry) = DiaryEntries::get_by_date(diary_date, &self.pool) {
                                 let ln = entry.diary_text.len() as i64;
                                 if *sz != ln {
@@ -68,7 +70,7 @@ impl S3Interface {
                                 false
                             }
                         } else {
-                            (last_modified - *lm).num_seconds() > 300
+                            (last_modified - *lm).num_seconds() > TIME_BUFFER
                         }
                     }
                     None => true,
@@ -123,7 +125,7 @@ impl S3Interface {
 
                             let should_modify = match existing_map.get(&date) {
                                 Some(current_modified) => {
-                                    if (*current_modified - last_modified).num_seconds() < 300 {
+                                    if (*current_modified - last_modified).num_seconds() < TIME_BUFFER {
                                         if let Ok(entry) =
                                             DiaryEntries::get_by_date(date, &self.pool)
                                         {
@@ -143,7 +145,7 @@ impl S3Interface {
                                             false
                                         }
                                     } else {
-                                        (*current_modified - last_modified).num_seconds() < -300
+                                        (*current_modified - last_modified).num_seconds() < -TIME_BUFFER
                                     }
                                 }
                                 None => true,

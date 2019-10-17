@@ -73,7 +73,6 @@ pub fn start_app() {
             .service(
                 web::resource("/api/remove_conflict").route(web::get().to_async(remove_conflict)),
             )
-        // .service(web::resource("/api/resolve").route(web::get().to_async(resolve)))
     })
     .bind(&format!("127.0.0.1:{}", port))
     .unwrap_or_else(|_| panic!("Failed to bind to port {}", port))
