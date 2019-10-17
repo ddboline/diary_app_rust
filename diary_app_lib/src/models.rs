@@ -150,11 +150,8 @@ impl DiaryConflict<'_> {
 
         let n_removed_lines: usize = removed_lines
             .iter()
-            .map(|x| match x.diff_type.as_ref() {
-                "rem" => 1,
-                _ => 0,
-            })
-            .sum();
+            .filter(|x| x.diff_type == "rem")
+            .count();
 
         if n_removed_lines > 0 {
             println!("update_entry {:?}", removed_lines);
