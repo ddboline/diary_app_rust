@@ -7,6 +7,8 @@ use futures::future::Future;
 use futures::stream::Stream;
 use std::time;
 use tokio_timer::Interval;
+use std::sync::Arc;
+use std::sync::atomic::AtomicUsize;
 
 use diary_app_lib::config::Config;
 use diary_app_lib::diary_app_interface::DiaryAppInterface;
@@ -20,6 +22,7 @@ use super::routes::{
 
 pub struct AppState {
     pub db: Addr<DiaryAppInterface>,
+    pub start: Arc<AtomicUsize>,
 }
 
 pub fn start_app() {

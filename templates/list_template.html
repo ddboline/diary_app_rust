@@ -1,5 +1,71 @@
 <!DOCTYPE html>
 <html>
+<head>
+<style>
+* {
+    box-sizing: border-box;
+}
+
+body {
+    font-family: Arial, Helvetica, sans-serif;
+}
+
+/* Style the header */
+header {
+    background-color: #ffffff;
+    padding: 30px;
+    text-align: center;
+    font-size: 35px;
+    color: white;
+}
+
+/* Create two columns/boxes that floats next to each other */
+nav {
+    float: left;
+    width: 10%;
+    height: 300px; /* only for demonstration, should be removed */
+    background: #ffffff;
+    padding: 20px;
+}
+
+/* Style the list inside the menu */
+nav ul {
+    list-style-type: none;
+    padding: 0;
+}
+
+article {
+    float: left;
+    padding: 20px;
+    width: 70%;
+    background-color: #ffffff;
+    height: 300px; /* only for demonstration, should be removed */
+}
+
+/* Clear floats after the columns */
+section:after {
+    content: "";
+    display: table;
+    clear: both;
+}
+
+/* Style the footer */
+footer {
+    background-color: #ffffff;
+    padding: 10px;
+    text-align: center;
+    color: white;
+}
+
+/* Responsive layout - makes the two columns/boxes stack on top of each other instead of next to each other, on small screens */
+@media (max-width: 600px) {
+    nav, article {
+    width: 100%;
+    height: auto;
+    }
+}
+</style>
+</head>
 <body>
 
 <form>
@@ -8,11 +74,15 @@
     <input type="button" name="search_button" value="Submit" onclick="searchDiary();"/>
 </form>
 
+<nav>
 LIST_TEXT
-
 <br>
-
 NAVIGATION_BUTTONS
+</nav>
+
+<article>
+DISPLAY_TEXT
+</article>
 
 <script language="JavaScript" type="text/javascript">
     function switchToDate( date ) {
@@ -55,6 +125,22 @@ NAVIGATION_BUTTONS
     }
     function switchToList() {
         location.replace('../api/list?limit=10');
+    }
+    function submitFormData() {
+        let url = '../api/replace';
+        let text = document.getElementById( 'diary_editor_form' );
+        let data = JSON.stringify({'date': 'DIARY_DATE', 'text': text.value});
+        let xmlhttp = new XMLHttpRequest();
+        xmlhttp.open('POST', url, true);
+        xmlhttp.onload = function see_result() {
+            location.replace('../api/display?date=DIARY_DATE')
+        }
+        xmlhttp.setRequestHeader('Content-Type', 'application/json');
+        xmlhttp.send(data);
+    }
+    function switchToDisplay() {
+        let url = '../api/display?date=DIARY_DATE';
+        location.replace(url);
     }
 </script>
 
