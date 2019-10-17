@@ -72,13 +72,26 @@ impl AuthorizedUsers {
 }
 
 impl DiaryConflict<'_> {
-    pub fn get_by_date(date: NaiveDate, pool: &PgPool) -> Result<Vec<Self>, Error> {
-        use crate::schema::diary_conflict::dsl::{diary_conflict, diary_date, id};
+    pub fn get_all_dates(pool: &PgPool) -> Result<Vec<NaiveDate>, Error> {
+        use crate::schema::diary_conflict::dsl::{diary_conflict, diary_date};
+        let conn = pool.get()?;
+        diary_conflict
+            .select(diary_date)
+            .distinct()
+            .order(diary_date)
+            .load(&conn)
+            .map_err(err_msg)
+    }
+
+    pub fn get_by_date(date: NaiveDate, pool: &PgPool) -> Result<Vec<DateTime<Utc>>, Error> {
+        use crate::schema::diary_conflict::dsl::{diary_conflict, diary_date, sync_datetime};
         let conn = pool.get()?;
 
         diary_conflict
             .filter(diary_date.eq(date))
-            .order(id)
+            .select(sync_datetime)
+            .distinct()
+            .order(sync_datetime)
             .load(&conn)
             .map_err(err_msg)
     }
@@ -90,6 +103,15 @@ impl DiaryConflict<'_> {
             .filter(sync_datetime.eq(datetime))
             .order(id)
             .load(&conn)
+            .map_err(err_msg)
+    }
+
+    pub fn remove_by_datetime(datetime: DateTime<Utc>, pool: &PgPool) -> Result<(), Error> {
+        use crate::schema::diary_conflict::dsl::{diary_conflict, sync_datetime};
+        let conn = pool.get()?;
+        diesel::delete(diary_conflict.filter(sync_datetime.eq(datetime)))
+            .execute(&conn)
+            .map(|_| ())
             .map_err(err_msg)
     }
 
@@ -117,7 +139,12 @@ impl DiaryConflict<'_> {
                     diff_type: "rem".into(),
                     diff_text: s.into(),
                 }),
-                Difference::Add(_) => None,
+                Difference::Add(s) => Some(DiaryConflictInsert {
+                    sync_datetime,
+                    diary_date,
+                    diff_type: "add".into(),
+                    diff_text: s.into(),
+                }),
             })
             .collect();
 

@@ -19,6 +19,23 @@ NAVIGATION_BUTTONS
         var url = '../api/display?date=' + date;
         location.replace(url);
     }
+    function listConflicts( date ) {
+        var url = '../api/list_conflicts?date=' + date;
+        location.replace(url);
+    }
+    function showConflict( datetime ) {
+        var url = '../api/show_conflict?datetime=' + datetime;
+        location.replace(url);
+    }
+    function removeConflict( datetime ) {
+        var url = '../api/remove_conflict?datetime=' + datetime;
+        let xmlhttp = new XMLHttpRequest();
+        xmlhttp.open('GET', url, true);
+        xmlhttp.onload = function see_result() {
+            location.reload();
+        }
+        xmlhttp.send(null);
+    }
     function searchDiary() {
         var text_form = document.getElementById( 'search_text' );
         var url = encodeURI('../api/search?text=' + text_form.value);
@@ -35,6 +52,9 @@ NAVIGATION_BUTTONS
             url = url + '?limit=10';
         }
         location.replace(url);
+    }
+    function switchToList() {
+        location.replace('../api/list?limit=10');
     }
 </script>
 

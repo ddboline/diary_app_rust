@@ -127,8 +127,8 @@ impl LocalInterface {
                             {
                                 let existing_size = existing_entry.diary_text.len();
                                 if existing_size > *file_size {
-                                    println!("file db diff {} {}", file_mod, db_mod);
-                                    println!("file db size {} {}", file_size, db_mod);
+                                    debug!("file db diff {} {}", file_mod, db_mod);
+                                    debug!("file db size {} {}", file_size, db_mod);
                                     let filepath =
                                         format!("{}/{}.txt", self.config.diary_path, current_date);
                                     let mut f = File::create(&filepath)?;

@@ -28,8 +28,9 @@ pub enum DiaryAppRequests {
     Replace { date: NaiveDate, text: String },
     List(ListOptions),
     Display(NaiveDate),
-    ListConflicts(NaiveDate),
+    ListConflicts(Option<NaiveDate>),
     ShowConflict(DateTime<Utc>),
+    RemoveConflict(DateTime<Utc>),
 }
 
 impl Message for DiaryAppRequests {
@@ -77,22 +78,45 @@ impl Handler<DiaryAppRequests> for DiaryAppInterface {
                 let entry = DiaryEntries::get_by_date(date, &self.pool)?;
                 Ok(vec![entry.diary_text.into()])
             }
-            DiaryAppRequests::ListConflicts(date) => {
+            DiaryAppRequests::ListConflicts(None) => {
+                let conflicts: BTreeSet<_> = DiaryConflict::get_all_dates(&self.pool)?
+                    .into_iter()
+                    .map(|x| x.to_string())
+                    .collect();
+                Ok(conflicts.into_iter().collect())
+            }
+            DiaryAppRequests::ListConflicts(Some(date)) => {
                 let conflicts: BTreeSet<_> = DiaryConflict::get_by_date(date, &self.pool)?
                     .into_iter()
-                    .map(|entry| entry.sync_datetime.to_string())
+                    .map(|entry| entry.format("%Y-%m-%dT%H:%M:%S%.fZ").to_string())
                     .collect();
                 Ok(conflicts.into_iter().collect())
             }
             DiaryAppRequests::ShowConflict(datetime) => {
                 let conflicts: Vec<_> = DiaryConflict::get_by_datetime(datetime, &self.pool)?
                     .into_iter()
-                    .map(|entry| match entry.diff_type.as_ref() {
-                        "rem" => format!("-- remove -- {}", entry.diff_text),
-                        _ => format!("{}", entry.diff_text),
+                    .map(|entry| {
+                        let nlines = entry.diff_text.split("\n").count() + 1;
+                        match entry.diff_type.as_ref() {
+                            "rem" => format!(
+                                r#"<textarea style="color:Red;" cols=100 rows={}>{}</textarea><br>"#,
+                                nlines,
+                                entry.diff_text
+                            ),
+                            "add" => format!(
+                                r#"<textarea style="color:Blue;" cols=100 rows={}>{}</textarea><br>"#,
+                                nlines,
+                                entry.diff_text
+                            ),
+                            _ => format!("<textarea cols=100 rows={}>{}</textarea><br>", nlines, entry.diff_text),
+                        }
                     })
                     .collect();
                 Ok(conflicts)
+            }
+            DiaryAppRequests::RemoveConflict(datetime) => {
+                DiaryConflict::remove_by_datetime(datetime, &self.pool)?;
+                Ok(vec![format!("remove {}", datetime)])
             }
         }
     }
