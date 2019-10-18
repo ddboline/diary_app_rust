@@ -357,9 +357,12 @@ pub fn show_conflict(
     state.db.send(req).from_err().and_then(move |res| {
         res.and_then(|text| {
             let body = format!(
-                r#"{}<br><input type="button" name="edit" value="Edit" onclick="switchToEditor('{}')">"#,
-                text.join("\n"),
-                diary_date
+                r#"{t}<br>
+                    <input type="button" name="edit" value="Display" onclick="switchToDisplay('{d}')">
+                    <input type="button" name="edit" value="Edit" onclick="switchToEditor('{d}')">
+                    "#,
+                t = text.join("\n"),
+                d = diary_date,
             );
             form_http_response(body)
         })
