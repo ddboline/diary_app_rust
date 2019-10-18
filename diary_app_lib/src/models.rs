@@ -126,25 +126,25 @@ impl DiaryConflict<'_> {
         let removed_lines: Vec<_> = changeset
             .diffs
             .into_iter()
-            .filter_map(|entry| match entry {
-                Difference::Same(s) => Some(DiaryConflictInsert {
+            .map(|entry| match entry {
+                Difference::Same(s) => DiaryConflictInsert {
                     sync_datetime,
                     diary_date,
                     diff_type: "same".into(),
                     diff_text: s.into(),
-                }),
-                Difference::Rem(s) => Some(DiaryConflictInsert {
+                },
+                Difference::Rem(s) => DiaryConflictInsert {
                     sync_datetime,
                     diary_date,
                     diff_type: "rem".into(),
                     diff_text: s.into(),
-                }),
-                Difference::Add(s) => Some(DiaryConflictInsert {
+                },
+                Difference::Add(s) => DiaryConflictInsert {
                     sync_datetime,
                     diary_date,
                     diff_type: "add".into(),
                     diff_text: s.into(),
-                }),
+                },
             })
             .collect();
 
@@ -168,7 +168,7 @@ impl DiaryConflict<'_> {
 }
 
 impl DiaryEntries<'_> {
-    pub fn new<'a>(diary_date: NaiveDate, diary_text: Cow<'a, str>) -> DiaryEntries<'a> {
+    pub fn new(diary_date: NaiveDate, diary_text: Cow<str>) -> DiaryEntries {
         DiaryEntries {
             diary_date,
             diary_text,
