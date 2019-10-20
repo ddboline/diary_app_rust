@@ -86,9 +86,10 @@ DISPLAY_TEXT
 
 <script language="JavaScript" type="text/javascript">
     function updateMainArticle( url ) {
-        var xmlhttp = new XMLHttpRequest();
+        let xmlhttp = new XMLHttpRequest();
         xmlhttp.onload = function f() {
             document.getElementById("main_article").innerHTML = xmlhttp.responseText;
+            addTabEventHandler();
         }
         xmlhttp.open("GET", url, true);
         xmlhttp.send(null);
@@ -97,15 +98,15 @@ DISPLAY_TEXT
         updateMainArticle('../api/display?date=' + date)
     }
     function listConflicts( date ) {
-        var url = '../api/list_conflicts?date=' + date;
+        let url = '../api/list_conflicts?date=' + date;
         location.replace(url);
     }
     function showConflict( date, datetime ) {
-        var url = '../api/show_conflict?date=' + date + '&datetime=' + datetime;
+        let url = '../api/show_conflict?date=' + date + '&datetime=' + datetime;
         updateMainArticle(url);
     }
     function removeConflict( datetime ) {
-        var url = '../api/remove_conflict?datetime=' + datetime;
+        let url = '../api/remove_conflict?datetime=' + datetime;
         let xmlhttp = new XMLHttpRequest();
         xmlhttp.open('GET', url, true);
         xmlhttp.onload = function see_result() {
@@ -114,8 +115,8 @@ DISPLAY_TEXT
         xmlhttp.send(null);
     }
     function searchDiary() {
-        var text_form = document.getElementById( 'search_text' );
-        var url = encodeURI('../api/search?text=' + text_form.value);
+        let text_form = document.getElementById( 'search_text' );
+        let url = encodeURI('../api/search?text=' + text_form.value);
         updateMainArticle(url);
     }
     function syncDiary() {
@@ -124,7 +125,7 @@ DISPLAY_TEXT
 
     }
     function gotoEntries( start ) {
-        var url = '../api/list';
+        let url = '../api/list';
         if (start > 0) {
             url = url + '?start=' + start + '&limit=10';
         } else {
@@ -153,39 +154,37 @@ DISPLAY_TEXT
     }
     function switchToEditor( date ) {
         let url = '../api/edit?date=' + date;
-        updateMainArticleEditor(url);
-    }
-    function updateMainArticleEditor( url ) {
-        var xmlhttp = new XMLHttpRequest();
-        xmlhttp.onload = function f() {
-            document.getElementById("main_article").innerHTML = xmlhttp.responseText;
-            addTabEventHandler();
-        }
-        xmlhttp.open("GET", url, true);
-        xmlhttp.send(null);
+        updateMainArticle(url);
     }
     function addTabEventHandler() {
-        document.getElementById( 'diary_editor_form' ).addEventListener('keydown',function(e) {
-            if(e.keyCode === 9) { // tab was pressed
-                // get caret position/selection
-                var start = this.selectionStart;
-                var end = this.selectionEnd;
+        let editor_form = document.getElementById( 'diary_editor_form' );
+        if (editor_form) {
+            editor_form.addEventListener(
+                'keydown',
+                function(e) {
+                    if(e.keyCode === 9) { // tab was pressed
+                        // get caret position/selection
+                        let start = this.selectionStart;
+                        let end = this.selectionEnd;
 
-                var target = e.target;
-                var value = target.value;
+                        let target = e.target;
+                        let value = target.value;
 
-                // set textarea value to: text before caret + tab + text after caret
-                target.value = value.substring(0, start)
-                            + "    "
-                            + value.substring(end);
+                        // set textarea value to: text before caret + tab + text after caret
+                        target.value = value.substring(0, start)
+                                    + "    "
+                                    + value.substring(end);
 
-                // put caret at right position again (add one for the tab)
-                this.selectionStart = this.selectionEnd = start + 4;
+                        // put caret at right position again (add one for the tab)
+                        this.selectionStart = this.selectionEnd = start + 4;
 
-                // prevent the focus lose
-                e.preventDefault();
-            }
-        },false);
+                        // prevent the focus lose
+                        e.preventDefault();
+                    }
+                },
+                false
+            );
+        }
     }
 </script>
 
