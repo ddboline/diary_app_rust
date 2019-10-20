@@ -164,14 +164,18 @@ impl S3Instance {
                 ..Default::default()
             };
             let mut resp = self.s3_client.get_object(source).sync()?;
-            let body = resp.body.take().expect("no body");
+            let body = resp.body.take().ok_or_else(|| err_msg("no body"))?;
 
-            let mut buf = Vec::new();
             let src = body.take(512 * 1024).wait();
-            for chunk in src {
-                buf.push(String::from_utf8_lossy(chunk?.as_ref()).into_owned());
-            }
-            Ok(buf.join(""))
+            let buf: Result<Vec<_>, Error> = src
+                .into_iter()
+                .map(|chunk| {
+                    chunk
+                        .map(|c| String::from_utf8_lossy(&c).to_string())
+                        .map_err(err_msg)
+                })
+                .collect();
+            Ok(buf?.join(""))
         })
     }
 
