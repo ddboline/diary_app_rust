@@ -12,13 +12,9 @@ pub mod s3_interface;
 pub mod schema;
 pub mod ssh_instance;
 
-use failure::{err_msg, Error};
+use failure::{format_err, Error};
 use log::error;
-use rand::distributions::{Distribution, Uniform};
-use rand::thread_rng;
 use retry::{delay::jitter, delay::Exponential, retry};
-use std::thread::sleep;
-use std::time::Duration;
 
 pub fn exponential_retry<T, U>(closure: T) -> Result<U, Error>
 where
@@ -36,4 +32,5 @@ where
             })
         },
     )
+    .map_err(|e| format_err!("{:?}", e))
 }
