@@ -145,7 +145,57 @@ pub fn replace(
     })
 }
 
-pub fn _list(
+fn _list_string(conflicts: HashSet<String>, body: Vec<String>, query: ListOptions) -> String {
+    let text: Vec<_> = body
+        .into_iter()
+        .map(|t| {
+            format!(
+                r#"
+                    <input type="button"
+                        type="submit"
+                        name="{t}"
+                        value="{t}"
+                        onclick="switchToDate( '{t}' )">{c}
+                    <br>"#,
+                t = t,
+                c = if conflicts.contains(&t) {
+                    format!(
+                        r#"
+                            <input type="button"
+                                type="submit"
+                                name="conflict_{t}"
+                                value="Conflict {t}"
+                                onclick="listConflicts( '{t}' )"
+                            >"#,
+                        t = t
+                    )
+                } else {
+                    "".to_string()
+                }
+            )
+        })
+        .collect();
+    let buttons: Vec<_> = if query.start.is_some() {
+        vec![
+            format!(
+                r#"<button type="submit" onclick="gotoEntries({})">Previous</button>"#,
+                -10
+            ),
+            format!(
+                r#"<button type="submit" onclick="gotoEntries({})">Next</button>"#,
+                10
+            ),
+        ]
+    } else {
+        vec![format!(
+            r#"<button type="submit" onclick="gotoEntries({})">Next</button>"#,
+            10
+        )]
+    };
+    format!("{}\n<br>\n{}", text.join("\n"), buttons.join("\n"))
+}
+
+fn _list(
     query: ListOptions,
     state: Data<AppState>,
     is_api: bool,
@@ -168,56 +218,7 @@ pub fn _list(
                     to_json(&body)
                 } else {
                     let conflicts: HashSet<_> = res1?.into_iter().collect();
-                    let text: Vec<_> = body
-                        .into_iter()
-                        .map(|t| {
-                            format!(
-                                r#"
-                                    <input type="button"
-                                        type="submit"
-                                        name="{t}"
-                                        value="{t}"
-                                        onclick="switchToDate( '{t}' )">{c}
-                                    <br>"#,
-                                t = t,
-                                c = if conflicts.contains(&t) {
-                                    format!(
-                                        r#"
-                                            <input type="button"
-                                                type="submit"
-                                                name="conflict_{t}"
-                                                value="Conflict {t}"
-                                                onclick="listConflicts( '{t}' )"
-                                            >"#,
-                                        t = t
-                                    )
-                                } else {
-                                    "".to_string()
-                                }
-                            )
-                        })
-                        .collect();
-                    let buttons: Vec<_> = if let Some(start) = query.start {
-                        vec![
-                            format!(
-                            r#"<button type="submit" onclick="gotoEntries({})">Previous</button>"#,
-                            start - 10
-                        ),
-                            format!(
-                                r#"<button type="submit" onclick="gotoEntries({})">Next</button>"#,
-                                start + 10
-                            ),
-                        ]
-                    } else {
-                        vec![format!(
-                            r#"<button type="submit" onclick="gotoEntries({})">Next</button>"#,
-                            10
-                        )]
-                    };
-                    let body = include_str!("../../templates/list_template.html")
-                        .replace("LIST_TEXT", &text.join("\n"))
-                        .replace("NAVIGATION_BUTTONS", &buttons.join("\n"))
-                        .replace("DISPLAY_TEXT", "");
+                    let body = _list_string(conflicts, body, query);
                     form_http_response(body)
                 }
             })
@@ -289,7 +290,27 @@ pub fn diary_frontpage(
         limit: Some(10),
         ..Default::default()
     };
-    _list(query, state, false)
+    let req = DiaryAppRequests::List(query);
+    state
+        .db
+        .send(req)
+        .from_err()
+        .join(
+            state
+                .db
+                .send(DiaryAppRequests::ListConflicts(None))
+                .from_err(),
+        )
+        .and_then(move |(res0, res1)| {
+            res0.and_then(|body| {
+                let conflicts: HashSet<_> = res1?.into_iter().collect();
+                let body = _list_string(conflicts, body, query);
+                let body = include_str!("../../templates/list_template.html")
+                    .replace("LIST_TEXT", &body)
+                    .replace("DISPLAY_TEXT", "");
+                form_http_response(body)
+            })
+        })
 }
 
 #[derive(Serialize, Deserialize)]
@@ -331,13 +352,8 @@ pub fn list_conflicts(
                     )
                 })
                 .collect();
-            let body = include_str!("../../templates/list_template.html")
-                .replace("LIST_TEXT", &text.join("\n"))
-                .replace(
-                    "NAVIGATION_BUTTONS",
-                    r#"<button type="submit" onclick="switchToList()">List</button>"#,
-                )
-                .replace("DISPLAY_TEXT", "");
+            let button = r#"<button type="submit" onclick="switchToList()">List</button>"#;
+            let body = format!("{}\n<br>\n{}", text.join("\n"), button);
             form_http_response(body)
         })
     })

@@ -65,7 +65,7 @@ pub fn start_app() {
             .service(web::resource("/api/list_api").route(web::get().to_async(list_api)))
             .service(web::resource("/api/edit").route(web::get().to_async(edit)))
             .service(web::resource("/api/display").route(web::get().to_async(display)))
-            .service(web::resource("/index.html").route(web::get().to_async(diary_frontpage)))
+            .service(web::resource("/api/index.html").route(web::get().to_async(diary_frontpage)))
             .service(
                 web::resource("/api/list_conflicts").route(web::get().to_async(list_conflicts)),
             )

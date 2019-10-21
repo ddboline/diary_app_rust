@@ -74,10 +74,8 @@ footer {
     <input type="button" name="search_button" value="Search" onclick="searchDiary();"/>
 </form>
 
-<nav>
+<nav id="navigation" start=0>
 LIST_TEXT
-<br>
-NAVIGATION_BUTTONS
 </nav>
 
 <article id="main_article">
@@ -99,7 +97,7 @@ DISPLAY_TEXT
     }
     function listConflicts( date ) {
         let url = '../api/list_conflicts?date=' + date;
-        location.replace(url);
+        updateNavigation(url);
     }
     function showConflict( date, datetime ) {
         let url = '../api/show_conflict?date=' + date + '&datetime=' + datetime;
@@ -124,17 +122,29 @@ DISPLAY_TEXT
         document.getElementById("main_article").innerHTML = "waiting..."
 
     }
-    function gotoEntries( start ) {
+    function updateNavigation( url ) {
+        let xmlhttp = new XMLHttpRequest();
+        xmlhttp.onload = function f() {
+            document.getElementById("navigation").innerHTML = xmlhttp.responseText;
+        }
+        xmlhttp.open("GET", url, true);
+        xmlhttp.send(null);
+    }
+    function gotoEntries( increment ) {
+        increment = Number(increment);
+        let start = Number(document.getElementById('navigation').getAttribute('start'));
+        start = start + increment;
         let url = '../api/list';
         if (start > 0) {
             url = url + '?start=' + start + '&limit=10';
+            document.getElementById('navigation').setAttribute('start', start);
         } else {
             url = url + '?limit=10';
         }
-        location.replace(url);
+        updateNavigation(url);
     }
     function switchToList() {
-        location.replace('../api/list?limit=10');
+        location.replace('../api/index.html');
     }
     function submitFormData( date ) {
         let url = '../api/replace';
@@ -143,7 +153,8 @@ DISPLAY_TEXT
         let xmlhttp = new XMLHttpRequest();
         xmlhttp.open('POST', url, true);
         xmlhttp.onload = function see_result() {
-            updateMainArticle('../api/display?date=' + date)
+            updateMainArticle('../api/display?date=' + date);
+            gotoEntries(0);
         }
         xmlhttp.setRequestHeader('Content-Type', 'application/json');
         xmlhttp.send(data);
