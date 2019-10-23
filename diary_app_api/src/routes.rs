@@ -39,7 +39,7 @@ fn _search(
                 to_json(&body)
             } else {
                 let body = format!(
-                    r#"<textarea autofocus readonly="readonly" rows=50 cols=100>{}</textarea>"#,
+                    r#"<textarea autofocus readonly="readonly" name="message" id="diary_editor_form" rows=50 cols=100>{}</textarea>"#,
                     body.join("\n")
                 );
                 form_http_response(body)
@@ -98,7 +98,7 @@ pub fn _sync(
                     to_json(&body)
                 } else {
                     let body = format!(
-                        r#"<textarea autofocus readonly="readonly" rows=50 cols=100>{}</textarea>"#,
+                        r#"<textarea autofocus readonly="readonly" name="message" id="diary_editor_form" rows=50 cols=100>{}</textarea>"#,
                         body.join("\n")
                     );
                     form_http_response(body)
@@ -251,13 +251,22 @@ pub fn edit(
     _: LoggedUser,
     state: Data<AppState>,
 ) -> impl Future<Item = HttpResponse, Error = Error> {
-    let diary_date = query.into_inner().date;
+    let query = query.into_inner();
+    let diary_date = query.date;
     let req = DiaryAppRequests::Display(diary_date);
     state.db.send(req).from_err().and_then(move |res| {
         res.and_then(|text| {
-            let body = include_str!("../../templates/editor_template.html")
-                .replace("CURRENT_DIARY_TEXT", &text.join("\n"))
-                .replace("DIARY_DATE", &diary_date.to_string());
+            let body = format!(r#"
+                <textarea name="message" id="diary_editor_form" rows=50 cols=100
+                form="diary_edit_form">{text}</textarea><br>
+                <form id="diary_edit_form">
+                <input type="button" name="update" value="Update" onclick="submitFormData('{date}')">
+                <input type="button" name="cancel" value="Cancel" onclick="switchToDisplay('{date}')">
+                </form>"#,
+                text=text.join("\n"),
+                date=diary_date,
+            );
+
             form_http_response(body)
         })
     })
@@ -268,14 +277,15 @@ pub fn display(
     _: LoggedUser,
     state: Data<AppState>,
 ) -> impl Future<Item = HttpResponse, Error = Error> {
-    let diary_date = query.into_inner().date;
+    let query = query.into_inner();
+    let diary_date = query.date;
     let req = DiaryAppRequests::Display(diary_date);
     state.db.send(req).from_err().and_then(move |res| {
         res.and_then(|text| {
             let body = format!(
-                r#"<textarea autofocus readonly="readonly" rows=50 cols=100>{}</textarea><br>{}"#,
-                text.join("\n"),
-                format!(r#"<input type="button" name="edit" value="Edit" onclick="switchToEditor('{}')">"#, diary_date),
+                r#"<textarea autofocus readonly="readonly" name="message" id="diary_editor_form" rows=50 cols=100>{text}</textarea><br>{editor}"#,
+                text=text.join("\n"),
+                editor=format!(r#"<input type="button" name="edit" value="Edit" onclick="switchToEditor('{}')">"#, diary_date),
             );
             form_http_response(body)
         })
