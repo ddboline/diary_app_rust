@@ -305,7 +305,7 @@ pub fn diary_frontpage(
             res0.and_then(|body| {
                 let conflicts: HashSet<_> = res1?.into_iter().collect();
                 let body = _list_string(conflicts, body, query);
-                let body = include_str!("../../templates/list_template.html")
+                let body = include_str!("../../templates/index.html")
                     .replace("LIST_TEXT", &body)
                     .replace("DISPLAY_TEXT", "");
                 form_http_response(body)
