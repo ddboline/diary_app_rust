@@ -39,7 +39,9 @@ fn _search(
                 to_json(&body)
             } else {
                 let body = format!(
-                    r#"<textarea autofocus readonly="readonly" name="message" id="diary_editor_form" rows=50 cols=100>{}</textarea>"#,
+                    r#"<textarea autofocus readonly="readonly"
+                        name="message" id="diary_editor_form"
+                        rows=50 cols=100>{}</textarea>"#,
                     body.join("\n")
                 );
                 form_http_response(body)
