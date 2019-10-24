@@ -6,7 +6,6 @@ use futures::Stream;
 use log::debug;
 use parking_lot::RwLock;
 use std::collections::HashSet;
-use std::sync::Arc;
 use std::thread::sleep;
 use std::time::Duration;
 use telegram_bot::types::refs::UserId;
@@ -18,12 +17,12 @@ use diary_app_lib::diary_app_interface::DiaryAppInterface;
 use diary_app_lib::models::AuthorizedUsers;
 use diary_app_lib::pgpool::PgPool;
 
-type UserIds = Arc<RwLock<HashSet<UserId>>>;
-type OBuffer = Arc<RwLock<Vec<String>>>;
+type UserIds = RwLock<HashSet<UserId>>;
+type OBuffer = RwLock<Vec<String>>;
 
 lazy_static! {
-    static ref TELEGRAM_USERIDS: UserIds = Arc::new(RwLock::new(HashSet::new()));
-    static ref OUTPUT_BUFFER: OBuffer = Arc::new(RwLock::new(Vec::new()));
+    static ref TELEGRAM_USERIDS: UserIds = RwLock::new(HashSet::new());
+    static ref OUTPUT_BUFFER: OBuffer = RwLock::new(Vec::new());
 }
 
 pub fn run_bot(telegram_bot_token: &str, pool: PgPool, scope: &Scope) -> Result<(), Error> {

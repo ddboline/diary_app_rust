@@ -5,13 +5,11 @@ use parking_lot::{Mutex, RwLock};
 use std::collections::HashMap;
 use std::io::{stdout, Write};
 use std::io::{BufRead, BufReader};
-use std::sync::Arc;
 use subprocess::Exec;
 use url::Url;
 
 lazy_static! {
-    static ref LOCK_CACHE: Arc<RwLock<HashMap<String, Mutex<()>>>> =
-        Arc::new(RwLock::new(HashMap::new()));
+    static ref LOCK_CACHE: RwLock<HashMap<String, Mutex<()>>> = RwLock::new(HashMap::new());
 }
 
 #[derive(Debug, Clone)]

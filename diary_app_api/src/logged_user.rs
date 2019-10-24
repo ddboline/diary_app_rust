@@ -9,7 +9,6 @@ use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::convert::From;
 use std::env;
-use std::sync::Arc;
 
 use diary_app_lib::models::AuthorizedUsers as AuthorizedUsersDB;
 use diary_app_lib::pgpool::PgPool;
@@ -87,17 +86,11 @@ enum AuthStatus {
 }
 
 #[derive(Debug, Default)]
-pub struct AuthorizedUsers(Arc<RwLock<HashMap<LoggedUser, AuthStatus>>>);
-
-impl Clone for AuthorizedUsers {
-    fn clone(&self) -> Self {
-        AuthorizedUsers(Arc::clone(&self.0))
-    }
-}
+pub struct AuthorizedUsers(RwLock<HashMap<LoggedUser, AuthStatus>>);
 
 impl AuthorizedUsers {
     pub fn new() -> AuthorizedUsers {
-        AuthorizedUsers(Arc::new(RwLock::new(HashMap::new())))
+        AuthorizedUsers(RwLock::new(HashMap::new()))
     }
 
     pub fn fill_from_db(&self, pool: &PgPool) -> Result<(), Error> {
