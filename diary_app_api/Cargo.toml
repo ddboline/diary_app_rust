@@ -1,6 +1,6 @@
 [package]
 name = "diary_app_api"
-version = "0.1.39"
+version = "0.1.40"
 authors = ["Daniel Boline <ddboline@gmail.com>"]
 edition = "2018"
 

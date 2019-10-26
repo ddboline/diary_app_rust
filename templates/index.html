@@ -151,6 +151,7 @@ DISPLAY_TEXT
             document.getElementById('navigation').setAttribute('start', start);
         } else {
             url = url + '?limit=10';
+            document.getElementById('navigation').setAttribute('start', 0);
         }
         updateNavigation(url);
     }
