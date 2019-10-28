@@ -168,7 +168,6 @@ impl S3Instance {
 
             let src = body.take(512 * 1024).wait();
             let buf: Result<Vec<_>, Error> = src
-                .into_iter()
                 .map(|chunk| {
                     chunk
                         .map(|c| String::from_utf8_lossy(&c).to_string())
