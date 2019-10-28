@@ -27,6 +27,13 @@ pub struct DiaryCache<'a> {
     pub diary_text: Cow<'a, str>,
 }
 
+impl PartialEq for DiaryCache<'_> {
+    fn eq(&self, other: &Self) -> bool {
+        (self.diary_text == other.diary_text)
+            && ((self.diary_datetime - other.diary_datetime).num_milliseconds() == 0)
+    }
+}
+
 #[derive(Queryable, Insertable, Clone, Debug)]
 #[table_name = "authorized_users"]
 pub struct AuthorizedUsers {
@@ -119,7 +126,7 @@ impl DiaryConflict<'_> {
         diary_date: NaiveDate,
         changeset: Changeset,
         conn: &PgPoolConn,
-    ) -> Result<(), Error> {
+    ) -> Result<Option<DateTime<Utc>>, Error> {
         use crate::schema::diary_conflict::dsl::diary_conflict;
 
         let sync_datetime = Utc::now();
@@ -160,9 +167,9 @@ impl DiaryConflict<'_> {
                 .values(&removed_lines)
                 .execute(conn)
                 .map_err(err_msg)
-                .map(|_| ())
+                .map(|_| Some(sync_datetime))
         } else {
-            Ok(())
+            Ok(None)
         }
     }
 }
@@ -176,27 +183,29 @@ impl DiaryEntries<'_> {
         }
     }
 
-    fn _insert_entry(&self, conn: &PgPoolConn) -> Result<(), Error> {
+    fn _insert_entry(&self, conn: &PgPoolConn) -> Result<Option<DateTime<Utc>>, Error> {
         use crate::schema::diary_entries::dsl::diary_entries;
 
         diesel::insert_into(diary_entries)
             .values(self)
             .execute(conn)
             .map_err(err_msg)
-            .map(|_| ())
+            .map(|_| None)
     }
 
-    pub fn insert_entry(&self, pool: &PgPool) -> Result<(), Error> {
+    pub fn insert_entry(&self, pool: &PgPool) -> Result<Option<DateTime<Utc>>, Error> {
         let conn = pool.get()?;
         self._insert_entry(&conn)
     }
 
-    fn _update_entry(&self, conn: &PgPoolConn) -> Result<(), Error> {
+    fn _update_entry(&self, conn: &PgPoolConn) -> Result<Option<DateTime<Utc>>, Error> {
         let changeset = self._get_difference(conn)?;
 
-        if changeset.distance > 0 {
-            DiaryConflict::insert_from_changeset(self.diary_date, changeset, conn)?;
-        }
+        let conflict_opt = if changeset.distance > 0 {
+            DiaryConflict::insert_from_changeset(self.diary_date, changeset, conn)?
+        } else {
+            None
+        };
 
         use crate::schema::diary_entries::dsl::{
             diary_date, diary_entries, diary_text, last_modified,
@@ -209,15 +218,15 @@ impl DiaryEntries<'_> {
             ))
             .execute(conn)
             .map_err(err_msg)
-            .map(|_| ())
+            .map(|_| conflict_opt)
     }
 
-    pub fn update_entry(&self, pool: &PgPool) -> Result<(), Error> {
+    pub fn update_entry(&self, pool: &PgPool) -> Result<Option<DateTime<Utc>>, Error> {
         let conn = pool.get()?;
         self._update_entry(&conn)
     }
 
-    pub fn upsert_entry(&self, pool: &PgPool) -> Result<(), Error> {
+    pub fn upsert_entry(&self, pool: &PgPool) -> Result<Option<DateTime<Utc>>, Error> {
         let conn = pool.get()?;
 
         conn.transaction(|| match Self::_get_by_date(self.diary_date, &conn) {
@@ -269,6 +278,16 @@ impl DiaryEntries<'_> {
     pub fn get_difference(&self, pool: &PgPool) -> Result<Changeset, Error> {
         let conn = pool.get()?;
         self._get_difference(&conn)
+    }
+
+    pub fn delete_entry(&self, pool: &PgPool) -> Result<(), Error> {
+        use crate::schema::diary_entries::dsl::{diary_date, diary_entries};
+        let conn = pool.get()?;
+        diesel::delete(diary_entries)
+            .filter(diary_date.eq(self.diary_date))
+            .execute(&conn)
+            .map_err(err_msg)
+            .map(|_| ())
     }
 }
 

@@ -62,7 +62,7 @@ impl Handler<DiaryAppRequests> for DiaryAppInterface {
                 Ok(output)
             }
             DiaryAppRequests::Replace { date, text } => {
-                let entry = self.replace_text(date, text.into())?;
+                let (entry, _) = self.replace_text(date, text.into())?;
                 let body = format!("{}\n{}", entry.diary_date, entry.diary_text);
                 Ok(vec![body])
             }
