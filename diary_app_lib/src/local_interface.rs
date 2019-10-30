@@ -216,3 +216,89 @@ impl LocalInterface {
             .collect()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use failure::Error;
+    use jwalk::WalkDir;
+    use tempdir::TempDir;
+
+    use crate::config::{Config, ConfigInner};
+    use crate::local_interface::LocalInterface;
+    use crate::pgpool::PgPool;
+
+    fn get_tempdir() -> TempDir {
+        TempDir::new("test_diary").unwrap()
+    }
+
+    fn get_li(tempdir: &TempDir) -> LocalInterface {
+        let config = Config::init_config().unwrap().get_inner().unwrap();
+        let inner = ConfigInner {
+            diary_path: tempdir.path().to_string_lossy().to_string(),
+            ssh_url: None,
+            ..config
+        };
+        let config = Config::from_inner(inner);
+
+        let pool = PgPool::new(&config.database_url);
+        LocalInterface::new(config, pool)
+    }
+
+    #[test]
+    fn test_export_year_to_local() {
+        let t = get_tempdir();
+        let li = get_li(&t);
+        let results = li.export_year_to_local().unwrap();
+        assert!(results.contains(&"2013 296".to_string()));
+        let nentries = results.len();
+        println!("{:?}", results);
+        println!("{:?}", t.path());
+        let results: Result<Vec<_>, Error> = WalkDir::new(t.path())
+            .sort(true)
+            .preload_metadata(true)
+            .into_iter()
+            .map(|entry| {
+                let entry = entry?;
+                let ftype = entry.file_type?;
+                if ftype.is_dir() {
+                    Ok(None)
+                } else {
+                    let filename = entry.file_name.to_string_lossy().to_string();
+                    Ok(Some(filename))
+                }
+            })
+            .filter_map(|x| x.transpose())
+            .collect();
+        let results = results.unwrap();
+        assert!(results.len() >= 9);
+        assert_eq!(results.len(), nentries);
+    }
+
+    #[test]
+    fn test_cleanup_local() {
+        let t = get_tempdir();
+        let li = get_li(&t);
+        let results = li.cleanup_local().unwrap();
+        let nresults = results.len();
+        println!("{:?}", results);
+        let results: Result<Vec<_>, Error> = WalkDir::new(t.path())
+            .sort(true)
+            .preload_metadata(true)
+            .into_iter()
+            .map(|entry| {
+                let entry = entry?;
+                let ftype = entry.file_type?;
+                if ftype.is_dir() {
+                    Ok(None)
+                } else {
+                    let filename = entry.file_name.to_string_lossy().to_string();
+                    Ok(Some(filename))
+                }
+            })
+            .filter_map(|x| x.transpose())
+            .collect();
+        let results = results.unwrap();
+        println!("{:?}", results);
+        assert_eq!(results.len(), nresults);
+    }
+}

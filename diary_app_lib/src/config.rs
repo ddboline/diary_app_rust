@@ -1,4 +1,4 @@
-use failure::{format_err, Error};
+use failure::{err_msg, format_err, Error};
 use std::env::var;
 use std::ops::Deref;
 use std::path::Path;
@@ -25,6 +25,14 @@ pub struct Config(Arc<ConfigInner>);
 impl Config {
     pub fn new() -> Self {
         Default::default()
+    }
+
+    pub fn get_inner(self) -> Result<ConfigInner, Error> {
+        Arc::try_unwrap(self.0).map_err(|_| err_msg("Failed unwrapping"))
+    }
+
+    pub fn from_inner(inner: ConfigInner) -> Self {
+        Self(Arc::new(inner))
     }
 
     pub fn init_config() -> Result<Self, Error> {
