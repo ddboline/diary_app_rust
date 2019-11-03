@@ -1,9 +1,12 @@
 use chrono::{DateTime, NaiveDate, Utc};
 use failure::Error;
 use log::debug;
+use parking_lot::Mutex;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
+use rusoto_s3::Object;
 use std::collections::HashMap;
 use std::io::{stdout, Write};
+use std::sync::Arc;
 
 use crate::config::Config;
 use crate::models::DiaryEntries;
@@ -17,6 +20,7 @@ pub struct S3Interface {
     config: Config,
     s3_client: S3Instance,
     pool: PgPool,
+    key_cache: Arc<Mutex<Vec<Object>>>,
 }
 
 impl S3Interface {
@@ -25,15 +29,16 @@ impl S3Interface {
             s3_client: S3Instance::new(&config.aws_region_name),
             pool,
             config,
+            key_cache: Arc::new(Mutex::new(Vec::new())),
         }
     }
 
     pub fn export_to_s3(&self) -> Result<Vec<DiaryEntries>, Error> {
         let stdout = stdout();
         let s3_key_map: HashMap<NaiveDate, (DateTime<Utc>, i64)> = self
-            .s3_client
-            .get_list_of_keys(&self.config.diary_bucket, None)?
-            .into_par_iter()
+            .key_cache
+            .lock()
+            .iter()
             .filter_map(|obj| {
                 obj.key.as_ref().and_then(|key| {
                     NaiveDate::parse_from_str(&key, "%Y-%m-%d.txt")
@@ -107,9 +112,15 @@ impl S3Interface {
         let existing_map = DiaryEntries::get_modified_map(&self.pool)?;
 
         debug!("{}", self.config.diary_bucket);
-        self.s3_client
-            .get_list_of_keys(&self.config.diary_bucket, None)?
-            .into_par_iter()
+        *self.key_cache.lock() = self
+            .s3_client
+            .get_list_of_keys(&self.config.diary_bucket, None)?;
+
+        // I'm doing this so that I can run all the io/cpu intensive bits in parallel
+        let key_date_mod_size_vec: Vec<_> = self
+            .key_cache
+            .lock()
+            .iter()
             .filter_map(|obj| {
                 obj.key.as_ref().and_then(|key| {
                     NaiveDate::parse_from_str(&key, "%Y-%m-%d.txt")
@@ -123,50 +134,48 @@ impl S3Interface {
                                 .unwrap_or_else(Utc::now);
                             let size = obj.size.unwrap_or(0);
 
-                            let should_modify = match existing_map.get(&date) {
-                                Some(current_modified) => {
-                                    if (*current_modified - last_modified).num_seconds()
-                                        < TIME_BUFFER
-                                    {
-                                        if let Ok(entry) =
-                                            DiaryEntries::get_by_date(date, &self.pool)
-                                        {
-                                            let ln = entry.diary_text.len() as i64;
-                                            if size != ln {
-                                                debug!(
-                                                    "last_modified {} {} {} {} {}",
-                                                    date,
-                                                    *current_modified,
-                                                    last_modified,
-                                                    size,
-                                                    ln
-                                                );
-                                            }
-                                            size > ln
-                                        } else {
-                                            false
-                                        }
-                                    } else {
-                                        (*current_modified - last_modified).num_seconds()
-                                            < -TIME_BUFFER
-                                    }
-                                }
-                                None => true,
-                            };
-                            if size > 0 && should_modify {
-                                self.s3_client
-                                    .download_to_string(&self.config.diary_bucket, &key)
-                                    .ok()
-                                    .map(|val| DiaryEntries {
-                                        diary_date: date,
-                                        diary_text: val.into(),
-                                        last_modified,
-                                    })
-                            } else {
-                                None
-                            }
+                            Some((key.clone(), date, last_modified, size))
                         })
                 })
+            })
+            .collect();
+
+        key_date_mod_size_vec
+            .into_par_iter()
+            .filter_map(|(key, date, last_modified, size)| {
+                let should_modify = match existing_map.get(&date) {
+                    Some(current_modified) => {
+                        if (*current_modified - last_modified).num_seconds() < TIME_BUFFER {
+                            if let Ok(entry) = DiaryEntries::get_by_date(date, &self.pool) {
+                                let ln = entry.diary_text.len() as i64;
+                                if size != ln {
+                                    debug!(
+                                        "last_modified {} {} {} {} {}",
+                                        date, *current_modified, last_modified, size, ln
+                                    );
+                                }
+                                size > ln
+                            } else {
+                                false
+                            }
+                        } else {
+                            (*current_modified - last_modified).num_seconds() < -TIME_BUFFER
+                        }
+                    }
+                    None => true,
+                };
+                if size > 0 && should_modify {
+                    self.s3_client
+                        .download_to_string(&self.config.diary_bucket, &key)
+                        .ok()
+                        .map(|val| DiaryEntries {
+                            diary_date: date,
+                            diary_text: val.into(),
+                            last_modified,
+                        })
+                } else {
+                    None
+                }
             })
             .filter(|entry| !entry.diary_text.trim().is_empty())
             .map(|entry| {
