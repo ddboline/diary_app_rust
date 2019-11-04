@@ -1,5 +1,6 @@
 use chrono::{DateTime, NaiveDate, Utc};
 use failure::{err_msg, Error};
+use lazy_static::lazy_static;
 use log::debug;
 use parking_lot::Mutex;
 use rayon::iter::{IntoParallelIterator, IntoParallelRefIterator, ParallelIterator};
@@ -7,7 +8,6 @@ use rusoto_s3::Object;
 use std::collections::HashMap;
 use std::convert::{TryFrom, TryInto};
 use std::io::{stdout, Write};
-use std::sync::Arc;
 
 use crate::config::Config;
 use crate::models::DiaryEntries;
@@ -15,6 +15,11 @@ use crate::pgpool::PgPool;
 use crate::s3_instance::S3Instance;
 
 const TIME_BUFFER: i64 = 60;
+
+lazy_static! {
+    static ref KEY_CACHE: Mutex<(DateTime<Utc>, Vec<KeyMetaData>)> =
+        Mutex::new((Utc::now(), Vec::new()));
+}
 
 #[derive(Debug, Clone)]
 struct KeyMetaData {
@@ -50,7 +55,6 @@ pub struct S3Interface {
     config: Config,
     s3_client: S3Instance,
     pool: PgPool,
-    key_cache: Arc<Mutex<Vec<KeyMetaData>>>,
 }
 
 impl S3Interface {
@@ -59,18 +63,37 @@ impl S3Interface {
             s3_client: S3Instance::new(&config.aws_region_name),
             pool,
             config,
-            key_cache: Arc::new(Mutex::new(Vec::new())),
         }
+    }
+
+    fn fill_cache(&self) -> Result<(), Error> {
+        *KEY_CACHE.lock() = (
+            Utc::now(),
+            self.s3_client
+                .get_list_of_keys(&self.config.diary_bucket, None)?
+                .into_par_iter()
+                .filter_map(|obj| obj.try_into().ok())
+                .collect(),
+        );
+        Ok(())
     }
 
     pub fn export_to_s3(&self) -> Result<Vec<DiaryEntries>, Error> {
         let stdout = stdout();
-        let s3_key_map: HashMap<NaiveDate, (DateTime<Utc>, i64)> = self
-            .key_cache
+        if let Some(key_cache) = KEY_CACHE.try_lock() {
+            if (Utc::now() - key_cache.0).num_seconds() > 5 * TIME_BUFFER {
+                self.fill_cache()?;
+            }
+        }
+        let s3_key_map: HashMap<NaiveDate, (DateTime<Utc>, i64)> = KEY_CACHE
             .lock()
+            .1
             .iter()
             .map(|obj| (obj.date, (obj.last_modified, obj.size)))
             .collect();
+        if let Some(mut key_cache) = KEY_CACHE.try_lock() {
+            key_cache.1.clear();
+        }
         let results: Result<Vec<_>, Error> = DiaryEntries::get_modified_map(&self.pool)?
             .into_par_iter()
             .map(|(diary_date, last_modified)| {
@@ -127,15 +150,11 @@ impl S3Interface {
         let existing_map = DiaryEntries::get_modified_map(&self.pool)?;
 
         debug!("{}", self.config.diary_bucket);
-        *self.key_cache.lock() = self
-            .s3_client
-            .get_list_of_keys(&self.config.diary_bucket, None)?
-            .into_par_iter()
-            .filter_map(|obj| obj.try_into().ok())
-            .collect();
+        self.fill_cache()?;
 
-        self.key_cache
+        KEY_CACHE
             .lock()
+            .1
             .as_slice()
             .par_iter()
             .filter_map(|obj| {
