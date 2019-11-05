@@ -94,7 +94,7 @@ impl S3Interface {
         if let Some(mut key_cache) = KEY_CACHE.try_lock() {
             key_cache.1.clear();
         }
-        let results: Result<Vec<_>, Error> = DiaryEntries::get_modified_map(&self.pool)?
+        DiaryEntries::get_modified_map(&self.pool)?
             .into_par_iter()
             .map(|(diary_date, last_modified)| {
                 let should_update = match s3_key_map.get(&diary_date) {
@@ -141,8 +141,7 @@ impl S3Interface {
                 Ok(None)
             })
             .filter_map(|x| x.transpose())
-            .collect();
-        Ok(results?)
+            .collect()
     }
 
     pub fn import_from_s3(&self) -> Result<Vec<DiaryEntries>, Error> {
