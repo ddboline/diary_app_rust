@@ -25,9 +25,9 @@ pub struct AppState {
 pub fn start_app() {
     let config = Config::init_config().expect("Failed to load config");
     let pool = PgPool::new(&config.database_url);
-    let dapp = DiaryAppInterface::new(config.clone(), pool.clone());
+    let dapp = DiaryAppInterface::new(config, pool);
 
-    let _p = pool.clone();
+    let _p = dapp.pool.clone();
 
     actix_rt::spawn(
         Interval::new(time::Instant::now(), time::Duration::from_secs(60))
@@ -38,19 +38,20 @@ pub fn start_app() {
             .map_err(|e| panic!("error {:?}", e)),
     );
 
+    let _d = dapp.clone();
     let addr: Addr<DiaryAppInterface> =
-        SyncArbiter::start(config.n_db_workers, move || dapp.clone());
+        SyncArbiter::start(dapp.config.n_db_workers, move || _d.clone());
 
-    let port = config.port;
+    let port = dapp.config.port;
 
     HttpServer::new(move || {
         App::new()
             .data(AppState { db: addr.clone() })
             .wrap(IdentityService::new(
-                CookieIdentityPolicy::new(config.secret_key.as_bytes())
+                CookieIdentityPolicy::new(dapp.config.secret_key.as_bytes())
                     .name("auth")
                     .path("/")
-                    .domain(config.domain.as_str())
+                    .domain(dapp.config.domain.as_str())
                     .max_age_time(Duration::days(1))
                     .secure(false), // this can only be true if you have https
             ))
