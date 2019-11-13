@@ -56,25 +56,36 @@ impl Config {
             dotenv::from_filename("config.env").ok();
         }
 
+        let database_url =
+            var("DATABASE_URL").map_err(|e| format_err!("DATABASE_URL must be set {}", e))?;
+        let diary_bucket = var("DIARY_BUCKET").unwrap_or_else(|_| "diary_bucket".to_string());
+        let diary_path =
+            var("DIARY_PATH").unwrap_or_else(|_| format!("{}/Dropbox/epistle", home_dir));
+        let aws_region_name = var("AWS_REGION_NAME").unwrap_or_else(|_| "us-east-1".to_string());
+        let telegram_bot_token = var("TELEGRAM_BOT_TOKEN").unwrap_or_else(|_| "".to_string());
+        let ssh_url = var("SSH_URL").ok().and_then(|s| s.parse().ok());
+        let port = var("PORT")
+            .ok()
+            .and_then(|p| p.parse().ok())
+            .unwrap_or(3042);
+        let domain = var("DOMAIN").unwrap_or_else(|_| "localhost".to_string());
+        let n_db_workers = var("N_DB_WORKERS")
+            .ok()
+            .and_then(|n| n.parse().ok())
+            .unwrap_or(2);
+        let secret_key = var("SECRET_KEY").unwrap_or_else(|_| "0123".repeat(8));
+
         let conf = ConfigInner {
-            database_url: var("DATABASE_URL")
-                .map_err(|e| format_err!("DATABASE_URL must be set {}", e))?,
-            diary_bucket: var("DIARY_BUCKET").unwrap_or_else(|_| "diary_bucket".to_string()),
-            diary_path: var("DIARY_PATH")
-                .unwrap_or_else(|_| format!("{}/Dropbox/epistle", home_dir)),
-            aws_region_name: var("AWS_REGION_NAME").unwrap_or_else(|_| "us-east-1".to_string()),
-            telegram_bot_token: var("TELEGRAM_BOT_TOKEN").unwrap_or_else(|_| "".to_string()),
-            ssh_url: var("SSH_URL").ok().and_then(|s| s.parse().ok()),
-            port: var("PORT")
-                .ok()
-                .and_then(|p| p.parse().ok())
-                .unwrap_or(3042),
-            domain: var("DOMAIN").unwrap_or_else(|_| "localhost".to_string()),
-            n_db_workers: var("N_DB_WORKERS")
-                .ok()
-                .and_then(|n| n.parse().ok())
-                .unwrap_or(2),
-            secret_key: var("SECRET_KEY").unwrap_or_else(|_| "0123".repeat(8)),
+            database_url,
+            diary_bucket,
+            diary_path,
+            aws_region_name,
+            telegram_bot_token,
+            ssh_url,
+            port,
+            domain,
+            n_db_workers,
+            secret_key,
         };
 
         Ok(Config(Arc::new(conf)))
