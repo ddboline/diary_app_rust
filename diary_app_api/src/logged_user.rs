@@ -6,7 +6,8 @@ use jsonwebtoken::{decode, Validation};
 use lazy_static::lazy_static;
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
-use std::collections::{HashMap, HashSet};
+use std::borrow::Cow;
+use std::collections::HashMap;
 use std::convert::From;
 use std::env;
 
@@ -20,23 +21,23 @@ lazy_static! {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-struct Claims {
+struct Claims<'a> {
     // issuer
-    iss: String,
+    iss: Cow<'a, str>,
     // subject
-    sub: String,
+    sub: Cow<'a, str>,
     //issued at
     iat: i64,
     // expiry
     exp: i64,
     // user email
-    email: String,
+    email: Cow<'a, str>,
 }
 
-impl From<Claims> for LoggedUser {
+impl<'a> From<Claims<'a>> for LoggedUser {
     fn from(claims: Claims) -> Self {
         LoggedUser {
-            email: claims.email,
+            email: claims.email.into(),
         }
     }
 }
@@ -99,23 +100,17 @@ impl AuthorizedUsers {
             .map(|user| LoggedUser { email: user.email })
             .collect();
 
-        let cached_users = self.list_of_users();
-
-        for user in &users {
-            self.store_auth(user, true)?;
-        }
-
-        for user in &cached_users {
-            if !users.contains(user) {
-                self.store_auth(user, false)?;
+        for user in self.0.read().keys() {
+            if !users.contains(&user) {
+                self.store_auth(user.clone(), false)?;
             }
         }
 
-        Ok(())
-    }
+        for user in users {
+            self.store_auth(user, true)?;
+        }
 
-    pub fn list_of_users(&self) -> HashSet<LoggedUser> {
-        self.0.read().keys().cloned().collect()
+        Ok(())
     }
 
     pub fn is_authorized(&self, user: &LoggedUser) -> bool {
@@ -133,14 +128,14 @@ impl AuthorizedUsers {
         false
     }
 
-    pub fn store_auth(&self, user: &LoggedUser, is_auth: bool) -> Result<(), Error> {
+    pub fn store_auth(&self, user: LoggedUser, is_auth: bool) -> Result<(), Error> {
         let current_time = Utc::now();
         let status = if is_auth {
             AuthStatus::Authorized(current_time)
         } else {
             AuthStatus::NotAuthorized
         };
-        self.0.write().insert(user.clone(), status);
+        self.0.write().insert(user, status);
         Ok(())
     }
 }
