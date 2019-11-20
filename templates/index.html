@@ -100,8 +100,14 @@ DISPLAY_TEXT
     }
     function setTextAreaRowsCols() {
         let textarea = document.getElementById('diary_editor_form');
-        textarea.setAttribute('rows', Math.floor(window.innerHeight * 45 / 856.));
-        textarea.setAttribute('cols', Math.floor(window.innerWidth * 100 / 1105.));
+        if (textarea) {
+            if (textarea.getAttribute('rows')) {
+                textarea.setAttribute('rows', Math.floor(window.innerHeight * 45 / 856.));
+            }
+            if (textarea.getAttribute('cols')) {
+                textarea.setAttribute('cols', Math.floor(window.innerWidth * 100 / 1105.));
+            }
+        }
     }
     function switchToDate( date ) {
         updateMainArticle('../api/display?date=' + date)
@@ -111,7 +117,7 @@ DISPLAY_TEXT
         updateNavigation(url);
     }
     function showConflict( date, datetime ) {
-        let url = '../api/show_conflict?date=' + date + '&datetime=' + datetime;
+        let url = '../api/show_conflict?datetime=' + datetime;
         updateMainArticle(url, () => listConflicts(date));
     }
     function removeConflict( datetime ) {
@@ -170,6 +176,15 @@ DISPLAY_TEXT
         xmlhttp.setRequestHeader('Content-Type', 'application/json');
         xmlhttp.send(data);
     }
+    function commitConflict( date, datetime ) {
+        let url = '../api/commit_conflict?datetime=' + datetime;
+        let xmlhttp = new XMLHttpRequest();
+        xmlhttp.open('GET', url, true);
+        xmlhttp.onload = function see_result() {
+            switchToDate( date );
+        }
+        xmlhttp.send(null);
+    }
     function switchToDisplay( date ) {
         switchToDate( date );
     }
@@ -177,6 +192,25 @@ DISPLAY_TEXT
         let url = '../api/edit?date=' + date;
         updateMainArticle(url);
     }
+    function updateConflictAdd( id, date, datetime ) {
+        let url = '../api/update_conflict?id=' + id + '&diff_type=add';
+        let xmlhttp = new XMLHttpRequest();
+        xmlhttp.open('GET', url, true);
+        xmlhttp.onload = function see_result() {
+            showConflict( date, datetime );
+        }
+        xmlhttp.send(null);
+    }
+    function updateConflictRem( id, date, datetime ) {
+        let url = '../api/update_conflict?id=' + id + '&diff_type=rem';
+        let xmlhttp = new XMLHttpRequest();
+        xmlhttp.open('GET', url, true);
+        xmlhttp.onload = function see_result() {
+            showConflict( date, datetime );
+        }
+        xmlhttp.send(null);
+    }
+
     function addTabEventHandler() {
         let editor_form = document.getElementById( 'diary_editor_form' );
         if (editor_form) {

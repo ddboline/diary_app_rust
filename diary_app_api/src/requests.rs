@@ -1,6 +1,6 @@
 use actix::{Handler, Message};
 use chrono::{DateTime, NaiveDate, Utc};
-use failure::Error;
+use failure::{format_err, Error};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
 
@@ -31,6 +31,8 @@ pub enum DiaryAppRequests {
     ListConflicts(Option<NaiveDate>),
     ShowConflict(DateTime<Utc>),
     RemoveConflict(DateTime<Utc>),
+    UpdateConflict { id: i32, diff_text: String },
+    CommitConflict(DateTime<Utc>),
 }
 
 impl Message for DiaryAppRequests {
@@ -93,20 +95,45 @@ impl Handler<DiaryAppRequests> for DiaryAppInterface {
                 Ok(conflicts.into_iter().collect())
             }
             DiaryAppRequests::ShowConflict(datetime) => {
-                let conflicts: Vec<_> = DiaryConflict::get_by_datetime(datetime, &self.pool)?
+                let conflicts = DiaryConflict::get_by_datetime(datetime, &self.pool)?;
+                let diary_dates: BTreeSet<NaiveDate> =
+                    conflicts.iter().map(|entry| entry.diary_date).collect();
+                if diary_dates.len() > 1 {
+                    return Err(format_err!(
+                        "Something has gone horribly wrong {:?}",
+                        conflicts
+                    ));
+                }
+                let date = diary_dates.into_iter().nth(0).ok_or_else(|| {
+                    format_err!("Something has gone horribly wrong {:?}", conflicts)
+                })?;
+
+                let conflicts: Vec<_> = conflicts
                     .into_iter()
                     .map(|entry| {
                         let nlines = entry.diff_text.split('\n').count() + 1;
                         match entry.diff_type.as_ref() {
                             "rem" => format!(
-                                r#"<textarea style="color:Red;" cols=100 rows={}>{}</textarea><br>"#,
+                                r#"<textarea style="color:Red;" cols=100 rows={}
+                                   >{}</textarea>
+                                   <input type="button" name="add" value="Add" onclick="updateConflictAdd({}, '{}', '{}');">
+                                   <br>"#,
                                 nlines,
-                                entry.diff_text
+                                entry.diff_text,
+                                entry.id,
+                                date,
+                                datetime.format("%Y-%m-%dT%H:%M:%S%.fZ"),
                             ),
                             "add" => format!(
-                                r#"<textarea style="color:Blue;" cols=100 rows={}>{}</textarea><br>"#,
+                                r#"<textarea style="color:Blue;" cols=100 rows={}
+                                   >{}</textarea>
+                                   <input type="button" name="rm" value="Rm" onclick="updateConflictRem({}, '{}', '{}');">
+                                   <br>"#,
                                 nlines,
-                                entry.diff_text
+                                entry.diff_text,
+                                entry.id,
+                                date,
+                                datetime.format("%Y-%m-%dT%H:%M:%S%.fZ"),
                             ),
                             _ => format!("<textarea cols=100 rows={}>{}</textarea><br>", nlines, entry.diff_text),
                         }
@@ -117,6 +144,44 @@ impl Handler<DiaryAppRequests> for DiaryAppInterface {
             DiaryAppRequests::RemoveConflict(datetime) => {
                 DiaryConflict::remove_by_datetime(datetime, &self.pool)?;
                 Ok(vec![format!("remove {}", datetime)])
+            }
+            DiaryAppRequests::UpdateConflict { id, diff_text } => {
+                let new_diff_type = match diff_text.as_str() {
+                    "rem" => "rem",
+                    "add" => "add",
+                    _ => return Err(format_err!("Bad diff type {}", diff_text)),
+                };
+                DiaryConflict::update_by_id(id, new_diff_type, &self.pool)?;
+                Ok(Vec::new())
+            }
+            DiaryAppRequests::CommitConflict(datetime) => {
+                let conflicts = DiaryConflict::get_by_datetime(datetime, &self.pool)?;
+                let diary_dates: BTreeSet<NaiveDate> =
+                    conflicts.iter().map(|entry| entry.diary_date).collect();
+                if diary_dates.len() > 1 {
+                    return Err(format_err!(
+                        "Something has gone horribly wrong {:?}",
+                        conflicts
+                    ));
+                }
+                let date = diary_dates.into_iter().nth(0).ok_or_else(|| {
+                    format_err!("Something has gone horribly wrong {:?}", conflicts)
+                })?;
+
+                let additions: Vec<String> = conflicts
+                    .into_iter()
+                    .filter_map(|entry| {
+                        if entry.diff_type == "add" || entry.diff_type == "same" {
+                            Some(entry.diff_text.into())
+                        } else {
+                            None
+                        }
+                    })
+                    .collect();
+                let additions = additions.join("\n");
+                let (entry, _) = self.replace_text(date, additions.into())?;
+                let body = format!("{}\n{}", entry.diary_date, entry.diary_text);
+                Ok(vec![body])
             }
         }
     }

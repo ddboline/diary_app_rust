@@ -14,8 +14,8 @@ use diary_app_lib::pgpool::PgPool;
 
 use super::logged_user::AUTHORIZED_USERS;
 use super::routes::{
-    diary_frontpage, display, edit, insert, list, list_api, list_conflicts, remove_conflict,
-    replace, search, search_api, show_conflict, sync, sync_api,
+    commit_conflict, diary_frontpage, display, edit, insert, list, list_api, list_conflicts,
+    remove_conflict, replace, search, search_api, show_conflict, sync, sync_api, update_conflict,
 };
 
 pub struct AppState {
@@ -72,6 +72,12 @@ pub fn start_app() {
             .service(web::resource("/api/show_conflict").route(web::get().to_async(show_conflict)))
             .service(
                 web::resource("/api/remove_conflict").route(web::get().to_async(remove_conflict)),
+            )
+            .service(
+                web::resource("/api/update_conflict").route(web::get().to_async(update_conflict)),
+            )
+            .service(
+                web::resource("/api/commit_conflict").route(web::get().to_async(commit_conflict)),
             )
     })
     .bind(&format!("127.0.0.1:{}", port))

@@ -386,11 +386,13 @@ pub fn show_conflict(
         res.and_then(|text| {
             let body = format!(
                 r#"{t}<br>
-                    <input type="button" name="edit" value="Display" onclick="switchToDisplay('{d}')">
+                    <input type="button" name="display" value="Display" onclick="switchToDisplay('{d}')">
+                    <input type="button" name="commit" value="Commit" onclick="commitConflict('{d}', '{dt}')">
                     <input type="button" name="edit" value="Edit" onclick="switchToEditor('{d}')">
                     "#,
                 t = text.join("\n"),
                 d = diary_date,
+                dt = datetime.format("%Y-%m-%dT%H:%M:%S%.fZ"),
             );
             form_http_response(body)
         })
@@ -409,4 +411,47 @@ pub fn remove_conflict(
         .send(req)
         .from_err()
         .and_then(move |res| res.and_then(|text| form_http_response(text.join("\n"))))
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct ConflictUpdateData {
+    pub id: i32,
+    pub diff_type: String,
+}
+
+pub fn update_conflict(
+    query: Query<ConflictUpdateData>,
+    _: LoggedUser,
+    state: Data<AppState>,
+) -> impl Future<Item = HttpResponse, Error = Error> {
+    let query = query.into_inner();
+    let req = DiaryAppRequests::UpdateConflict {
+        id: query.id,
+        diff_text: query.diff_type,
+    };
+    state
+        .db
+        .send(req)
+        .from_err()
+        .and_then(move |res| res.and_then(|_| form_http_response("finished".to_string())))
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct CommitConflictData {
+    pub datetime: DateTime<Utc>,
+}
+
+pub fn commit_conflict(
+    query: Query<CommitConflictData>,
+    _: LoggedUser,
+    state: Data<AppState>,
+) -> impl Future<Item = HttpResponse, Error = Error> {
+    let query = query.into_inner();
+    let req = DiaryAppRequests::CommitConflict(query.datetime);
+    state.db.send(req).from_err().and_then(move |res| {
+        res.and_then(|body| {
+            let body = hashmap! {"entry" => body.join("\n")};
+            to_json(&body)
+        })
+    })
 }

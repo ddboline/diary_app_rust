@@ -113,6 +113,16 @@ impl DiaryConflict<'_> {
             .map_err(err_msg)
     }
 
+    pub fn update_by_id(id_: i32, new_diff_type: &str, pool: &PgPool) -> Result<(), Error> {
+        use crate::schema::diary_conflict::dsl::{diary_conflict, diff_type, id};
+        let conn = pool.get()?;
+        diesel::update(diary_conflict.filter(id.eq(id_)))
+            .set(diff_type.eq(new_diff_type))
+            .execute(&conn)
+            .map(|_| ())
+            .map_err(err_msg)
+    }
+
     pub fn remove_by_datetime(datetime: DateTime<Utc>, pool: &PgPool) -> Result<(), Error> {
         use crate::schema::diary_conflict::dsl::{diary_conflict, sync_datetime};
         let conn = pool.get()?;
