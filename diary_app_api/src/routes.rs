@@ -354,7 +354,7 @@ pub fn list_conflicts(
                         type="submit"
                         name="remove_{t}"
                         value="Remove {t}"
-                        onclick="removeConflict( '{t}' )">
+                        onclick="removeConflict( '{d}', '{t}' )">
                     <br>
                 "#,
                         t = t,
