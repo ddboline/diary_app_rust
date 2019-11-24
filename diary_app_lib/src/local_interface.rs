@@ -137,8 +137,12 @@ impl LocalInterface {
                                 return Ok(Some(existing_entry));
                             }
                         }
+                        Ok(None)
+                    } else {
+                        let d = DiaryEntries::new(current_date, "".into());
+                        d.upsert_entry(&self.pool)?;
+                        Ok(Some(d))
                     }
-                    Ok(None)
                 } else {
                     let filepath = format!("{}/{}.txt", self.config.diary_path, current_date);
                     let mut f = File::create(&filepath)?;
