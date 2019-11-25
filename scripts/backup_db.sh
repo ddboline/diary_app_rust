@@ -4,7 +4,6 @@ DB="diary_app_cache"
 BUCKET="diary-db-backup"
 
 TABLES="
-diary_cache
 diary_entries
 "
 

@@ -3,7 +3,6 @@
 DB="diary_app_cache"
 
 TABLES="
-diary_cache
 diary_entries
 "
 
