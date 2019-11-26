@@ -259,10 +259,6 @@ impl DiaryAppInterface {
     }
 
     pub fn sync_merge_cache_to_entries(&self) -> Result<Vec<DiaryEntries>, Error> {
-        if self.config.ssh_url.is_none() {
-            return Ok(Vec::new());
-        }
-
         let date_entry_map = DiaryCache::get_cache_entries(&self.pool)?.into_iter().fold(
             HashMap::new(),
             |mut acc, entry| {
