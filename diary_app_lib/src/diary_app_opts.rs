@@ -1,7 +1,7 @@
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, Utc, NaiveDate};
 use failure::{err_msg, Error};
 use std::collections::BTreeSet;
-use std::io::{stdout, Write};
+use std::io::{stdout, Write, Stdout};
 use std::str::FromStr;
 use structopt::StructOpt;
 
@@ -87,19 +87,30 @@ impl DiaryAppOpts {
                 }
             }
             DiaryAppCommands::ListConflicts => {
-                if let Ok(date) = opts.text.join("").parse() {
-                    let conflicts: BTreeSet<_> = DiaryConflict::get_by_date(date, &dap.pool)?
+                fn _get_all_conflicts(date: NaiveDate, pool: &PgPool, stdout: &Stdout) -> Result<(), Error> {
+                    let conflicts: BTreeSet<_> = DiaryConflict::get_by_date(date, pool)?
                         .into_iter()
                         .map(|entry| entry.format("%Y-%m-%dT%H:%M:%S%.fZ").to_string())
                         .collect();
                     for timestamp in conflicts {
                         writeln!(stdout.lock(), "{}", timestamp)?;
                     }
+                    Ok(())
+                }
+
+                if let Ok(date) = opts.text.join("").parse() {
+                    _get_all_conflicts(date, &dap.pool, &stdout)?;
                 } else {
                     let mut conflicts = DiaryConflict::get_all_dates(&dap.pool)?;
                     conflicts.sort();
-                    for date in conflicts {
-                        writeln!(stdout.lock(), "{}", date)?;
+                    if conflicts.len() > 1 {
+                        for date in conflicts {
+                            writeln!(stdout.lock(), "{}", date)?;
+                        }
+                    } else {
+                        for date in conflicts {
+                            _get_all_conflicts(date, &dap.pool, &stdout)?;
+                        }
                     }
                 }
             }
