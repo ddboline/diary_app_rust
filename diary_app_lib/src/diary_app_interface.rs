@@ -132,6 +132,9 @@ impl DiaryAppInterface {
         let y_reg = Regex::new(r"(?P<year>\d{4})")?;
 
         let mut dates = Vec::new();
+        if search_text.trim().to_lowercase() == "today" {
+            dates.push(Local::now().naive_local().date());
+        }
         if ymd_reg.is_match(search_text) {
             for cap in ymd_reg.captures_iter(search_text) {
                 let year = cap.name("year").map(|x| x.as_str());
