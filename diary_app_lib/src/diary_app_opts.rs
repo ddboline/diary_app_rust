@@ -1,7 +1,7 @@
-use chrono::{DateTime, Utc, NaiveDate};
+use chrono::{DateTime, NaiveDate, Utc};
 use failure::{err_msg, Error};
 use std::collections::BTreeSet;
-use std::io::{stdout, Write, Stdout};
+use std::io::{stdout, Stdout, Write};
 use std::str::FromStr;
 use structopt::StructOpt;
 
@@ -87,7 +87,11 @@ impl DiaryAppOpts {
                 }
             }
             DiaryAppCommands::ListConflicts => {
-                fn _get_all_conflicts(date: NaiveDate, pool: &PgPool, stdout: &Stdout) -> Result<(), Error> {
+                fn _get_all_conflicts(
+                    date: NaiveDate,
+                    pool: &PgPool,
+                    stdout: &Stdout,
+                ) -> Result<(), Error> {
                     let conflicts: BTreeSet<_> = DiaryConflict::get_by_date(date, pool)?
                         .into_iter()
                         .map(|entry| entry.format("%Y-%m-%dT%H:%M:%S%.fZ").to_string())

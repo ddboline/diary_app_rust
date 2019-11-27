@@ -377,6 +377,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn test_search_text() {
         let dap = get_dap();
 
@@ -388,6 +389,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn test_get_list_of_dates() {
         let dap = get_dap();
 
@@ -413,6 +415,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn test_get_matching_dates() {
         let dap = get_dap();
 
@@ -426,6 +429,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn test_cache_text() {
         let dap = get_dap();
 
@@ -442,6 +446,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn test_replace_text() {
         let dap = get_dap();
         let test_date = NaiveDate::from_ymd(1950, 1, 1);
