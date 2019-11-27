@@ -113,6 +113,17 @@ impl DiaryConflict<'_> {
             .map_err(err_msg)
     }
 
+    pub fn get_first_conflict(pool: &PgPool) -> Result<Option<DateTime<Utc>>, Error> {
+        let dates = Self::get_all_dates(pool)?;
+        if !dates.is_empty() {
+            let conflicts = Self::get_by_date(dates[0], pool)?;
+            if !conflicts.is_empty() {
+                return Ok(Some(conflicts[0]));
+            }
+        }
+        Ok(None)
+    }
+
     pub fn update_by_id(id_: i32, new_diff_type: &str, pool: &PgPool) -> Result<(), Error> {
         use crate::schema::diary_conflict::dsl::{diary_conflict, diff_type, id};
         let conn = pool.get()?;

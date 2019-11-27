@@ -1,7 +1,7 @@
 use chrono::{DateTime, NaiveDate, Utc};
 use failure::{err_msg, Error};
 use std::collections::BTreeSet;
-use std::io::{stdout, Stdout, Write};
+use std::io::{stdout, Write};
 use std::str::FromStr;
 use structopt::StructOpt;
 
@@ -87,12 +87,8 @@ impl DiaryAppOpts {
                 }
             }
             DiaryAppCommands::ListConflicts => {
-                fn _get_all_conflicts(
-                    date: NaiveDate,
-                    pool: &PgPool,
-                    stdout: &Stdout,
-                ) -> Result<(), Error> {
-                    let conflicts: BTreeSet<_> = DiaryConflict::get_by_date(date, pool)?
+                let _get_all_conflicts = |date: NaiveDate| -> Result<(), Error> {
+                    let conflicts: BTreeSet<_> = DiaryConflict::get_by_date(date, &dap.pool)?
                         .into_iter()
                         .map(|entry| entry.format("%Y-%m-%dT%H:%M:%S%.fZ").to_string())
                         .collect();
@@ -100,29 +96,25 @@ impl DiaryAppOpts {
                         writeln!(stdout.lock(), "{}", timestamp)?;
                     }
                     Ok(())
-                }
+                };
 
                 if let Ok(date) = opts.text.join("").parse() {
-                    _get_all_conflicts(date, &dap.pool, &stdout)?;
+                    _get_all_conflicts(date)?;
                 } else {
-                    let mut conflicts = DiaryConflict::get_all_dates(&dap.pool)?;
-                    conflicts.sort();
+                    let conflicts = DiaryConflict::get_all_dates(&dap.pool)?;
                     if conflicts.len() > 1 {
                         for date in conflicts {
                             writeln!(stdout.lock(), "{}", date)?;
                         }
                     } else {
                         for date in conflicts {
-                            _get_all_conflicts(date, &dap.pool, &stdout)?;
+                            _get_all_conflicts(date)?;
                         }
                     }
                 }
             }
             DiaryAppCommands::ShowConflict => {
-                if let Ok(datetime) =
-                    DateTime::parse_from_rfc3339(&opts.text.join("").replace("Z", "+00:00"))
-                        .map(|x| x.with_timezone(&Utc))
-                {
+                let _show_conflict = |datetime| -> Result<(), Error> {
                     println!("datetime {}", datetime);
                     let conflicts: Vec<_> = DiaryConflict::get_by_datetime(datetime, &dap.pool)?
                         .into_iter()
@@ -135,6 +127,18 @@ impl DiaryAppOpts {
                     for timestamp in conflicts {
                         writeln!(stdout.lock(), "{}", timestamp)?;
                     }
+                    Ok(())
+                };
+
+                if let Ok(datetime) =
+                    DateTime::parse_from_rfc3339(&opts.text.join("").replace("Z", "+00:00"))
+                        .map(|x| x.with_timezone(&Utc))
+                {
+                    _show_conflict(datetime)?;
+                } else {
+                    if let Some(datetime) = DiaryConflict::get_first_conflict(&dap.pool)? {
+                        _show_conflict(datetime)?;
+                    }
                 }
             }
             DiaryAppCommands::RemoveConflict => {
@@ -143,6 +147,10 @@ impl DiaryAppOpts {
                         .map(|x| x.with_timezone(&Utc))
                 {
                     DiaryConflict::remove_by_datetime(datetime, &dap.pool)?;
+                } else {
+                    if let Some(datetime) = DiaryConflict::get_first_conflict(&dap.pool)? {
+                        DiaryConflict::remove_by_datetime(datetime, &dap.pool)?;
+                    }
                 }
             }
         }
