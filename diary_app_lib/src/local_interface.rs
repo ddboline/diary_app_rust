@@ -249,6 +249,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn test_export_year_to_local() {
         let t = get_tempdir();
         let li = get_li(&t);
@@ -279,6 +280,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn test_cleanup_local() {
         let t = get_tempdir();
         let li = get_li(&t);
