@@ -183,7 +183,7 @@ DISPLAY_TEXT
         let xmlhttp = new XMLHttpRequest();
         xmlhttp.open('GET', url, true);
         xmlhttp.onload = function see_result() {
-            switchToDate( date );
+            removeConflict( date, datetime );
         }
         xmlhttp.send(null);
     }
@@ -212,7 +212,6 @@ DISPLAY_TEXT
         }
         xmlhttp.send(null);
     }
-
     function addTabEventHandler() {
         let editor_form = document.getElementById( 'diary_editor_form' );
         if (editor_form) {
