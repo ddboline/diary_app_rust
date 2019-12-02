@@ -1,5 +1,3 @@
-use actix::sync::SyncContext;
-use actix::Actor;
 use chrono::{DateTime, Datelike, Local, NaiveDate, Utc};
 use crossbeam_utils::thread;
 use failure::{err_msg, Error};
@@ -25,10 +23,6 @@ pub struct DiaryAppInterface {
     pub pool: PgPool,
     pub local: LocalInterface,
     pub s3: S3Interface,
-}
-
-impl Actor for DiaryAppInterface {
-    type Context = SyncContext<Self>;
 }
 
 impl DiaryAppInterface {

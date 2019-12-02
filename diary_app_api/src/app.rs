@@ -7,6 +7,7 @@ use futures::future::Future;
 use futures::stream::Stream;
 use std::time;
 use tokio_timer::Interval;
+use std::ops::Deref;
 
 use diary_app_lib::config::Config;
 use diary_app_lib::diary_app_interface::DiaryAppInterface;
@@ -18,14 +19,29 @@ use super::routes::{
     remove_conflict, replace, search, search_api, show_conflict, sync, sync_api, update_conflict,
 };
 
+pub struct DiaryAppActor(pub DiaryAppInterface);
+
+impl Actor for DiaryAppActor {
+    type Context = SyncContext<Self>;
+}
+
+impl Deref for DiaryAppActor {
+    type Target = DiaryAppInterface;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+
 pub struct AppState {
-    pub db: Addr<DiaryAppInterface>,
+    pub db: Addr<DiaryAppActor>,
 }
 
 pub fn start_app() {
     let config = Config::init_config().expect("Failed to load config");
     let pool = PgPool::new(&config.database_url);
-    let dapp = DiaryAppInterface::new(config, pool);
+    let dapp = DiaryAppActor(DiaryAppInterface::new(config, pool));
 
     let _p = dapp.pool.clone();
 
@@ -83,4 +99,12 @@ pub fn start_app() {
     .bind(&format!("127.0.0.1:{}", port))
     .unwrap_or_else(|_| panic!("Failed to bind to port {}", port))
     .start();
+}
+
+pub fn run_app() {
+    let sys = actix_rt::System::new("diary_app_api");
+
+    start_app();
+
+    let _ = sys.run();
 }

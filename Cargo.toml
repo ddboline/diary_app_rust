@@ -10,16 +10,6 @@ edition = "2018"
 diary_app_lib = {path="diary_app_lib"}
 diary_app_api = {path="diary_app_api"}
 diary_app_bot = {path="diary_app_bot"}
-failure = "0.1"
-log = "0.4"
-env_logger = "0.7"
-futures = "0.1"
-crossbeam-channel = "0.3"
-parking_lot = "0.9"
-crossbeam-utils = "0.6"
-lazy_static = "1.4"
-tokio-core = "0.1"
-actix-rt = "0.2"
 
 [workspace]
 members = [
