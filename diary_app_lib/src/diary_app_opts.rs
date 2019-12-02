@@ -135,10 +135,8 @@ impl DiaryAppOpts {
                         .map(|x| x.with_timezone(&Utc))
                 {
                     _show_conflict(datetime)?;
-                } else {
-                    if let Some(datetime) = DiaryConflict::get_first_conflict(&dap.pool)? {
-                        _show_conflict(datetime)?;
-                    }
+                } else if let Some(datetime) = DiaryConflict::get_first_conflict(&dap.pool)? {
+                    _show_conflict(datetime)?;
                 }
             }
             DiaryAppCommands::RemoveConflict => {
@@ -147,10 +145,8 @@ impl DiaryAppOpts {
                         .map(|x| x.with_timezone(&Utc))
                 {
                     DiaryConflict::remove_by_datetime(datetime, &dap.pool)?;
-                } else {
-                    if let Some(datetime) = DiaryConflict::get_first_conflict(&dap.pool)? {
-                        DiaryConflict::remove_by_datetime(datetime, &dap.pool)?;
-                    }
+                } else if let Some(datetime) = DiaryConflict::get_first_conflict(&dap.pool)? {
+                    DiaryConflict::remove_by_datetime(datetime, &dap.pool)?;
                 }
             }
         }
