@@ -1,13 +1,14 @@
 use actix::sync::SyncArbiter;
 use actix::Addr;
+use actix::{Actor, SyncContext};
 use actix_identity::{CookieIdentityPolicy, IdentityService};
 use actix_web::{web, App, HttpServer};
 use chrono::Duration;
 use futures::future::Future;
 use futures::stream::Stream;
+use std::ops::Deref;
 use std::time;
 use tokio_timer::Interval;
-use std::ops::Deref;
 
 use diary_app_lib::config::Config;
 use diary_app_lib::diary_app_interface::DiaryAppInterface;
@@ -19,6 +20,7 @@ use super::routes::{
     remove_conflict, replace, search, search_api, show_conflict, sync, sync_api, update_conflict,
 };
 
+#[derive(Clone)]
 pub struct DiaryAppActor(pub DiaryAppInterface);
 
 impl Actor for DiaryAppActor {
@@ -32,7 +34,6 @@ impl Deref for DiaryAppActor {
         &self.0
     }
 }
-
 
 pub struct AppState {
     pub db: Addr<DiaryAppActor>,
@@ -55,7 +56,7 @@ pub fn start_app() {
     );
 
     let _d = dapp.clone();
-    let addr: Addr<DiaryAppInterface> =
+    let addr: Addr<DiaryAppActor> =
         SyncArbiter::start(dapp.config.n_db_workers, move || _d.clone());
 
     let port = dapp.config.port;

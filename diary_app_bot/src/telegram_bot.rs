@@ -24,7 +24,7 @@ lazy_static! {
     static ref OUTPUT_BUFFER: OBuffer = RwLock::new(Vec::new());
 }
 
-pub fn run_bot(telegram_bot_token: &str, pool: PgPool, scope: &Scope) -> Result<(), Error> {
+fn _run_bot(telegram_bot_token: &str, pool: PgPool, scope: &Scope) -> Result<(), Error> {
     let telegram_bot_token: String = telegram_bot_token.into();
     let pool_ = pool.clone();
     let userid_handle = scope.spawn(move |_| fill_telegram_user_ids(pool_));
@@ -133,4 +133,12 @@ fn fill_telegram_user_ids(pool: PgPool) {
         }
         sleep(Duration::from_secs(60));
     }
+}
+
+pub fn run_bot() -> Result<(), Error> {
+    let config = Config::init_config().unwrap();
+    let pool = PgPool::new(&config.database_url);
+    thread::scope(|scope| _run_bot(&config.telegram_bot_token, pool, scope))
+        .map_err(|x| format_err!("{:?}", x))
+        .and_then(|r| r)
 }

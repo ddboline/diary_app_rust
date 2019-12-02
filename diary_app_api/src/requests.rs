@@ -4,8 +4,9 @@ use failure::{format_err, Error};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
 
-use diary_app_lib::diary_app_interface::DiaryAppInterface;
 use diary_app_lib::models::{DiaryConflict, DiaryEntries};
+
+use super::app::DiaryAppActor;
 
 #[derive(Serialize, Deserialize)]
 pub struct SearchOptions {
@@ -39,7 +40,7 @@ impl Message for DiaryAppRequests {
     type Result = Result<Vec<String>, Error>;
 }
 
-impl Handler<DiaryAppRequests> for DiaryAppInterface {
+impl Handler<DiaryAppRequests> for DiaryAppActor {
     type Result = Result<Vec<String>, Error>;
     fn handle(&mut self, req: DiaryAppRequests, _: &mut Self::Context) -> Self::Result {
         match req {
