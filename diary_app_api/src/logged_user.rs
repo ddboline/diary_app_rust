@@ -66,10 +66,11 @@ fn _from_request(req: &HttpRequest, pl: &mut Payload) -> Result<LoggedUser, Erro
         .identity()
     {
         let user: LoggedUser = decode_token(&identity)?;
-        Ok(user)
-    } else {
-        Err(ServiceError::Unauthorized.into())
+        if AUTHORIZED_USERS.is_authorized(&user) {
+            return Ok(user);
+        }
     }
+    Err(ServiceError::Unauthorized.into())
 }
 
 impl FromRequest for LoggedUser {
