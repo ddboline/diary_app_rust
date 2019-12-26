@@ -102,7 +102,7 @@ impl AuthorizedUsers {
         AuthorizedUsers(RwLock::new(HashMap::new()))
     }
 
-    pub fn fill_from_db(&self, pool: PgPool) -> Result<(), Error> {
+    pub fn fill_from_db(&self, pool: &PgPool) -> Result<(), Error> {
         let users: Vec<_> = AuthorizedUsersDB::get_authorized_users(&pool)?
             .into_iter()
             .map(|user| LoggedUser { email: user.email })

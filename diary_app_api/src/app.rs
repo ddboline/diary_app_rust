@@ -43,15 +43,15 @@ pub fn start_app() {
 
     let dapp = DiaryAppActor(DiaryAppInterface::new(config, pool));
 
-    actix_rt::spawn(async {
-        let config = Config::init_config().expect("Failed to load config");
-        let pool = PgPool::new(&config.database_url);
+    async fn _update_db(pool: PgPool) {
         let mut i = interval(time::Duration::from_secs(60));
         loop {
             i.tick().await;
-            AUTHORIZED_USERS.fill_from_db(pool.clone()).unwrap_or(());
+            AUTHORIZED_USERS.fill_from_db(&pool).unwrap_or(());
         }
-    });
+    }
+
+    actix_rt::spawn(_update_db(dapp.pool.clone()));
 
     let _d = dapp.clone();
     let addr: Addr<DiaryAppActor> =

@@ -1,6 +1,5 @@
 use crossbeam_utils::thread::{self, Scope};
 use failure::{format_err, Error};
-use futures::stream::Stream;
 use futures::StreamExt;
 use lazy_static::lazy_static;
 use log::debug;
