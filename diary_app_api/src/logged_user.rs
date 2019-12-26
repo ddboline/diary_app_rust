@@ -60,7 +60,7 @@ impl LoggedUser {
     }
 }
 
-fn _from_request(req: &HttpRequest, pl: &mut Payload) -> Result<LoggedUser, Error> {
+fn _from_request(req: &HttpRequest, pl: &mut Payload) -> Result<LoggedUser, actix_web::Error> {
     if let Some(identity) = block_on(Identity::from_request(req, pl))
         .map_err(|e| format_err!("{:?}", e))?
         .identity()
@@ -74,8 +74,8 @@ fn _from_request(req: &HttpRequest, pl: &mut Payload) -> Result<LoggedUser, Erro
 }
 
 impl FromRequest for LoggedUser {
-    type Error = Error;
-    type Future = Ready<Result<LoggedUser, Error>>;
+    type Error = actix_web::Error;
+    type Future = Ready<Result<LoggedUser, actix_web::Error>>;
     type Config = ();
 
     fn from_request(req: &HttpRequest, pl: &mut Payload) -> Self::Future {
