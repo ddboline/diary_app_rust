@@ -1,4 +1,3 @@
-use actix::{Handler, Message};
 use chrono::{DateTime, NaiveDate, Utc};
 use failure::{format_err, Error};
 use serde::{Deserialize, Serialize};
@@ -36,13 +35,12 @@ pub enum DiaryAppRequests {
     CommitConflict(DateTime<Utc>),
 }
 
-impl Message for DiaryAppRequests {
-    type Result = Result<Vec<String>, Error>;
+pub trait HandleRequest {
+    fn handle(&self, req: DiaryAppRequests) -> Result<Vec<String>, Error>;
 }
 
-impl Handler<DiaryAppRequests> for DiaryAppActor {
-    type Result = Result<Vec<String>, Error>;
-    fn handle(&mut self, req: DiaryAppRequests, _: &mut Self::Context) -> Self::Result {
+impl HandleRequest for DiaryAppActor {
+    fn handle(&self, req: DiaryAppRequests) -> Result<Vec<String>, Error> {
         match req {
             DiaryAppRequests::Search(opts) => {
                 let body = if let Some(text) = opts.text {

@@ -1,6 +1,3 @@
-use actix::sync::SyncArbiter;
-use actix::Addr;
-use actix::{Actor, SyncContext};
 use actix_identity::{CookieIdentityPolicy, IdentityService};
 use actix_web::{web, App, HttpServer};
 use chrono::Duration;
@@ -21,10 +18,6 @@ use super::routes::{
 #[derive(Clone)]
 pub struct DiaryAppActor(pub DiaryAppInterface);
 
-impl Actor for DiaryAppActor {
-    type Context = SyncContext<Self>;
-}
-
 impl Deref for DiaryAppActor {
     type Target = DiaryAppInterface;
 
@@ -34,7 +27,7 @@ impl Deref for DiaryAppActor {
 }
 
 pub struct AppState {
-    pub db: Addr<DiaryAppActor>,
+    pub db: DiaryAppActor,
 }
 
 pub fn start_app() {
@@ -54,14 +47,12 @@ pub fn start_app() {
     actix_rt::spawn(_update_db(dapp.pool.clone()));
 
     let _d = dapp.clone();
-    let addr: Addr<DiaryAppActor> =
-        SyncArbiter::start(dapp.config.n_db_workers, move || _d.clone());
 
     let port = dapp.config.port;
 
     HttpServer::new(move || {
         App::new()
-            .data(AppState { db: addr.clone() })
+            .data(AppState { db: _d.clone() })
             .wrap(IdentityService::new(
                 CookieIdentityPolicy::new(dapp.config.secret_key.as_bytes())
                     .name("auth")
