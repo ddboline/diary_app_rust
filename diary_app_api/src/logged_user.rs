@@ -1,7 +1,9 @@
 use actix_identity::Identity;
 use actix_web::{dev::Payload, FromRequest, HttpRequest};
 use chrono::{DateTime, Utc};
-use failure::Error;
+use failure::{format_err, Error};
+use futures::executor::block_on;
+use futures::future::{ready, Ready};
 use jsonwebtoken::{decode, Validation};
 use lazy_static::lazy_static;
 use parking_lot::RwLock;
@@ -58,19 +60,25 @@ impl LoggedUser {
     }
 }
 
+fn _from_request(req: &HttpRequest, pl: &mut Payload) -> Result<LoggedUser, Error> {
+    if let Some(identity) = block_on(Identity::from_request(req, pl))
+        .map_err(|e| format_err!("{:?}", e))?
+        .identity()
+    {
+        let user: LoggedUser = decode_token(&identity)?;
+        Ok(user)
+    } else {
+        Err(ServiceError::Unauthorized.into())
+    }
+}
+
 impl FromRequest for LoggedUser {
-    type Error = actix_web::Error;
-    type Future = Result<LoggedUser, actix_web::Error>;
+    type Error = Error;
+    type Future = Ready<Result<LoggedUser, Error>>;
     type Config = ();
 
     fn from_request(req: &HttpRequest, pl: &mut Payload) -> Self::Future {
-        if let Some(identity) = Identity::from_request(req, pl)?.identity() {
-            let user: LoggedUser = decode_token(&identity)?;
-            if AUTHORIZED_USERS.is_authorized(&user) {
-                return Ok(user);
-            }
-        }
-        Err(ServiceError::Unauthorized.into())
+        ready(_from_request(req, pl))
     }
 }
 
@@ -94,7 +102,7 @@ impl AuthorizedUsers {
         AuthorizedUsers(RwLock::new(HashMap::new()))
     }
 
-    pub fn fill_from_db(&self, pool: &PgPool) -> Result<(), Error> {
+    pub fn fill_from_db(&self, pool: PgPool) -> Result<(), Error> {
         let users: Vec<_> = AuthorizedUsersDB::get_authorized_users(&pool)?
             .into_iter()
             .map(|user| LoggedUser { email: user.email })

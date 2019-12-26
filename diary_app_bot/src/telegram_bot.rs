@@ -1,6 +1,7 @@
 use crossbeam_utils::thread::{self, Scope};
 use failure::{format_err, Error};
-use futures::Stream;
+use futures::stream::Stream;
+use futures::StreamExt;
 use lazy_static::lazy_static;
 use log::debug;
 use parking_lot::RwLock;
@@ -9,7 +10,7 @@ use std::thread::sleep;
 use std::time::Duration;
 use telegram_bot::types::refs::UserId;
 use telegram_bot::{Api, CanReplySendMessage, MessageKind, UpdateKind};
-use tokio_core::reactor::Core;
+use tokio::runtime::Runtime;
 
 use diary_app_lib::config::Config;
 use diary_app_lib::diary_app_interface::DiaryAppInterface;
@@ -37,20 +38,15 @@ fn _run_bot(telegram_bot_token: &str, pool: PgPool, scope: &Scope) -> Result<(),
     Ok(())
 }
 
-fn telegram_worker(telegram_bot_token: &str, pool: PgPool) -> Result<(), Error> {
-    let config = Config::init_config()?;
-    let dapp_interface = DiaryAppInterface::new(config, pool);
-
-    let mut core = Core::new()?;
-
-    let api = Api::configure(telegram_bot_token)
-        .build(core.handle())
-        .map_err(|e| format_err!("{}", e))?;
-
-    // Fetch new updates via long poll method
-    let future = api.stream().for_each(|update| {
+async fn bot_handler(
+    telegram_bot_token: &str,
+    dapp_interface: &DiaryAppInterface,
+) -> Result<(), Error> {
+    let api = Api::new(telegram_bot_token);
+    let mut stream = api.stream();
+    while let Some(update) = stream.next().await {
         // If the received update contains a new message...
-        if let UpdateKind::Message(message) = update.kind {
+        if let UpdateKind::Message(message) = update?.kind {
             if let MessageKind::Text { ref data, .. } = message.kind {
                 // Print received text message to stdout.
                 debug!("{:?}", message);
@@ -111,13 +107,17 @@ fn telegram_worker(telegram_bot_token: &str, pool: PgPool) -> Result<(), Error> 
                 }
             }
         }
+    }
+    Ok(())
+}
 
-        Ok(())
-    });
+fn telegram_worker(telegram_bot_token: &str, pool: PgPool) -> Result<(), Error> {
+    let config = Config::init_config()?;
+    let dapp_interface = DiaryAppInterface::new(config, pool);
 
-    core.run(future)
-        .map_err(|e| format_err!("{}", e))
-        .map(|_| ())
+    let mut rt = Runtime::new()?;
+
+    rt.block_on(bot_handler(telegram_bot_token, &dapp_interface))
 }
 
 fn fill_telegram_user_ids(pool: PgPool) {

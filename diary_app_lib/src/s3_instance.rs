@@ -1,5 +1,4 @@
 use failure::{err_msg, Error};
-use futures::Stream;
 use rusoto_core::Region;
 use rusoto_s3::{
     Bucket, CopyObjectRequest, CreateBucketRequest, DeleteBucketRequest, DeleteObjectRequest,
@@ -8,6 +7,7 @@ use rusoto_s3::{
 use s4::S4;
 use std::convert::Into;
 use std::fmt;
+use std::io::Read;
 use std::path::Path;
 use url::Url;
 
@@ -166,15 +166,9 @@ impl S3Instance {
             let mut resp = self.s3_client.get_object(source).sync()?;
             let body = resp.body.take().ok_or_else(|| err_msg("no body"))?;
 
-            let src = body.take(512 * 1024).wait();
-            let buf: Result<Vec<_>, Error> = src
-                .map(|chunk| {
-                    chunk
-                        .map(|c| String::from_utf8_lossy(&c).to_string())
-                        .map_err(err_msg)
-                })
-                .collect();
-            Ok(buf?.join(""))
+            let mut buf = String::new();
+            body.into_blocking_read().read_to_string(&mut buf)?;
+            Ok(buf)
         })
     }
 
