@@ -11,6 +11,7 @@ diary_app_lib = {path="diary_app_lib"}
 diary_app_api = {path="diary_app_api"}
 diary_app_bot = {path="diary_app_bot"}
 env_logger = "0.7"
+actix-rt = "1.0"
 
 [workspace]
 members = [

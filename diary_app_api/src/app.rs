@@ -30,7 +30,7 @@ pub struct AppState {
     pub db: DiaryAppActor,
 }
 
-pub fn start_app() {
+pub async fn run_app() {
     let config = Config::init_config().expect("Failed to load config");
     let pool = PgPool::new(&config.database_url);
 
@@ -80,13 +80,6 @@ pub fn start_app() {
     })
     .bind(&format!("127.0.0.1:{}", port))
     .unwrap_or_else(|_| panic!("Failed to bind to port {}", port))
-    .run();
-}
-
-pub fn run_app() {
-    let sys = actix_rt::System::new("diary_app_api");
-
-    start_app();
-
-    let _ = sys.run();
+    .run()
+    .await.expect("Failed to run app");
 }
