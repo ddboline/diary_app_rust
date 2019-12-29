@@ -119,7 +119,7 @@ DISPLAY_TEXT
         updateNavigation(url);
     }
     function showConflict( date, datetime ) {
-        let url = '../api/show_conflict?datetime=' + datetime;
+        let url = '../api/show_conflict?date=' + date + '&datetime=' + datetime;
         updateMainArticle(url, () => listConflicts(date), status=date);
     }
     function removeConflict( date, datetime ) {
