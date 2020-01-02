@@ -81,5 +81,6 @@ pub async fn run_app() {
     .bind(&format!("127.0.0.1:{}", port))
     .unwrap_or_else(|_| panic!("Failed to bind to port {}", port))
     .run()
-    .await.expect("Failed to run app");
+    .await
+    .expect("Failed to run app");
 }
