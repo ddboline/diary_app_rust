@@ -43,9 +43,7 @@ impl S3Instance {
         let region: Region = aws_region_name.parse().ok().unwrap_or(Region::UsEast1);
         let sts = StsInstance::new(None).expect("Failed to obtain client");
         Self {
-            s3_client: sts
-            .get_s3_client(region)
-            .expect("Failed to obtain client"),
+            s3_client: sts.get_s3_client(region).expect("Failed to obtain client"),
             max_keys: None,
         }
     }

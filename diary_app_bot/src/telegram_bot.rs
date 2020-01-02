@@ -10,6 +10,7 @@ use std::time::Duration;
 use telegram_bot::types::refs::UserId;
 use telegram_bot::{Api, CanReplySendMessage, MessageKind, UpdateKind};
 use tokio::runtime::Runtime;
+use tokio::task::block_in_place;
 
 use diary_app_lib::config::Config;
 use diary_app_lib::diary_app_interface::DiaryAppInterface;
@@ -59,50 +60,60 @@ async fn bot_handler(
                         Some(":search") | Some(":s") => {
                             let search_text = data.trim_start_matches(first_word.unwrap()).trim();
                             OUTPUT_BUFFER.write().clear();
-                            if let Ok(mut search_results) = dapp_interface.search_text(search_text)
+                            if let Ok(mut search_results) =
+                                block_in_place(move || dapp_interface.search_text(search_text))
                             {
                                 search_results.reverse();
                                 OUTPUT_BUFFER.write().extend_from_slice(&search_results);
                             }
                             if let Some(entry) = OUTPUT_BUFFER.write().pop() {
-                                api.spawn(message.text_reply(entry));
+                                api.send(message.text_reply(entry)).await?;
                             } else {
-                                api.spawn(message.text_reply("..."));
+                                api.send(message.text_reply("...")).await?;
                             }
                         }
                         Some(":next") | Some(":n") => {
                             if let Some(entry) = OUTPUT_BUFFER.write().pop() {
-                                api.spawn(message.text_reply(entry));
+                                api.send(message.text_reply(entry)).await?;
                             } else {
-                                api.spawn(message.text_reply("..."));
+                                api.send(message.text_reply("...")).await?;
                             }
                         }
                         Some(":insert") | Some(":i") => {
                             let insert_text = data.trim_start_matches(first_word.unwrap()).trim();
-                            if let Ok(cache_entry) = dapp_interface.cache_text(insert_text.into()) {
-                                api.spawn(
+                            if let Ok(cache_entry) = block_in_place(move || {
+                                dapp_interface.cache_text(insert_text.into())
+                            }) {
+                                api.send(
                                     message.text_reply(format!("cached entry {:?}", cache_entry)),
-                                );
+                                )
+                                .await?;
                             } else {
-                                api.spawn(message.text_reply("failed to cache entry"));
+                                api.send(message.text_reply("failed to cache entry"))
+                                    .await?;
                             }
                         }
                         _ => {
-                            if let Ok(cache_entry) = dapp_interface.cache_text(data.into()) {
-                                api.spawn(
+                            if let Ok(cache_entry) =
+                                block_in_place(move || dapp_interface.cache_text(data.into()))
+                            {
+                                api.send(
                                     message.text_reply(format!("cached entry {:?}", cache_entry)),
-                                );
+                                )
+                                .await?;
                             } else {
-                                api.spawn(message.text_reply("failed to cache entry"));
+                                api.send(message.text_reply("failed to cache entry"))
+                                    .await?;
                             }
                         }
                     }
                 } else {
                     // Answer message with "Hi".
-                    api.spawn(message.text_reply(format!(
+                    api.send(message.text_reply(format!(
                         "Hi, {}, user_id {}! You just wrote '{}'",
                         &message.from.first_name, &message.from.id, data
-                    )));
+                    )))
+                    .await?;
                 }
             }
         }
