@@ -182,7 +182,9 @@ async fn _list(
 ) -> Result<HttpResponse, Error> {
     let req = DiaryAppRequests::List(query);
     let state_ = state.clone();
-    let body = block(move || state_.db.handle(req)).await.map_err(err_msg)?;
+    let body = block(move || state_.db.handle(req))
+        .await
+        .map_err(err_msg)?;
 
     if is_api {
         let body = hashmap! {"list" => body };
@@ -271,7 +273,9 @@ pub async fn diary_frontpage(_: LoggedUser, state: Data<AppState>) -> Result<Htt
     };
     let req = DiaryAppRequests::List(query);
     let state_ = state.clone();
-    let body = block(move || state_.db.handle(req)).await.map_err(err_msg)?;
+    let body = block(move || state_.db.handle(req))
+        .await
+        .map_err(err_msg)?;
 
     let conflicts: HashSet<_> =
         block(move || state.db.handle(DiaryAppRequests::ListConflicts(None)))
