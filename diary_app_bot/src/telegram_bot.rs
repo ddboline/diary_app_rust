@@ -9,7 +9,7 @@ use std::thread::sleep;
 use std::time::Duration;
 use telegram_bot::types::refs::UserId;
 use telegram_bot::{Api, CanReplySendMessage, MessageKind, UpdateKind};
-use tokio::runtime::Runtime;
+use tokio::runtime::Builder;
 use tokio::task::block_in_place;
 
 use diary_app_lib::config::Config;
@@ -125,7 +125,7 @@ fn telegram_worker(telegram_bot_token: &str, pool: PgPool) -> Result<(), Error> 
     let config = Config::init_config()?;
     let dapp_interface = DiaryAppInterface::new(config, pool);
 
-    let mut rt = Runtime::new()?;
+    let mut rt = Builder::new().threaded_scheduler().build()?;
 
     rt.block_on(bot_handler(telegram_bot_token, &dapp_interface))
 }
