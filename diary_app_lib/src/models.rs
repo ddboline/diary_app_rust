@@ -71,7 +71,7 @@ impl<'a> From<DiaryConflict<'a>> for DiaryConflictInsert<'a> {
 }
 
 impl AuthorizedUsers {
-    pub fn get_authorized_users(pool: &PgPool) -> Result<Vec<AuthorizedUsers>, Error> {
+    pub fn get_authorized_users(pool: &PgPool) -> Result<Vec<Self>, Error> {
         use crate::schema::authorized_users::dsl::authorized_users;
         let conn = pool.get()?;
         authorized_users.load(&conn).map_err(err_msg)
@@ -195,9 +195,9 @@ impl DiaryConflict<'_> {
     }
 }
 
-impl DiaryEntries<'_> {
-    pub fn new(diary_date: NaiveDate, diary_text: Cow<str>) -> DiaryEntries {
-        DiaryEntries {
+impl<'a> DiaryEntries<'a> {
+    pub fn new(diary_date: NaiveDate, diary_text: Cow<'a, str>) -> Self {
+        Self {
             diary_date,
             diary_text,
             last_modified: Utc::now(),

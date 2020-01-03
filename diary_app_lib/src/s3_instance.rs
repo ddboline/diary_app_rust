@@ -68,7 +68,7 @@ impl S3Instance {
             self.s3_client
                 .create_bucket(CreateBucketRequest {
                     bucket: bucket_name.into(),
-                    ..Default::default()
+                    ..CreateBucketRequest::default()
                 })
                 .sync()?
                 .location
@@ -93,7 +93,7 @@ impl S3Instance {
                 .delete_object(DeleteObjectRequest {
                     bucket: bucket_name.into(),
                     key: key_name.into(),
-                    ..Default::default()
+                    ..DeleteObjectRequest::default()
                 })
                 .sync()
                 .map(|_| ())
@@ -113,7 +113,7 @@ impl S3Instance {
                     copy_source: source.to_string(),
                     bucket: bucket_to.into(),
                     key: key_to.into(),
-                    ..Default::default()
+                    ..CopyObjectRequest::default()
                 })
                 .sync()
                 .map_err(err_msg)
@@ -133,7 +133,7 @@ impl S3Instance {
                         PutObjectRequest {
                             bucket: bucket_name.into(),
                             key: key_name.into(),
-                            ..Default::default()
+                            ..PutObjectRequest::default()
                         },
                     )
                     .map_err(err_msg)
@@ -152,7 +152,7 @@ impl S3Instance {
             bucket: bucket_name.into(),
             key: key_name.into(),
             body: Some(input_str.to_string().into_bytes().into()),
-            ..Default::default()
+            ..PutObjectRequest::default()
         };
         self.s3_client
             .put_object(target)
@@ -166,7 +166,7 @@ impl S3Instance {
             let source = GetObjectRequest {
                 bucket: bucket_name.into(),
                 key: key_name.into(),
-                ..Default::default()
+                ..GetObjectRequest::default()
             };
             let mut resp = self.s3_client.get_object(source).sync()?;
             let body = resp.body.take().ok_or_else(|| err_msg("no body"))?;
@@ -189,7 +189,7 @@ impl S3Instance {
                     GetObjectRequest {
                         bucket: bucket_name.into(),
                         key: key_name.into(),
-                        ..Default::default()
+                        ..GetObjectRequest::default()
                     },
                     fname,
                 )
@@ -219,7 +219,7 @@ impl S3Instance {
                         bucket: bucket.into(),
                         continuation_token: continuation_token.clone(),
                         prefix: prefix.map(Into::into),
-                        ..Default::default()
+                        ..ListObjectsV2Request::default()
                     })
                     .sync()
                     .map_err(err_msg)
@@ -228,11 +228,10 @@ impl S3Instance {
             continuation_token = current_list.next_continuation_token.clone();
 
             match current_list.key_count {
-                Some(0) => (),
+                Some(0) | None => (),
                 Some(_) => {
                     list_of_keys.extend_from_slice(&current_list.contents.unwrap_or_else(Vec::new));
                 }
-                None => (),
             };
 
             match &continuation_token {
@@ -241,7 +240,7 @@ impl S3Instance {
             };
             if let Some(max_keys) = self.max_keys {
                 if list_of_keys.len() > max_keys {
-                    list_of_keys.resize(max_keys, Default::default());
+                    list_of_keys.resize(max_keys, Object::default());
                     break;
                 }
             }
@@ -268,7 +267,7 @@ impl S3Instance {
                         bucket: bucket.into(),
                         continuation_token: continuation_token.clone(),
                         prefix: prefix.map(Into::into),
-                        ..Default::default()
+                        ..ListObjectsV2Request::default()
                     })
                     .sync()
                     .map_err(err_msg)
@@ -277,13 +276,12 @@ impl S3Instance {
             continuation_token = current_list.next_continuation_token.clone();
 
             match current_list.key_count {
-                Some(0) => (),
+                Some(0) | None => (),
                 Some(_) => {
                     for item in current_list.contents.unwrap_or_else(Vec::new) {
                         callback(&item);
                     }
                 }
-                None => (),
             };
 
             match &continuation_token {

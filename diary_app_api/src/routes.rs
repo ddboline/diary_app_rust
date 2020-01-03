@@ -125,7 +125,7 @@ pub async fn replace(
     to_json(&body)
 }
 
-fn _list_string(conflicts: HashSet<String>, body: Vec<String>, query: ListOptions) -> String {
+fn _list_string(conflicts: &HashSet<String>, body: Vec<String>, query: ListOptions) -> String {
     let text: Vec<_> = body
         .into_iter()
         .map(|t| {
@@ -181,8 +181,8 @@ async fn _list(
     is_api: bool,
 ) -> Result<HttpResponse, Error> {
     let req = DiaryAppRequests::List(query);
-    let _s = state.clone();
-    let body = block(move || _s.db.handle(req)).await.map_err(err_msg)?;
+    let state_ = state.clone();
+    let body = block(move || state_.db.handle(req)).await.map_err(err_msg)?;
 
     if is_api {
         let body = hashmap! {"list" => body };
@@ -193,7 +193,7 @@ async fn _list(
                 .await
                 .map_err(err_msg)?;
         let conflicts: HashSet<String> = conflicts.into_iter().collect();
-        let body = _list_string(conflicts, body, query);
+        let body = _list_string(&conflicts, body, query);
         form_http_response(body)
     }
 }
@@ -267,11 +267,11 @@ pub async fn display(
 pub async fn diary_frontpage(_: LoggedUser, state: Data<AppState>) -> Result<HttpResponse, Error> {
     let query = ListOptions {
         limit: Some(10),
-        ..Default::default()
+        ..ListOptions::default()
     };
     let req = DiaryAppRequests::List(query);
-    let _s = state.clone();
-    let body = block(move || _s.db.handle(req)).await.map_err(err_msg)?;
+    let state_ = state.clone();
+    let body = block(move || state_.db.handle(req)).await.map_err(err_msg)?;
 
     let conflicts: HashSet<_> =
         block(move || state.db.handle(DiaryAppRequests::ListConflicts(None)))
@@ -279,7 +279,7 @@ pub async fn diary_frontpage(_: LoggedUser, state: Data<AppState>) -> Result<Htt
             .map_err(err_msg)?
             .into_iter()
             .collect();
-    let body = _list_string(conflicts, body, query);
+    let body = _list_string(&conflicts, body, query);
     let body = include_str!("../../templates/index.html")
         .replace("LIST_TEXT", &body)
         .replace("DISPLAY_TEXT", "");

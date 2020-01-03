@@ -28,7 +28,7 @@ lazy_static! {
 fn _run_bot(telegram_bot_token: &str, pool: PgPool, scope: &Scope) -> Result<(), Error> {
     let telegram_bot_token: String = telegram_bot_token.into();
     let pool_ = pool.clone();
-    let userid_handle = scope.spawn(move |_| fill_telegram_user_ids(pool_));
+    let userid_handle = scope.spawn(move |_| fill_telegram_user_ids(&pool_));
     let telegram_handle = scope.spawn(move |_| telegram_worker(&telegram_bot_token, pool));
 
     if userid_handle.join().is_err() {
@@ -53,9 +53,9 @@ async fn bot_handler(
                 if TELEGRAM_USERIDS.read().contains(&message.from.id) {
                     let first_word = data.split_whitespace().nth(0);
                     match first_word
-                        .map(|d| d.to_lowercase())
+                        .map(str::to_lowercase)
                         .as_ref()
-                        .map(|d| d.as_str())
+                        .map(String::as_str)
                     {
                         Some(":search") | Some(":s") => {
                             let search_text = data.trim_start_matches(first_word.unwrap()).trim();
@@ -130,9 +130,9 @@ fn telegram_worker(telegram_bot_token: &str, pool: PgPool) -> Result<(), Error> 
     rt.block_on(bot_handler(telegram_bot_token, &dapp_interface))
 }
 
-fn fill_telegram_user_ids(pool: PgPool) {
+fn fill_telegram_user_ids(pool: &PgPool) {
     loop {
-        if let Ok(authorized_users) = AuthorizedUsers::get_authorized_users(&pool) {
+        if let Ok(authorized_users) = AuthorizedUsers::get_authorized_users(pool) {
             let mut telegram_userid_set = TELEGRAM_USERIDS.write();
             telegram_userid_set.clear();
             for user in authorized_users {

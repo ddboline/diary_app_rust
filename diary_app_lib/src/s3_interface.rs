@@ -38,10 +38,9 @@ impl TryFrom<Object> for KeyMetaData {
             .last_modified
             .as_ref()
             .and_then(|lm| DateTime::parse_from_rfc3339(&lm).ok())
-            .map(|d| d.with_timezone(&Utc))
-            .unwrap_or_else(Utc::now);
+            .map_or_else(Utc::now, |d| d.with_timezone(&Utc));
         let size = obj.size.unwrap_or(0);
-        Ok(KeyMetaData {
+        Ok(Self {
             key: key.clone(),
             date,
             last_modified,
@@ -59,7 +58,7 @@ pub struct S3Interface {
 
 impl S3Interface {
     pub fn new(config: Config, pool: PgPool) -> Self {
-        S3Interface {
+        Self {
             s3_client: S3Instance::new(&config.aws_region_name),
             pool,
             config,
@@ -140,7 +139,7 @@ impl S3Interface {
                 }
                 Ok(None)
             })
-            .filter_map(|x| x.transpose())
+            .filter_map(Result::transpose)
             .collect()
     }
 
