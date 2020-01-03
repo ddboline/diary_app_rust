@@ -121,29 +121,29 @@ impl DiaryAppInterface {
     }
 
     pub fn search_text(&self, search_text: &str) -> Result<Vec<String>, Error> {
-        let ymd_reg = Regex::new(r"(?P<year>\d{4})-(?P<month>\d{2})-(?P<day>\d{2})")?;
-        let ym_reg = Regex::new(r"(?P<year>\d{4})-(?P<month>\d{2})")?;
-        let y_reg = Regex::new(r"(?P<year>\d{4})")?;
+        let year_month_day_regex = Regex::new(r"(?P<year>\d{4})-(?P<month>\d{2})-(?P<day>\d{2})")?;
+        let year_month_regex = Regex::new(r"(?P<year>\d{4})-(?P<month>\d{2})")?;
+        let year_regex = Regex::new(r"(?P<year>\d{4})")?;
 
         let mut dates = Vec::new();
         if search_text.trim().to_lowercase() == "today" {
             dates.push(Local::now().naive_local().date());
         }
-        if ymd_reg.is_match(search_text) {
-            for cap in ymd_reg.captures_iter(search_text) {
+        if year_month_day_regex.is_match(search_text) {
+            for cap in year_month_day_regex.captures_iter(search_text) {
                 let year = cap.name("year").map(|x| x.as_str());
                 let month = cap.name("month").map(|x| x.as_str());
                 let day = cap.name("day").map(|x| x.as_str());
                 dates.extend_from_slice(&self.get_matching_dates(year, month, day)?);
             }
-        } else if ym_reg.is_match(search_text) {
-            for cap in ym_reg.captures_iter(search_text) {
+        } else if year_month_regex.is_match(search_text) {
+            for cap in year_month_regex.captures_iter(search_text) {
                 let year = cap.name("year").map(|x| x.as_str());
                 let month = cap.name("month").map(|x| x.as_str());
                 dates.extend_from_slice(&self.get_matching_dates(year, month, None)?);
             }
-        } else if y_reg.is_match(search_text) {
-            for cap in y_reg.captures_iter(search_text) {
+        } else if year_regex.is_match(search_text) {
+            for cap in year_regex.captures_iter(search_text) {
                 let year = cap.name("year").map(|x| x.as_str());
                 dates.extend_from_slice(&self.get_matching_dates(year, None, None)?);
             }
@@ -152,14 +152,31 @@ impl DiaryAppInterface {
         dates.sort();
         debug!("search dates {}", dates.len());
 
-        if !dates.is_empty() {
-            let mut de_entries = Vec::new();
+        if dates.is_empty() {
+            let mut diary_entries: Vec<_> = DiaryEntries::get_by_text(search_text, &self.pool)?
+                .into_iter()
+                .map(|entry| format!("{}\n{}", entry.diary_date, entry.diary_text))
+                .collect();
+            let diary_cache_entries: Vec<_> = DiaryCache::get_by_text(search_text, &self.pool)?
+                .into_iter()
+                .map(|entry| {
+                    format!(
+                        "{}\n{}",
+                        entry.diary_datetime.format("%Y-%m-%dT%H:%M:%SZ"),
+                        entry.diary_text
+                    )
+                })
+                .collect();
+            diary_entries.extend_from_slice(&diary_cache_entries);
+            Ok(diary_entries)
+        } else {
+            let mut diary_entries = Vec::new();
             for date in dates {
                 debug!("search date {}", date);
                 let entry = DiaryEntries::get_by_date(date, &self.pool)?;
                 let entry = format!("{}\n{}", entry.diary_date, entry.diary_text);
-                de_entries.push(entry);
-                let dc_entries: Vec<_> = DiaryCache::get_cache_entries(&self.pool)?
+                diary_entries.push(entry);
+                let diary_cache_entries: Vec<_> = DiaryCache::get_cache_entries(&self.pool)?
                     .into_iter()
                     .filter_map(|entry| {
                         if entry
@@ -175,26 +192,9 @@ impl DiaryAppInterface {
                         }
                     })
                     .collect();
-                de_entries.extend_from_slice(&dc_entries);
+                diary_entries.extend_from_slice(&diary_cache_entries);
             }
-            Ok(de_entries)
-        } else {
-            let mut de_entries: Vec<_> = DiaryEntries::get_by_text(search_text, &self.pool)?
-                .into_iter()
-                .map(|entry| format!("{}\n{}", entry.diary_date, entry.diary_text))
-                .collect();
-            let dc_entries: Vec<_> = DiaryCache::get_by_text(search_text, &self.pool)?
-                .into_iter()
-                .map(|entry| {
-                    format!(
-                        "{}\n{}",
-                        entry.diary_datetime.format("%Y-%m-%dT%H:%M:%SZ"),
-                        entry.diary_text
-                    )
-                })
-                .collect();
-            de_entries.extend_from_slice(&dc_entries);
-            Ok(de_entries)
+            Ok(diary_entries)
         }
     }
 
@@ -309,7 +309,7 @@ impl DiaryAppInterface {
 
                 Ok(result)
             })
-            .filter_map(|x| x.transpose())
+            .filter_map(Result::transpose)
             .collect()
     }
 
@@ -339,15 +339,15 @@ impl DiaryAppInterface {
             .into_iter()
             .map(|line| {
                 let item: DiaryCache = serde_json::from_str(&line)?;
-                if !cache_set.contains(&item.diary_datetime) {
+                if cache_set.contains(&item.diary_datetime) {
+                    Ok(None)
+                } else {
                     println!("{:?}", item);
                     item.insert_entry(&self.pool)?;
                     Ok(Some(item))
-                } else {
-                    Ok(None)
                 }
             })
-            .filter_map(|result| result.transpose())
+            .filter_map(Result::transpose)
             .collect();
         let inserted_entries = inserted_entries?;
         if !inserted_entries.is_empty() {

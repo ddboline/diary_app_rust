@@ -46,13 +46,11 @@ pub async fn run_app() {
 
     actix_rt::spawn(_update_db(dapp.pool.clone()));
 
-    let _d = dapp.clone();
-
     let port = dapp.config.port;
 
     HttpServer::new(move || {
         App::new()
-            .data(AppState { db: _d.clone() })
+            .data(AppState { db: dapp.clone() })
             .wrap(IdentityService::new(
                 CookieIdentityPolicy::new(dapp.config.secret_key.as_bytes())
                     .name("auth")

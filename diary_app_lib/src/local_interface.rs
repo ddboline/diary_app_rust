@@ -21,7 +21,7 @@ pub struct LocalInterface {
 
 impl LocalInterface {
     pub fn new(config: Config, pool: PgPool) -> Self {
-        LocalInterface { pool, config }
+        Self { pool, config }
     }
 
     pub fn export_year_to_local(&self) -> Result<Vec<String>, Error> {
@@ -111,7 +111,7 @@ impl LocalInterface {
                     Ok(None)
                 }
             })
-            .filter_map(|x| x.transpose())
+            .filter_map(Result::transpose)
             .collect();
         let dates = dates?;
         let current_date = Local::now().naive_local().date();
@@ -159,7 +159,7 @@ impl LocalInterface {
                     }
                 }
             })
-            .filter_map(|x| x.transpose())
+            .filter_map(Result::transpose)
             .collect()
     }
 
@@ -171,34 +171,36 @@ impl LocalInterface {
             .sort(true)
             .preload_metadata(true)
             .into_iter()
-            .map(|entry| {
-                let entry = entry?;
-                let filename = entry.file_name.to_string_lossy();
-                if let Ok(date) = NaiveDate::parse_from_str(&filename, "%Y-%m-%d.txt") {
-                    if let Some(metadata) = entry.metadata.transpose()? {
-                        let filepath = format!("{}/{}", self.config.diary_path, filename);
-                        let modified: DateTime<Utc> = metadata.modified()?.into();
+            .filter_map(|entry| {
+                let res = || {
+                    let entry = entry?;
+                    let filename = entry.file_name.to_string_lossy();
+                    if let Ok(date) = NaiveDate::parse_from_str(&filename, "%Y-%m-%d.txt") {
+                        if let Some(metadata) = entry.metadata.transpose()? {
+                            let filepath = format!("{}/{}", self.config.diary_path, filename);
+                            let modified: DateTime<Utc> = metadata.modified()?.into();
 
-                        let should_modify = match existing_map.get(&date) {
-                            Some(current_modified) => {
-                                (*current_modified - modified).num_seconds() < -1
-                            }
-                            None => true,
-                        };
-
-                        if metadata.len() > 0 && should_modify {
-                            let d = DiaryEntries {
-                                diary_date: date,
-                                diary_text: read_to_string(&filepath)?.into(),
-                                last_modified: modified,
+                            let should_modify = match existing_map.get(&date) {
+                                Some(current_modified) => {
+                                    (*current_modified - modified).num_seconds() < -1
+                                }
+                                None => true,
                             };
-                            return Ok(Some(d));
+
+                            if metadata.len() > 0 && should_modify {
+                                let d = DiaryEntries {
+                                    diary_date: date,
+                                    diary_text: read_to_string(&filepath)?.into(),
+                                    last_modified: modified,
+                                };
+                                return Ok(Some(d));
+                            }
                         }
                     }
-                }
-                Ok(None)
+                    Ok(None)
+                };
+                res().transpose()
             })
-            .filter_map(|d| d.transpose())
             .map(|result| {
                 result.and_then(|entry| {
                     if !entry.diary_text.trim().is_empty() {

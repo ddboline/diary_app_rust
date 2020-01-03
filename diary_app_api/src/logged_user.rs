@@ -38,7 +38,7 @@ struct Claims<'a> {
 
 impl<'a> From<Claims<'a>> for LoggedUser {
     fn from(claims: Claims) -> Self {
-        LoggedUser {
+        Self {
             email: claims.email.into(),
         }
     }
@@ -106,8 +106,8 @@ enum AuthStatus {
 pub struct AuthorizedUsers(RwLock<HashMap<LoggedUser, AuthStatus>>);
 
 impl AuthorizedUsers {
-    pub fn new() -> AuthorizedUsers {
-        AuthorizedUsers(RwLock::new(HashMap::new()))
+    pub fn new() -> Self {
+        Self(RwLock::new(HashMap::new()))
     }
 
     pub fn fill_from_db(&self, pool: &PgPool) -> Result<(), Error> {

@@ -24,7 +24,7 @@ pub struct Config(Arc<ConfigInner>);
 
 impl Config {
     pub fn new() -> Self {
-        Default::default()
+        Self::default()
     }
 
     pub fn get_inner(self) -> Result<ConfigInner, Error> {
@@ -88,7 +88,7 @@ impl Config {
             secret_key,
         };
 
-        Ok(Config(Arc::new(conf)))
+        Ok(Self(Arc::new(conf)))
     }
 }
 

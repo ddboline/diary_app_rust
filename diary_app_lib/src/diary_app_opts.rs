@@ -27,14 +27,14 @@ impl FromStr for DiaryAppCommands {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "search" | "s" => Ok(DiaryAppCommands::Search),
-            "insert" | "i" => Ok(DiaryAppCommands::Insert),
-            "sync" => Ok(DiaryAppCommands::Sync),
-            "ser" | "serialize" => Ok(DiaryAppCommands::Serialize),
-            "clear" | "clear_cache" => Ok(DiaryAppCommands::ClearCache),
-            "list" | "list_conflicts" => Ok(DiaryAppCommands::ListConflicts),
-            "show" | "show_conflict" => Ok(DiaryAppCommands::ShowConflict),
-            "remove" | "remove_conflict" => Ok(DiaryAppCommands::RemoveConflict),
+            "search" | "s" => Ok(Self::Search),
+            "insert" | "i" => Ok(Self::Insert),
+            "sync" => Ok(Self::Sync),
+            "ser" | "serialize" => Ok(Self::Serialize),
+            "clear" | "clear_cache" => Ok(Self::ClearCache),
+            "list" | "list_conflicts" => Ok(Self::ListConflicts),
+            "show" | "show_conflict" => Ok(Self::ShowConflict),
+            "remove" | "remove_conflict" => Ok(Self::RemoveConflict),
             _ => Err(err_msg("Parse failure")),
         }
     }
@@ -58,7 +58,7 @@ pub struct DiaryAppOpts {
 impl DiaryAppOpts {
     pub fn process_args() -> Result<(), Error> {
         let stdout = stdout();
-        let opts = DiaryAppOpts::from_args();
+        let opts = Self::from_args();
 
         let config = Config::init_config()?;
         let pool = PgPool::new(&config.database_url);
@@ -87,7 +87,7 @@ impl DiaryAppOpts {
                 }
             }
             DiaryAppCommands::ListConflicts => {
-                let _get_all_conflicts = |date: NaiveDate| -> Result<(), Error> {
+                let get_all_conflicts = |date: NaiveDate| -> Result<(), Error> {
                     let conflicts: BTreeSet<_> = DiaryConflict::get_by_date(date, &dap.pool)?
                         .into_iter()
                         .map(|entry| entry.format("%Y-%m-%dT%H:%M:%S%.fZ").to_string())
@@ -99,7 +99,7 @@ impl DiaryAppOpts {
                 };
 
                 if let Ok(date) = opts.text.join("").parse() {
-                    _get_all_conflicts(date)?;
+                    get_all_conflicts(date)?;
                 } else {
                     let conflicts = DiaryConflict::get_all_dates(&dap.pool)?;
                     if conflicts.len() > 1 {
@@ -108,13 +108,13 @@ impl DiaryAppOpts {
                         }
                     } else {
                         for date in conflicts {
-                            _get_all_conflicts(date)?;
+                            get_all_conflicts(date)?;
                         }
                     }
                 }
             }
             DiaryAppCommands::ShowConflict => {
-                let _show_conflict = |datetime| -> Result<(), Error> {
+                let show_conflict = |datetime| -> Result<(), Error> {
                     println!("datetime {}", datetime);
                     let conflicts: Vec<_> = DiaryConflict::get_by_datetime(datetime, &dap.pool)?
                         .into_iter()
@@ -134,9 +134,9 @@ impl DiaryAppOpts {
                     DateTime::parse_from_rfc3339(&opts.text.join("").replace("Z", "+00:00"))
                         .map(|x| x.with_timezone(&Utc))
                 {
-                    _show_conflict(datetime)?;
+                    show_conflict(datetime)?;
                 } else if let Some(datetime) = DiaryConflict::get_first_conflict(&dap.pool)? {
-                    _show_conflict(datetime)?;
+                    show_conflict(datetime)?;
                 }
             }
             DiaryAppCommands::RemoveConflict => {
