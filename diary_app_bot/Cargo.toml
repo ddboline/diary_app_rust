@@ -17,5 +17,5 @@ crossbeam-channel = "0.4"
 parking_lot = "0.10"
 crossbeam-utils = "0.7"
 lazy_static = "1.4"
-tokio = {version="0.2", features=["blocking", "rt-threaded"]}
+tokio = {version="0.2", features=["blocking", "rt-threaded", "rt-core"]}
 actix-rt = "1.0"

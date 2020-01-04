@@ -10,7 +10,6 @@ use std::time::Duration;
 use telegram_bot::types::refs::UserId;
 use telegram_bot::{Api, CanReplySendMessage, MessageKind, UpdateKind};
 use tokio::runtime::Runtime;
-use tokio::task::block_in_place;
 
 use diary_app_lib::config::Config;
 use diary_app_lib::diary_app_interface::DiaryAppInterface;
@@ -60,8 +59,7 @@ async fn bot_handler(
                         Some(":search") | Some(":s") => {
                             let search_text = data.trim_start_matches(first_word.unwrap()).trim();
                             OUTPUT_BUFFER.write().clear();
-                            if let Ok(mut search_results) =
-                                block_in_place(move || dapp_interface.search_text(search_text))
+                            if let Ok(mut search_results) = dapp_interface.search_text(search_text)
                             {
                                 search_results.reverse();
                                 OUTPUT_BUFFER.write().extend_from_slice(&search_results);
@@ -81,9 +79,7 @@ async fn bot_handler(
                         }
                         Some(":insert") | Some(":i") => {
                             let insert_text = data.trim_start_matches(first_word.unwrap()).trim();
-                            if let Ok(cache_entry) = block_in_place(move || {
-                                dapp_interface.cache_text(insert_text.into())
-                            }) {
+                            if let Ok(cache_entry) = dapp_interface.cache_text(insert_text.into()) {
                                 api.send(
                                     message.text_reply(format!("cached entry {:?}", cache_entry)),
                                 )
@@ -94,9 +90,7 @@ async fn bot_handler(
                             }
                         }
                         _ => {
-                            if let Ok(cache_entry) =
-                                block_in_place(move || dapp_interface.cache_text(data.into()))
-                            {
+                            if let Ok(cache_entry) = dapp_interface.cache_text(data.into()) {
                                 api.send(
                                     message.text_reply(format!("cached entry {:?}", cache_entry)),
                                 )
