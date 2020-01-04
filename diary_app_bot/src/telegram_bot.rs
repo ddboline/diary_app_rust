@@ -1,3 +1,5 @@
+use actix_rt::System;
+use actix_threadpool::run as block;
 use crossbeam_utils::thread::{self, Scope};
 use failure::{format_err, Error};
 use futures::StreamExt;
@@ -9,7 +11,6 @@ use std::thread::sleep;
 use std::time::Duration;
 use telegram_bot::types::refs::UserId;
 use telegram_bot::{Api, CanReplySendMessage, MessageKind, UpdateKind};
-use tokio::runtime::Runtime;
 
 use diary_app_lib::config::Config;
 use diary_app_lib::diary_app_interface::DiaryAppInterface;
@@ -24,11 +25,10 @@ lazy_static! {
     static ref OUTPUT_BUFFER: OBuffer = RwLock::new(Vec::new());
 }
 
-fn _run_bot(telegram_bot_token: &str, pool: PgPool, scope: &Scope) -> Result<(), Error> {
-    let telegram_bot_token: String = telegram_bot_token.into();
+fn _run_bot(pool: PgPool, scope: &Scope) -> Result<(), Error> {
     let pool_ = pool.clone();
     let userid_handle = scope.spawn(move |_| fill_telegram_user_ids(&pool_));
-    let telegram_handle = scope.spawn(move |_| telegram_worker(&telegram_bot_token, pool));
+    let telegram_handle = scope.spawn(move |_| telegram_worker(pool));
 
     if userid_handle.join().is_err() {
         panic!("Userid thread paniced, kill everything");
@@ -37,11 +37,8 @@ fn _run_bot(telegram_bot_token: &str, pool: PgPool, scope: &Scope) -> Result<(),
     Ok(())
 }
 
-async fn bot_handler(
-    telegram_bot_token: &str,
-    dapp_interface: &DiaryAppInterface,
-) -> Result<(), Error> {
-    let api = Api::new(telegram_bot_token);
+async fn bot_handler(dapp_interface: DiaryAppInterface) -> Result<(), Error> {
+    let api = Api::new(&dapp_interface.config.telegram_bot_token);
     let mut stream = api.stream();
     while let Some(update) = stream.next().await {
         // If the received update contains a new message...
@@ -57,9 +54,14 @@ async fn bot_handler(
                         .map(String::as_str)
                     {
                         Some(":search") | Some(":s") => {
-                            let search_text = data.trim_start_matches(first_word.unwrap()).trim();
+                            let search_text = data
+                                .trim_start_matches(first_word.unwrap())
+                                .trim()
+                                .to_string();
                             OUTPUT_BUFFER.write().clear();
-                            if let Ok(mut search_results) = dapp_interface.search_text(search_text)
+                            let d = dapp_interface.clone();
+                            if let Ok(mut search_results) =
+                                block(move || d.search_text(&search_text)).await
                             {
                                 search_results.reverse();
                                 OUTPUT_BUFFER.write().extend_from_slice(&search_results);
@@ -78,8 +80,14 @@ async fn bot_handler(
                             }
                         }
                         Some(":insert") | Some(":i") => {
-                            let insert_text = data.trim_start_matches(first_word.unwrap()).trim();
-                            if let Ok(cache_entry) = dapp_interface.cache_text(insert_text.into()) {
+                            let insert_text = data
+                                .trim_start_matches(first_word.unwrap())
+                                .trim()
+                                .to_string();
+                            let d = dapp_interface.clone();
+                            if let Ok(cache_entry) =
+                                block(move || d.cache_text(insert_text.into())).await
+                            {
                                 api.send(
                                     message.text_reply(format!("cached entry {:?}", cache_entry)),
                                 )
@@ -90,7 +98,10 @@ async fn bot_handler(
                             }
                         }
                         _ => {
-                            if let Ok(cache_entry) = dapp_interface.cache_text(data.into()) {
+                            let d = dapp_interface.clone();
+                            let data = data.to_string();
+                            if let Ok(cache_entry) = block(move || d.cache_text(data.into())).await
+                            {
                                 api.send(
                                     message.text_reply(format!("cached entry {:?}", cache_entry)),
                                 )
@@ -115,13 +126,11 @@ async fn bot_handler(
     Ok(())
 }
 
-fn telegram_worker(telegram_bot_token: &str, pool: PgPool) -> Result<(), Error> {
+fn telegram_worker(pool: PgPool) -> Result<(), Error> {
     let config = Config::init_config()?;
     let dapp_interface = DiaryAppInterface::new(config, pool);
 
-    let mut rt = Runtime::new()?;
-
-    rt.block_on(bot_handler(telegram_bot_token, &dapp_interface))
+    System::new("diary_telegram_bot").block_on(bot_handler(dapp_interface))
 }
 
 fn fill_telegram_user_ids(pool: &PgPool) {
@@ -142,7 +151,7 @@ fn fill_telegram_user_ids(pool: &PgPool) {
 pub fn run_bot() -> Result<(), Error> {
     let config = Config::init_config().unwrap();
     let pool = PgPool::new(&config.database_url);
-    thread::scope(|scope| _run_bot(&config.telegram_bot_token, pool, scope))
+    thread::scope(|scope| _run_bot(pool, scope))
         .map_err(|x| format_err!("{:?}", x))
         .and_then(|r| r)
 }
