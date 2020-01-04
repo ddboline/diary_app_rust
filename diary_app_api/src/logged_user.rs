@@ -82,7 +82,7 @@ fn _from_request(req: &HttpRequest, pl: &mut Payload) -> Result<LoggedUser, acti
 
 impl FromRequest for LoggedUser {
     type Error = actix_web::Error;
-    type Future = Ready<Result<LoggedUser, actix_web::Error>>;
+    type Future = Ready<Result<Self, actix_web::Error>>;
     type Config = ();
 
     fn from_request(req: &HttpRequest, pl: &mut Payload) -> Self::Future {
