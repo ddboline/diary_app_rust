@@ -25,10 +25,10 @@ lazy_static! {
     static ref OUTPUT_BUFFER: OBuffer = RwLock::new(Vec::new());
 }
 
-fn _run_bot(pool: PgPool, scope: &Scope) -> Result<(), Error> {
-    let pool_ = pool.clone();
+fn _run_bot(dapp: DiaryAppInterface, scope: &Scope) -> Result<(), Error> {
+    let pool_ = dapp.pool.clone();
     let userid_handle = scope.spawn(move |_| fill_telegram_user_ids(&pool_));
-    let telegram_handle = scope.spawn(move |_| telegram_worker(pool));
+    let telegram_handle = scope.spawn(move |_| telegram_worker(dapp));
 
     if userid_handle.join().is_err() {
         panic!("Userid thread paniced, kill everything");
@@ -126,11 +126,8 @@ async fn bot_handler(dapp_interface: DiaryAppInterface) -> Result<(), Error> {
     Ok(())
 }
 
-fn telegram_worker(pool: PgPool) -> Result<(), Error> {
-    let config = Config::init_config()?;
-    let dapp_interface = DiaryAppInterface::new(config, pool);
-
-    System::new("diary_telegram_bot").block_on(bot_handler(dapp_interface))
+fn telegram_worker(dapp: DiaryAppInterface) -> Result<(), Error> {
+    System::new("diary_telegram_bot").block_on(bot_handler(dapp))
 }
 
 fn fill_telegram_user_ids(pool: &PgPool) {
@@ -151,7 +148,9 @@ fn fill_telegram_user_ids(pool: &PgPool) {
 pub fn run_bot() -> Result<(), Error> {
     let config = Config::init_config().unwrap();
     let pool = PgPool::new(&config.database_url);
-    thread::scope(|scope| _run_bot(pool, scope))
+    let dapp_interface = DiaryAppInterface::new(config, pool);
+
+    thread::scope(|scope| _run_bot(dapp_interface, scope))
         .map_err(|x| format_err!("{:?}", x))
         .and_then(|r| r)
 }
