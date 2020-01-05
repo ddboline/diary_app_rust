@@ -8,6 +8,7 @@ use failure::{err_msg, Error};
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
 use std::collections::HashMap;
+use std::io::{stdout, Write};
 
 use crate::pgpool::{PgPool, PgPoolConn};
 use crate::schema::{authorized_users, diary_cache, diary_conflict, diary_entries};
@@ -182,8 +183,8 @@ impl DiaryConflict<'_> {
             .count();
 
         if n_removed_lines > 0 {
-            println!("update_entry {:?}", removed_lines);
-            println!("difference {}", n_removed_lines);
+            writeln!(stdout(), "update_entry {:?}", removed_lines)?;
+            writeln!(stdout(), "difference {}", n_removed_lines)?;
             diesel::insert_into(diary_conflict)
                 .values(&removed_lines)
                 .execute(conn)

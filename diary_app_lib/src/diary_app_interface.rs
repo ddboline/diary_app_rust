@@ -7,7 +7,7 @@ use regex::Regex;
 use std::borrow::Cow;
 use std::collections::{HashMap, HashSet};
 use std::fs::OpenOptions;
-use std::io::Write;
+use std::io::{stdout, Write};
 use std::path::Path;
 
 use crate::config::Config;
@@ -291,12 +291,12 @@ impl DiaryAppInterface {
                 {
                     current_entry.diary_text =
                         format!("{}\n\n{}", &current_entry.diary_text, entry_string).into();
-                    println!("update {}", diary_file);
+                    writeln!(stdout(), "update {}", diary_file)?;
                     current_entry.update_entry(&self.pool)?;
                     Some(current_entry)
                 } else {
                     let new_entry = DiaryEntries::new(entry_date, entry_string.into());
-                    println!("upsert {}", diary_file);
+                    writeln!(stdout(), "upsert {}", diary_file)?;
                     new_entry.upsert_entry(&self.pool)?;
                     Some(new_entry)
                 };
@@ -342,7 +342,7 @@ impl DiaryAppInterface {
                 if cache_set.contains(&item.diary_datetime) {
                     Ok(None)
                 } else {
-                    println!("{:?}", item);
+                    writeln!(stdout(), "{:?}", item)?;
                     item.insert_entry(&self.pool)?;
                     Ok(Some(item))
                 }
@@ -361,6 +361,7 @@ impl DiaryAppInterface {
 #[cfg(test)]
 mod tests {
     use chrono::NaiveDate;
+    use std::io::{stdout, Write};
 
     use crate::config::Config;
     use crate::diary_app_interface::DiaryAppInterface;
@@ -432,7 +433,7 @@ mod tests {
 
         let test_text = "Test text";
         let result = dap.cache_text(test_text.into()).unwrap();
-        println!("{}", result.diary_datetime);
+        writeln!(stdout(), "{}", result.diary_datetime).unwrap();
         let results = DiaryCache::get_cache_entries(&dap.pool).unwrap_or_else(|_| Vec::new());
         let results2 = dap.serialize_cache().unwrap();
         result.delete_entry(&dap.pool).unwrap();

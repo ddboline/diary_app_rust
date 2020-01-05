@@ -115,7 +115,7 @@ impl DiaryAppOpts {
             }
             DiaryAppCommands::ShowConflict => {
                 let show_conflict = |datetime| -> Result<(), Error> {
-                    println!("datetime {}", datetime);
+                    writeln!(stdout.lock(), "datetime {}", datetime)?;
                     let conflicts: Vec<_> = DiaryConflict::get_by_datetime(datetime, &dap.pool)?
                         .into_iter()
                         .map(|entry| match entry.diff_type.as_ref() {

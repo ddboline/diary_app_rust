@@ -227,6 +227,7 @@ mod tests {
     use failure::Error;
     use jwalk::WalkDir;
     use tempdir::TempDir;
+    use std::io::{stdout, Write};
 
     use crate::config::{Config, ConfigInner};
     use crate::local_interface::LocalInterface;
@@ -257,8 +258,8 @@ mod tests {
         let results = li.export_year_to_local().unwrap();
         assert!(results.contains(&"2013 296".to_string()));
         let nentries = results.len();
-        println!("{:?}", results);
-        println!("{:?}", t.path());
+        writeln!(stdout(),"{:?}", results).unwrap();
+        writeln!(stdout(),"{:?}", t.path()).unwrap();
         let results: Result<Vec<_>, Error> = WalkDir::new(t.path())
             .sort(true)
             .preload_metadata(true)
@@ -287,7 +288,7 @@ mod tests {
         let li = get_li(&t);
         let results = li.cleanup_local().unwrap();
         let nresults = results.len();
-        println!("{:?}", results);
+        writeln!(stdout(),"{:?}", results).unwrap();
         let results: Result<Vec<_>, Error> = WalkDir::new(t.path())
             .sort(true)
             .preload_metadata(true)
@@ -305,7 +306,7 @@ mod tests {
             .filter_map(|x| x.transpose())
             .collect();
         let results = results.unwrap();
-        println!("{:?}", results);
+        writeln!(stdout(),"{:?}", results).unwrap();
         assert_eq!(results.len(), nresults);
     }
 }
