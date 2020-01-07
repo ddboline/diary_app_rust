@@ -7,6 +7,7 @@ use lazy_static::lazy_static;
 use log::debug;
 use parking_lot::RwLock;
 use std::collections::HashSet;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread::sleep;
 use std::time::Duration;
 use telegram_bot::types::refs::UserId;
@@ -23,6 +24,7 @@ type OBuffer = RwLock<Vec<String>>;
 lazy_static! {
     static ref TELEGRAM_USERIDS: UserIds = RwLock::new(HashSet::new());
     static ref OUTPUT_BUFFER: OBuffer = RwLock::new(Vec::new());
+    static ref KILLSWITCH: AtomicBool = AtomicBool::new(false);
 }
 
 fn _run_bot(dapp: DiaryAppInterface, scope: &Scope) -> Result<(), Error> {
@@ -30,10 +32,10 @@ fn _run_bot(dapp: DiaryAppInterface, scope: &Scope) -> Result<(), Error> {
     let userid_handle = scope.spawn(move |_| fill_telegram_user_ids(&pool_));
     let telegram_handle = scope.spawn(move |_| telegram_worker(dapp));
 
+    telegram_handle.join().expect("telegram thread paniced")?;
     if userid_handle.join().is_err() {
         panic!("Userid thread paniced, kill everything");
     }
-    telegram_handle.join().expect("telegram thread paniced")?;
     Ok(())
 }
 
@@ -41,6 +43,9 @@ async fn bot_handler(dapp_interface: DiaryAppInterface) -> Result<(), Error> {
     let api = Api::new(&dapp_interface.config.telegram_bot_token);
     let mut stream = api.stream();
     while let Some(update) = stream.next().await {
+        if KILLSWITCH.load(Ordering::SeqCst) {
+            return Ok(());
+        }
         // If the received update contains a new message...
         if let UpdateKind::Message(message) = update?.kind {
             if let MessageKind::Text { ref data, .. } = message.kind {
@@ -127,17 +132,37 @@ async fn bot_handler(dapp_interface: DiaryAppInterface) -> Result<(), Error> {
 }
 
 fn telegram_worker(dapp: DiaryAppInterface) -> Result<(), Error> {
-    System::new("diary_telegram_bot").block_on(bot_handler(dapp))
+    System::new("diary_telegram_bot").block_on(bot_handler(dapp))?;
+    KILLSWITCH.store(true, Ordering::SeqCst);
+    Ok(())
 }
 
-fn fill_telegram_user_ids(pool: &PgPool) {
+fn fill_telegram_user_ids(pool: &PgPool) -> Result<(), Error> {
+    let mut failure_count = 0;
     loop {
-        if let Ok(authorized_users) = AuthorizedUsers::get_authorized_users(pool) {
-            let mut telegram_userid_set = TELEGRAM_USERIDS.write();
-            telegram_userid_set.clear();
-            for user in authorized_users {
-                if let Some(userid) = user.telegram_userid {
-                    telegram_userid_set.insert(UserId::new(userid));
+        if KILLSWITCH.load(Ordering::SeqCst) {
+            return Ok(());
+        }
+        match AuthorizedUsers::get_authorized_users(pool) {
+            Ok(authorized_users) => {
+                let mut telegram_userid_set = TELEGRAM_USERIDS.write();
+                telegram_userid_set.clear();
+                for user in authorized_users {
+                    if let Some(userid) = user.telegram_userid {
+                        telegram_userid_set.insert(UserId::new(userid));
+                    }
+                }
+                failure_count = 0;
+            }
+            Err(e) => {
+                failure_count += 1;
+                if failure_count > 5 {
+                    KILLSWITCH.store(true, Ordering::SeqCst);
+                    return Err(format_err!(
+                        "Failed with {} after retrying {} times",
+                        e,
+                        failure_count
+                    ));
                 }
             }
         }
