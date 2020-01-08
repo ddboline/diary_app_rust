@@ -1,5 +1,5 @@
+use anyhow::{format_err, Error};
 use chrono::{DateTime, NaiveDate, Utc};
-use failure::{err_msg, Error};
 use lazy_static::lazy_static;
 use log::debug;
 use parking_lot::Mutex;
@@ -32,7 +32,7 @@ struct KeyMetaData {
 impl TryFrom<Object> for KeyMetaData {
     type Error = Error;
     fn try_from(obj: Object) -> Result<Self, Error> {
-        let key = obj.key.as_ref().ok_or_else(|| err_msg("No Key"))?;
+        let key = obj.key.as_ref().ok_or_else(|| format_err!("No Key"))?;
         let date = NaiveDate::parse_from_str(&key, "%Y-%m-%d.txt")?;
         let last_modified = obj
             .last_modified

@@ -9,7 +9,6 @@ edition = "2018"
 [dependencies]
 telegram-bot = {git = "https://github.com/telegram-rs/telegram-bot.git", branch="master"}
 diary_app_lib = {path="../diary_app_lib"}
-failure = "0.1"
 log = "0.4"
 env_logger = "0.7"
 futures = "0.3"
@@ -19,3 +18,5 @@ crossbeam-utils = "0.7"
 lazy_static = "1.4"
 actix-rt = "1.0"
 actix-threadpool = "0.3"
+anyhow = "1.0"
+thiserror = "1.0"

@@ -1,5 +1,5 @@
+use anyhow::{format_err, Error};
 use chrono::{DateTime, NaiveDate, Utc};
-use failure::{err_msg, Error};
 use std::collections::BTreeSet;
 use std::io::{stdout, Write};
 use std::str::FromStr;
@@ -35,7 +35,7 @@ impl FromStr for DiaryAppCommands {
             "list" | "list_conflicts" => Ok(Self::ListConflicts),
             "show" | "show_conflict" => Ok(Self::ShowConflict),
             "remove" | "remove_conflict" => Ok(Self::RemoveConflict),
-            _ => Err(err_msg("Parse failure")),
+            _ => Err(format_err!("Parse failure")),
         }
     }
 }

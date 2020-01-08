@@ -1,5 +1,5 @@
+use anyhow::Error;
 use chrono::{DateTime, Datelike, Duration, Local, NaiveDate, TimeZone, Utc};
-use failure::Error;
 use jwalk::WalkDir;
 use log::debug;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
@@ -224,10 +224,10 @@ impl LocalInterface {
 
 #[cfg(test)]
 mod tests {
-    use failure::Error;
+    use anyhow::Error;
     use jwalk::WalkDir;
-    use tempdir::TempDir;
     use std::io::{stdout, Write};
+    use tempdir::TempDir;
 
     use crate::config::{Config, ConfigInner};
     use crate::local_interface::LocalInterface;
@@ -258,8 +258,8 @@ mod tests {
         let results = li.export_year_to_local().unwrap();
         assert!(results.contains(&"2013 296".to_string()));
         let nentries = results.len();
-        writeln!(stdout(),"{:?}", results).unwrap();
-        writeln!(stdout(),"{:?}", t.path()).unwrap();
+        writeln!(stdout(), "{:?}", results).unwrap();
+        writeln!(stdout(), "{:?}", t.path()).unwrap();
         let results: Result<Vec<_>, Error> = WalkDir::new(t.path())
             .sort(true)
             .preload_metadata(true)
@@ -288,7 +288,7 @@ mod tests {
         let li = get_li(&t);
         let results = li.cleanup_local().unwrap();
         let nresults = results.len();
-        writeln!(stdout(),"{:?}", results).unwrap();
+        writeln!(stdout(), "{:?}", results).unwrap();
         let results: Result<Vec<_>, Error> = WalkDir::new(t.path())
             .sort(true)
             .preload_metadata(true)
@@ -306,7 +306,7 @@ mod tests {
             .filter_map(|x| x.transpose())
             .collect();
         let results = results.unwrap();
-        writeln!(stdout(),"{:?}", results).unwrap();
+        writeln!(stdout(), "{:?}", results).unwrap();
         assert_eq!(results.len(), nresults);
     }
 }

@@ -1,7 +1,7 @@
 use actix_identity::Identity;
 use actix_web::{dev::Payload, FromRequest, HttpRequest};
+use anyhow::Error;
 use chrono::{DateTime, Utc};
-use failure::{format_err, Error};
 use futures::executor::block_on;
 use futures::future::{ready, Ready};
 use jsonwebtoken::{decode, Validation};
@@ -68,10 +68,7 @@ fn _from_request(req: &HttpRequest, pl: &mut Payload) -> Result<LoggedUser, acti
             });
         }
     }
-    if let Some(identity) = block_on(Identity::from_request(req, pl))
-        .map_err(|e| format_err!("{:?}", e))?
-        .identity()
-    {
+    if let Some(identity) = block_on(Identity::from_request(req, pl))?.identity() {
         let user: LoggedUser = decode_token(&identity)?;
         if AUTHORIZED_USERS.is_authorized(&user) {
             return Ok(user);

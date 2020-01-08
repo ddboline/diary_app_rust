@@ -1,6 +1,6 @@
+use anyhow::Error;
 use chrono::{DateTime, Datelike, Local, NaiveDate, Utc};
 use crossbeam_utils::thread;
-use failure::{err_msg, Error};
 use log::debug;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use regex::Regex;
@@ -316,7 +316,7 @@ impl DiaryAppInterface {
     pub fn serialize_cache(&self) -> Result<Vec<String>, Error> {
         DiaryCache::get_cache_entries(&self.pool)?
             .into_iter()
-            .map(|entry| serde_json::to_string(&entry).map_err(err_msg))
+            .map(|entry| serde_json::to_string(&entry).map_err(Into::into))
             .collect()
     }
 

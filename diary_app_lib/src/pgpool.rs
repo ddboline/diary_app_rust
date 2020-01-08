@@ -1,6 +1,6 @@
+use anyhow::Error;
 use diesel::pg::PgConnection;
 use diesel::r2d2::ConnectionManager;
-use failure::{err_msg, Error};
 use r2d2::{Pool, PooledConnection};
 use std::fmt;
 
@@ -28,6 +28,6 @@ impl PgPool {
     }
 
     pub fn get(&self) -> Result<PgPoolConn, Error> {
-        self.pool.get().map_err(err_msg)
+        self.pool.get().map_err(Into::into)
     }
 }

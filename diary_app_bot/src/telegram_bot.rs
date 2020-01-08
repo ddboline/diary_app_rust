@@ -1,7 +1,7 @@
 use actix_rt::System;
 use actix_threadpool::run as block;
+use anyhow::{format_err, Error};
 use crossbeam_utils::thread::{self, Scope};
-use failure::{format_err, Error};
 use futures::StreamExt;
 use lazy_static::lazy_static;
 use log::debug;

@@ -1,10 +1,10 @@
+use anyhow::Error;
 use chrono::{DateTime, NaiveDate, Utc};
 use diesel::{
     Connection, ExpressionMethods, Insertable, QueryDsl, Queryable, RunQueryDsl,
     TextExpressionMethods,
 };
 use difference::{Changeset, Difference};
-use failure::{err_msg, Error};
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
 use std::collections::HashMap;
@@ -75,7 +75,7 @@ impl AuthorizedUsers {
     pub fn get_authorized_users(pool: &PgPool) -> Result<Vec<Self>, Error> {
         use crate::schema::authorized_users::dsl::authorized_users;
         let conn = pool.get()?;
-        authorized_users.load(&conn).map_err(err_msg)
+        authorized_users.load(&conn).map_err(Into::into)
     }
 }
 
@@ -88,7 +88,7 @@ impl DiaryConflict<'_> {
             .distinct()
             .order(diary_date)
             .load(&conn)
-            .map_err(err_msg)
+            .map_err(Into::into)
     }
 
     pub fn get_by_date(date: NaiveDate, pool: &PgPool) -> Result<Vec<DateTime<Utc>>, Error> {
@@ -101,7 +101,7 @@ impl DiaryConflict<'_> {
             .distinct()
             .order(sync_datetime)
             .load(&conn)
-            .map_err(err_msg)
+            .map_err(Into::into)
     }
 
     pub fn get_by_datetime(datetime: DateTime<Utc>, pool: &PgPool) -> Result<Vec<Self>, Error> {
@@ -111,7 +111,7 @@ impl DiaryConflict<'_> {
             .filter(sync_datetime.eq(datetime))
             .order(id)
             .load(&conn)
-            .map_err(err_msg)
+            .map_err(Into::into)
     }
 
     pub fn get_first_conflict(pool: &PgPool) -> Result<Option<DateTime<Utc>>, Error> {
@@ -132,7 +132,7 @@ impl DiaryConflict<'_> {
             .set(diff_type.eq(new_diff_type))
             .execute(&conn)
             .map(|_| ())
-            .map_err(err_msg)
+            .map_err(Into::into)
     }
 
     pub fn remove_by_datetime(datetime: DateTime<Utc>, pool: &PgPool) -> Result<(), Error> {
@@ -141,7 +141,7 @@ impl DiaryConflict<'_> {
         diesel::delete(diary_conflict.filter(sync_datetime.eq(datetime)))
             .execute(&conn)
             .map(|_| ())
-            .map_err(err_msg)
+            .map_err(Into::into)
     }
 
     pub fn insert_from_changeset(
@@ -188,8 +188,8 @@ impl DiaryConflict<'_> {
             diesel::insert_into(diary_conflict)
                 .values(&removed_lines)
                 .execute(conn)
-                .map_err(err_msg)
                 .map(|_| Some(sync_datetime))
+                .map_err(Into::into)
         } else {
             Ok(None)
         }
@@ -211,8 +211,8 @@ impl<'a> DiaryEntries<'a> {
         diesel::insert_into(diary_entries)
             .values(self)
             .execute(conn)
-            .map_err(err_msg)
             .map(|_| None)
+            .map_err(Into::into)
     }
 
     pub fn insert_entry(&self, pool: &PgPool) -> Result<Option<DateTime<Utc>>, Error> {
@@ -239,8 +239,8 @@ impl<'a> DiaryEntries<'a> {
                 last_modified.eq(Utc::now()),
             ))
             .execute(conn)
-            .map_err(err_msg)
             .map(|_| conflict_opt)
+            .map_err(Into::into)
     }
 
     pub fn update_entry(&self, pool: &PgPool) -> Result<Option<DateTime<Utc>>, Error> {
@@ -264,8 +264,8 @@ impl<'a> DiaryEntries<'a> {
         diary_entries
             .select((diary_date, last_modified))
             .load(&conn)
-            .map_err(err_msg)
             .map(|v| v.into_iter().collect())
+            .map_err(Into::into)
     }
 
     fn _get_by_date(date: NaiveDate, conn: &PgPoolConn) -> Result<Self, Error> {
@@ -274,7 +274,7 @@ impl<'a> DiaryEntries<'a> {
         diary_entries
             .filter(diary_date.eq(date))
             .first(conn)
-            .map_err(err_msg)
+            .map_err(Into::into)
     }
 
     pub fn get_by_date(date: NaiveDate, pool: &PgPool) -> Result<Self, Error> {
@@ -289,7 +289,7 @@ impl<'a> DiaryEntries<'a> {
             .filter(diary_text.like(&format!("%{}%", search_text)))
             .order(diary_date)
             .load(&conn)
-            .map_err(err_msg)
+            .map_err(Into::into)
     }
 
     fn _get_difference(&self, conn: &PgPoolConn) -> Result<Changeset, Error> {
@@ -308,8 +308,8 @@ impl<'a> DiaryEntries<'a> {
         diesel::delete(diary_entries)
             .filter(diary_date.eq(self.diary_date))
             .execute(&conn)
-            .map_err(err_msg)
             .map(|_| ())
+            .map_err(Into::into)
     }
 }
 
@@ -320,14 +320,14 @@ impl DiaryCache<'_> {
         diesel::insert_into(diary_cache)
             .values(self)
             .execute(&conn)
-            .map_err(err_msg)
             .map(|_| ())
+            .map_err(Into::into)
     }
 
     pub fn get_cache_entries(pool: &PgPool) -> Result<Vec<Self>, Error> {
         use crate::schema::diary_cache::dsl::diary_cache;
         let conn = pool.get()?;
-        diary_cache.load(&conn).map_err(err_msg)
+        diary_cache.load(&conn).map_err(Into::into)
     }
 
     pub fn get_by_text(search_text: &str, pool: &PgPool) -> Result<Vec<Self>, Error> {
@@ -336,7 +336,7 @@ impl DiaryCache<'_> {
         diary_cache
             .filter(diary_text.like(&format!("%{}%", search_text)))
             .load(&conn)
-            .map_err(err_msg)
+            .map_err(Into::into)
     }
 
     pub fn delete_entry(&self, pool: &PgPool) -> Result<(), Error> {
@@ -345,7 +345,7 @@ impl DiaryCache<'_> {
         diesel::delete(diary_cache)
             .filter(diary_datetime.eq(self.diary_datetime))
             .execute(&conn)
-            .map_err(err_msg)
             .map(|_| ())
+            .map_err(Into::into)
     }
 }

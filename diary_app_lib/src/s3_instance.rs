@@ -1,4 +1,4 @@
-use failure::{err_msg, Error};
+use anyhow::{format_err, Error};
 use rusoto_core::Region;
 use rusoto_s3::{
     Bucket, CopyObjectRequest, CreateBucketRequest, DeleteBucketRequest, DeleteObjectRequest,
@@ -59,7 +59,7 @@ impl S3Instance {
                 .list_buckets()
                 .sync()
                 .map(|l| l.buckets.unwrap_or_default())
-                .map_err(err_msg)
+                .map_err(Into::into)
         })
     }
 
@@ -72,7 +72,7 @@ impl S3Instance {
                 })
                 .sync()?
                 .location
-                .ok_or_else(|| err_msg("Failed to create bucket"))
+                .ok_or_else(|| format_err!("Failed to create bucket"))
         })
     }
 
@@ -83,7 +83,7 @@ impl S3Instance {
                     bucket: bucket_name.into(),
                 })
                 .sync()
-                .map_err(err_msg)
+                .map_err(Into::into)
         })
     }
 
@@ -97,7 +97,7 @@ impl S3Instance {
                 })
                 .sync()
                 .map(|_| ())
-                .map_err(err_msg)
+                .map_err(Into::into)
         })
     }
 
@@ -116,7 +116,7 @@ impl S3Instance {
                     ..CopyObjectRequest::default()
                 })
                 .sync()
-                .map_err(err_msg)
+                .map_err(Into::into)
         })
         .map(|x| x.copy_object_result.and_then(|s| s.e_tag))
     }
@@ -124,7 +124,7 @@ impl S3Instance {
     pub fn upload(&self, fname: &str, bucket_name: &str, key_name: &str) -> Result<(), Error> {
         exponential_retry(|| {
             if !Path::new(fname).exists() {
-                return Err(err_msg("File doesn't exist"));
+                return Err(format_err!("File doesn't exist"));
             }
             exponential_retry(|| {
                 self.s3_client
@@ -136,7 +136,7 @@ impl S3Instance {
                             ..PutObjectRequest::default()
                         },
                     )
-                    .map_err(err_msg)
+                    .map_err(Into::into)
             })?;
             Ok(())
         })
@@ -157,8 +157,8 @@ impl S3Instance {
         self.s3_client
             .put_object(target)
             .sync()
-            .map_err(err_msg)
             .map(|_| ())
+            .map_err(Into::into)
     }
 
     pub fn download_to_string(&self, bucket_name: &str, key_name: &str) -> Result<String, Error> {
@@ -169,7 +169,7 @@ impl S3Instance {
                 ..GetObjectRequest::default()
             };
             let mut resp = self.s3_client.get_object(source).sync()?;
-            let body = resp.body.take().ok_or_else(|| err_msg("no body"))?;
+            let body = resp.body.take().ok_or_else(|| format_err!("no body"))?;
 
             let mut buf = String::new();
             body.into_blocking_read().read_to_string(&mut buf)?;
@@ -193,12 +193,12 @@ impl S3Instance {
                     },
                     fname,
                 )
-                .map_err(err_msg)
+                .map_err(Into::into)
                 .and_then(|x| {
                     x.e_tag
                         .as_ref()
                         .map(|y| y.trim_matches('"').into())
-                        .ok_or_else(|| err_msg("Failed download"))
+                        .ok_or_else(|| format_err!("Failed download"))
                 })
         })
     }
@@ -222,7 +222,7 @@ impl S3Instance {
                         ..ListObjectsV2Request::default()
                     })
                     .sync()
-                    .map_err(err_msg)
+                    .map_err(Into::into)
             })?;
 
             continuation_token = current_list.next_continuation_token.clone();
@@ -270,7 +270,7 @@ impl S3Instance {
                         ..ListObjectsV2Request::default()
                     })
                     .sync()
-                    .map_err(err_msg)
+                    .map_err(Into::into)
             })?;
 
             continuation_token = current_list.next_continuation_token.clone();

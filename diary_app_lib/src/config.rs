@@ -1,4 +1,4 @@
-use failure::{err_msg, format_err, Error};
+use anyhow::{format_err, Error};
 use std::env::var;
 use std::ops::Deref;
 use std::path::Path;
@@ -28,7 +28,7 @@ impl Config {
     }
 
     pub fn get_inner(self) -> Result<ConfigInner, Error> {
-        Arc::try_unwrap(self.0).map_err(|_| err_msg("Failed unwrapping"))
+        Arc::try_unwrap(self.0).map_err(|_| format_err!("Failed unwrapping"))
     }
 
     pub fn from_inner(inner: ConfigInner) -> Self {

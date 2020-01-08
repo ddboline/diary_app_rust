@@ -1,5 +1,5 @@
+use anyhow::{format_err, Error};
 use chrono::{DateTime, NaiveDate, Utc};
-use failure::{format_err, Error};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
 
