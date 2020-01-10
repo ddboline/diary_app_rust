@@ -30,7 +30,7 @@ lazy_static! {
 fn _run_bot(dapp: DiaryAppInterface, scope: &Scope) -> Result<(), Error> {
     let pool_ = dapp.pool.clone();
     let userid_handle = scope.spawn(move |_| fill_telegram_user_ids(&pool_));
-    let telegram_handle = scope.spawn(move |_| telegram_worker(dapp));
+    let telegram_handle = scope.spawn(move |_| telegram_worker(&dapp));
 
     telegram_handle.join().expect("telegram thread paniced")?;
     if userid_handle.join().is_err() {
@@ -131,7 +131,7 @@ async fn bot_handler(dapp_interface: DiaryAppInterface) -> Result<(), Error> {
     Ok(())
 }
 
-fn telegram_worker(dapp: DiaryAppInterface) -> Result<(), Error> {
+fn telegram_worker(dapp: &DiaryAppInterface) -> Result<(), Error> {
     loop {
         let d = dapp.clone();
         if System::new("diary_telegram_bot").block_on(bot_handler(d)).is_ok() {
