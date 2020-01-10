@@ -7,7 +7,7 @@ use lazy_static::lazy_static;
 use log::debug;
 use parking_lot::RwLock;
 use std::collections::HashSet;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::thread::sleep;
 use std::time::Duration;
 use telegram_bot::types::refs::UserId;
@@ -24,7 +24,7 @@ type OBuffer = RwLock<Vec<String>>;
 lazy_static! {
     static ref TELEGRAM_USERIDS: UserIds = RwLock::new(HashSet::new());
     static ref OUTPUT_BUFFER: OBuffer = RwLock::new(Vec::new());
-    static ref KILLSWITCH: AtomicBool = AtomicBool::new(false);
+    static ref FAILURE_COUNT: AtomicUsize = AtomicUsize::new(0);
 }
 
 fn _run_bot(dapp: DiaryAppInterface, scope: &Scope) -> Result<(), Error> {
@@ -43,8 +43,8 @@ async fn bot_handler(dapp_interface: DiaryAppInterface) -> Result<(), Error> {
     let api = Api::new(&dapp_interface.config.telegram_bot_token);
     let mut stream = api.stream();
     while let Some(update) = stream.next().await {
-        if KILLSWITCH.load(Ordering::SeqCst) {
-            return Ok(());
+        if FAILURE_COUNT.load(Ordering::SeqCst) > 5 {
+            return Err(format_err!("Failed"));
         }
         // If the received update contains a new message...
         if let UpdateKind::Message(message) = update?.kind {
@@ -132,39 +132,35 @@ async fn bot_handler(dapp_interface: DiaryAppInterface) -> Result<(), Error> {
 }
 
 fn telegram_worker(dapp: DiaryAppInterface) -> Result<(), Error> {
-    System::new("diary_telegram_bot").block_on(bot_handler(dapp))?;
-    KILLSWITCH.store(true, Ordering::SeqCst);
-    Ok(())
+    loop {
+        let d = dapp.clone();
+        if System::new("diary_telegram_bot").block_on(bot_handler(d)).is_ok() {
+            FAILURE_COUNT.store(0, Ordering::SeqCst);
+        } else {
+            FAILURE_COUNT.fetch_add(1, Ordering::SeqCst);
+        }
+        if FAILURE_COUNT.load(Ordering::SeqCst) > 5 {
+            return Err(format_err!("Failed more than 5 times"));
+        }
+    }
 }
 
 fn fill_telegram_user_ids(pool: &PgPool) -> Result<(), Error> {
-    let mut failure_count = 0;
     loop {
-        if KILLSWITCH.load(Ordering::SeqCst) {
-            return Ok(());
+        if FAILURE_COUNT.load(Ordering::SeqCst) > 5 {
+            return Err(format_err!("Failed more than 5 times"));
         }
-        match AuthorizedUsers::get_authorized_users(pool) {
-            Ok(authorized_users) => {
-                let mut telegram_userid_set = TELEGRAM_USERIDS.write();
-                telegram_userid_set.clear();
-                for user in authorized_users {
-                    if let Some(userid) = user.telegram_userid {
-                        telegram_userid_set.insert(UserId::new(userid));
-                    }
-                }
-                failure_count = 0;
-            }
-            Err(e) => {
-                failure_count += 1;
-                if failure_count > 5 {
-                    KILLSWITCH.store(true, Ordering::SeqCst);
-                    return Err(format_err!(
-                        "Failed with {} after retrying {} times",
-                        e,
-                        failure_count
-                    ));
+        if let Ok(authorized_users) = AuthorizedUsers::get_authorized_users(pool) {
+            let mut telegram_userid_set = TELEGRAM_USERIDS.write();
+            telegram_userid_set.clear();
+            for user in authorized_users {
+                if let Some(userid) = user.telegram_userid {
+                    telegram_userid_set.insert(UserId::new(userid));
                 }
             }
+            FAILURE_COUNT.store(0, Ordering::SeqCst);
+        } else {
+            FAILURE_COUNT.fetch_add(1, Ordering::SeqCst);
         }
         sleep(Duration::from_secs(60));
     }
