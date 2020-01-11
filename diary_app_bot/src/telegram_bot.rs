@@ -134,7 +134,10 @@ async fn bot_handler(dapp_interface: DiaryAppInterface) -> Result<(), Error> {
 fn telegram_worker(dapp: &DiaryAppInterface) -> Result<(), Error> {
     loop {
         let d = dapp.clone();
-        if System::new("diary_telegram_bot").block_on(bot_handler(d)).is_ok() {
+        if System::new("diary_telegram_bot")
+            .block_on(bot_handler(d))
+            .is_ok()
+        {
             FAILURE_COUNT.store(0, Ordering::SeqCst);
         } else {
             FAILURE_COUNT.fetch_add(1, Ordering::SeqCst);
