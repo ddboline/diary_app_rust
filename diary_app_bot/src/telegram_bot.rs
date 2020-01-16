@@ -24,7 +24,54 @@ type OBuffer = RwLock<Vec<String>>;
 lazy_static! {
     static ref TELEGRAM_USERIDS: UserIds = RwLock::new(HashSet::new());
     static ref OUTPUT_BUFFER: OBuffer = RwLock::new(Vec::new());
-    static ref FAILURE_COUNT: AtomicUsize = AtomicUsize::new(0);
+    static ref FAILURE_COUNT: FailureCount = FailureCount::new(5);
+}
+
+struct FailureCount {
+    max_count: usize,
+    counter: AtomicUsize,
+}
+
+impl FailureCount {
+    fn new(max_count: usize) -> Self {
+        Self {
+            max_count,
+            counter: AtomicUsize::new(0),
+        }
+    }
+
+    fn check(&self) -> Result<(), Error> {
+        if self.counter.load(Ordering::SeqCst) > self.max_count {
+            Err(format_err!(
+                "Failed after retrying {} times",
+                self.max_count
+            ))
+        } else {
+            Ok(())
+        }
+    }
+
+    fn reset(&self) -> Result<(), Error> {
+        if self.counter.swap(0, Ordering::SeqCst) > self.max_count {
+            Err(format_err!(
+                "Failed after retrying {} times",
+                self.max_count
+            ))
+        } else {
+            Ok(())
+        }
+    }
+
+    fn increment(&self) -> Result<(), Error> {
+        if self.counter.fetch_add(1, Ordering::SeqCst) > self.max_count {
+            Err(format_err!(
+                "Failed after retrying {} times",
+                self.max_count
+            ))
+        } else {
+            Ok(())
+        }
+    }
 }
 
 fn _run_bot(dapp: DiaryAppInterface, scope: &Scope) -> Result<(), Error> {
@@ -43,15 +90,16 @@ async fn bot_handler(dapp_interface: DiaryAppInterface) -> Result<(), Error> {
     let api = Api::new(&dapp_interface.config.telegram_bot_token);
     let mut stream = api.stream();
     while let Some(update) = stream.next().await {
-        if FAILURE_COUNT.load(Ordering::SeqCst) > 5 {
-            return Err(format_err!("Failed"));
-        }
+        FAILURE_COUNT.check()?;
         // If the received update contains a new message...
         if let UpdateKind::Message(message) = update?.kind {
+            FAILURE_COUNT.check()?;
             if let MessageKind::Text { ref data, .. } = message.kind {
+                FAILURE_COUNT.check()?;
                 // Print received text message to stdout.
                 debug!("{:?}", message);
                 if TELEGRAM_USERIDS.read().contains(&message.from.id) {
+                    FAILURE_COUNT.check()?;
                     let first_word = data.split_whitespace().nth(0);
                     match first_word
                         .map(str::to_lowercase)
@@ -71,11 +119,13 @@ async fn bot_handler(dapp_interface: DiaryAppInterface) -> Result<(), Error> {
                                 search_results.reverse();
                                 OUTPUT_BUFFER.write().extend_from_slice(&search_results);
                             }
+                            FAILURE_COUNT.check()?;
                             if let Some(entry) = OUTPUT_BUFFER.write().pop() {
                                 api.send(message.text_reply(entry)).await?;
                             } else {
                                 api.send(message.text_reply("...")).await?;
                             }
+                            FAILURE_COUNT.check()?;
                         }
                         Some(":next") | Some(":n") => {
                             if let Some(entry) = OUTPUT_BUFFER.write().pop() {
@@ -101,6 +151,7 @@ async fn bot_handler(dapp_interface: DiaryAppInterface) -> Result<(), Error> {
                                 api.send(message.text_reply("failed to cache entry"))
                                     .await?;
                             }
+                            FAILURE_COUNT.check()?;
                         }
                         _ => {
                             let d = dapp_interface.clone();
@@ -115,6 +166,7 @@ async fn bot_handler(dapp_interface: DiaryAppInterface) -> Result<(), Error> {
                                 api.send(message.text_reply("failed to cache entry"))
                                     .await?;
                             }
+                            FAILURE_COUNT.check()?;
                         }
                     }
                 } else {
@@ -133,26 +185,23 @@ async fn bot_handler(dapp_interface: DiaryAppInterface) -> Result<(), Error> {
 
 fn telegram_worker(dapp: &DiaryAppInterface) -> Result<(), Error> {
     loop {
+        FAILURE_COUNT.check()?;
         let d = dapp.clone();
+
         if System::new("diary_telegram_bot")
             .block_on(bot_handler(d))
             .is_ok()
         {
-            FAILURE_COUNT.store(0, Ordering::SeqCst);
+            FAILURE_COUNT.reset()?;
         } else {
-            FAILURE_COUNT.fetch_add(1, Ordering::SeqCst);
-        }
-        if FAILURE_COUNT.load(Ordering::SeqCst) > 5 {
-            return Err(format_err!("Failed more than 5 times"));
+            FAILURE_COUNT.increment()?;
         }
     }
 }
 
 fn fill_telegram_user_ids(pool: &PgPool) -> Result<(), Error> {
     loop {
-        if FAILURE_COUNT.load(Ordering::SeqCst) > 5 {
-            return Err(format_err!("Failed more than 5 times"));
-        }
+        FAILURE_COUNT.check()?;
         if let Ok(authorized_users) = AuthorizedUsers::get_authorized_users(pool) {
             let mut telegram_userid_set = TELEGRAM_USERIDS.write();
             telegram_userid_set.clear();
@@ -161,9 +210,9 @@ fn fill_telegram_user_ids(pool: &PgPool) -> Result<(), Error> {
                     telegram_userid_set.insert(UserId::new(userid));
                 }
             }
-            FAILURE_COUNT.store(0, Ordering::SeqCst);
+            FAILURE_COUNT.reset()?;
         } else {
-            FAILURE_COUNT.fetch_add(1, Ordering::SeqCst);
+            FAILURE_COUNT.increment()?
         }
         sleep(Duration::from_secs(60));
     }
