@@ -332,10 +332,9 @@ impl DiaryAppInterface {
             .into_iter()
             .map(|entry| entry.diary_datetime)
             .collect();
-        let command = "/usr/bin/diary-app-rust ser";
         let ssh_inst = SSHInstance::from_url(ssh_url)?;
         let inserted_entries: Result<Vec<_>, Error> = ssh_inst
-            .run_command_stream_stdout(command)?
+            .run_command_stream_stdout("/usr/bin/diary-app-rust ser")?
             .into_iter()
             .map(|line| {
                 let item: DiaryCache = serde_json::from_str(&line)?;
@@ -351,8 +350,7 @@ impl DiaryAppInterface {
             .collect();
         let inserted_entries = inserted_entries?;
         if !inserted_entries.is_empty() {
-            let command = "/usr/bin/diary-app-rust clear";
-            ssh_inst.run_command_ssh(command)?;
+            ssh_inst.run_command_ssh("/usr/bin/diary-app-rust clear")?;
         }
         Ok(inserted_entries)
     }

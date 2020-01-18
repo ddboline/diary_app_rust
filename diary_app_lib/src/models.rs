@@ -221,16 +221,16 @@ impl<'a> DiaryEntries<'a> {
     }
 
     fn _update_entry(&self, conn: &PgPoolConn) -> Result<Option<DateTime<Utc>>, Error> {
+        use crate::schema::diary_entries::dsl::{
+            diary_date, diary_entries, diary_text, last_modified,
+        };
+
         let changeset = self._get_difference(conn)?;
 
         let conflict_opt = if changeset.distance > 0 {
             DiaryConflict::insert_from_changeset(self.diary_date, changeset, conn)?
         } else {
             None
-        };
-
-        use crate::schema::diary_entries::dsl::{
-            diary_date, diary_entries, diary_text, last_modified,
         };
 
         diesel::update(diary_entries.filter(diary_date.eq(self.diary_date)))
