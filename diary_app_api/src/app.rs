@@ -9,7 +9,7 @@ use diary_app_lib::config::Config;
 use diary_app_lib::diary_app_interface::DiaryAppInterface;
 use diary_app_lib::pgpool::PgPool;
 
-use super::logged_user::AUTHORIZED_USERS;
+use super::logged_user::fill_from_db;
 use super::routes::{
     commit_conflict, diary_frontpage, display, edit, insert, list, list_api, list_conflicts,
     remove_conflict, replace, search, search_api, show_conflict, sync, sync_api, update_conflict,
@@ -40,7 +40,7 @@ pub async fn run_app() {
         let mut i = interval(time::Duration::from_secs(60));
         loop {
             i.tick().await;
-            AUTHORIZED_USERS.fill_from_db(&pool).unwrap_or(());
+            fill_from_db(&pool).unwrap_or(());
         }
     }
 
