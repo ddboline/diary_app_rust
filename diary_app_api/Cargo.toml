@@ -1,6 +1,6 @@
 [package]
 name = "diary_app_api"
-version = "0.3.1"
+version = "0.3.2"
 authors = ["Daniel Boline <ddboline@gmail.com>"]
 edition = "2018"
 
@@ -26,4 +26,4 @@ maplit = "1.0"
 anyhow = "1.0"
 thiserror = "1.0"
 actix-threadpool = "0.3"
-rust_auth_server = { git = "https://github.com/ddboline/rust-auth-server.git", tag="0.4.3" }
+rust_auth_server = { git = "https://github.com/ddboline/rust-auth-server.git", tag="0.4.4" }
