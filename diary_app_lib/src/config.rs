@@ -91,7 +91,11 @@ impl Config {
         set_config_default!(
             conf,
             diary_path,
-            home_dir.join("Dropbox").join("epistle").to_string_lossy().into()
+            home_dir
+                .join("Dropbox")
+                .join("epistle")
+                .to_string_lossy()
+                .into()
         );
         set_config_default!(conf, aws_region_name, "us-east-1".to_string());
         set_config_default!(conf, telegram_bot_token, "".to_string());
