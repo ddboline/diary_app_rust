@@ -11,7 +11,7 @@ pub fn fill_from_db(pool: &PgPool) -> Result<(), Error> {
         .map(|user| LoggedUser { email: user.email })
         .collect();
 
-    if let Ok("true") = var("TESTENV").as_ref().map(|x| x.as_str()) {
+    if let Ok("true") = var("TESTENV").as_ref().map(String::as_str) {
         let user = LoggedUser {
             email: "user@test".to_string(),
         };
