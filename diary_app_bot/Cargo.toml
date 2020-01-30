@@ -20,3 +20,4 @@ actix-rt = "1.0"
 actix-threadpool = "0.3"
 anyhow = "1.0"
 thiserror = "1.0"
+tokio = {version="0.2.11", features=["full"]}
