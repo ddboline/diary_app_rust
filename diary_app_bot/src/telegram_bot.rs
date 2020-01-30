@@ -1,5 +1,6 @@
 use actix_threadpool::run as block;
 use anyhow::{format_err, Error};
+use futures::future::join;
 use futures::StreamExt;
 use lazy_static::lazy_static;
 use log::debug;
@@ -9,7 +10,6 @@ use telegram_bot::types::refs::UserId;
 use telegram_bot::{Api, CanReplySendMessage, MessageKind, UpdateKind};
 use tokio::sync::RwLock;
 use tokio::time::{delay_for, timeout, Duration};
-use futures::future::join;
 
 use diary_app_lib::config::Config;
 use diary_app_lib::diary_app_interface::DiaryAppInterface;
@@ -188,7 +188,8 @@ async fn fill_telegram_user_ids(pool: PgPool) -> Result<(), Error> {
     loop {
         FAILURE_COUNT.check()?;
         let p = pool.clone();
-        if let Ok(authorized_users) = block(move || AuthorizedUsers::get_authorized_users(&p)).await {
+        if let Ok(authorized_users) = block(move || AuthorizedUsers::get_authorized_users(&p)).await
+        {
             let mut telegram_userid_set = TELEGRAM_USERIDS.write().await;
             telegram_userid_set.clear();
             for user in authorized_users {
