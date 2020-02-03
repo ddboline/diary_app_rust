@@ -5,5 +5,6 @@
 #![allow(clippy::cast_sign_loss)]
 #![allow(clippy::cast_possible_truncation)]
 #![allow(clippy::cognitive_complexity)]
+#![allow(clippy::missing_errors_doc)]
 
 pub mod telegram_bot;
