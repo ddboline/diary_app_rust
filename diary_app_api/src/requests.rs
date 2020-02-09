@@ -177,7 +177,7 @@ impl HandleRequest for DiaryAppActor {
                     .into_iter()
                     .filter_map(|entry| {
                         if entry.diff_type == "add" || entry.diff_type == "same" {
-                            Some(entry.diff_text.into())
+                            Some(entry.diff_text)
                         } else {
                             None
                         }

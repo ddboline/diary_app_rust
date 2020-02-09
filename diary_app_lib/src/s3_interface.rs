@@ -173,15 +173,14 @@ impl S3Interface {
                 None => true,
             };
             if obj.size > 0 && should_modify {
-                if let Some(val) = self
+                if let Ok(val) = self
                     .s3_client
                     .download_to_string(&self.config.diary_bucket, &obj.key)
                     .await
-                    .ok()
                 {
                     let entry = DiaryEntries {
                         diary_date: obj.date,
-                        diary_text: val.into(),
+                        diary_text: val,
                         last_modified: obj.last_modified,
                     };
                     if entry.diary_text.trim().is_empty() {

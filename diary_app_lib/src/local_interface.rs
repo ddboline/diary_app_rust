@@ -134,7 +134,7 @@ impl LocalInterface {
                         }
                     }
                 } else {
-                    let d = DiaryEntries::new(current_date, "".into());
+                    let d = DiaryEntries::new(current_date, "");
                     let (d, _) = d.upsert_entry(&self.pool).await?;
                     entries.push(d);
                 }
@@ -149,7 +149,7 @@ impl LocalInterface {
                     entries.push(existing_entry)
                 } else {
                     writeln!(f)?;
-                    let d = DiaryEntries::new(current_date, "".into());
+                    let d = DiaryEntries::new(current_date, "");
                     let (d, _) = d.upsert_entry(&self.pool).await?;
                     entries.push(d);
                 }
@@ -183,7 +183,7 @@ impl LocalInterface {
                     if metadata.len() > 0 && should_modify {
                         let d = DiaryEntries {
                             diary_date: date,
-                            diary_text: read_to_string(&filepath)?.into(),
+                            diary_text: read_to_string(&filepath)?,
                             last_modified: modified,
                         };
                         new_entry = Some(d);
@@ -195,7 +195,9 @@ impl LocalInterface {
                 None => continue,
             };
 
-            let entry = if !entry.diary_text.trim().is_empty() {
+            let entry = if entry.diary_text.trim().is_empty() {
+                entry
+            } else {
                 writeln!(
                     stdout.lock(),
                     "import local date {} lines {}",
@@ -207,8 +209,6 @@ impl LocalInterface {
                 } else {
                     entry.upsert_entry(&self.pool).await?.0
                 }
-            } else {
-                entry
             };
             entries.push(entry)
         }
@@ -282,7 +282,7 @@ mod tests {
         let t = get_tempdir()?;
         let li = get_li(&t)?;
         let results = li.cleanup_local().await?;
-        let nresults = results.len();
+        let number_results = results.len();
         writeln!(stdout(), "{:?}", results)?;
         let results: Result<Vec<_>, Error> = WalkDir::new(t.path())
             .sort(true)
@@ -302,7 +302,7 @@ mod tests {
             .collect();
         let results = results?;
         writeln!(stdout(), "{:?}", results)?;
-        assert_eq!(results.len(), nresults);
+        assert_eq!(results.len(), number_results);
         Ok(())
     }
 }

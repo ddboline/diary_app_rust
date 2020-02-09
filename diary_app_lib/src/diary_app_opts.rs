@@ -128,7 +128,7 @@ impl DiaryAppOpts {
                         .map(|entry| match entry.diff_type.as_ref() {
                             "rem" => format!("\x1b[91m{}\x1b[0m", entry.diff_text),
                             "add" => format!("\x1b[92m{}\x1b[0m", entry.diff_text),
-                            _ => format!("{}", entry.diff_text),
+                            _ => entry.diff_text,
                         })
                         .collect();
                     for timestamp in conflicts {

@@ -202,19 +202,19 @@ impl DiaryConflict {
                     sync_datetime,
                     diary_date,
                     diff_type: "same".into(),
-                    diff_text: s.into(),
+                    diff_text: s,
                 },
                 Difference::Rem(s) => DiaryConflictInsert {
                     sync_datetime,
                     diary_date,
                     diff_type: "rem".into(),
-                    diff_text: s.into(),
+                    diff_text: s,
                 },
                 Difference::Add(s) => DiaryConflictInsert {
                     sync_datetime,
                     diary_date,
                     diff_type: "add".into(),
-                    diff_text: s.into(),
+                    diff_text: s,
                 },
             })
             .collect();

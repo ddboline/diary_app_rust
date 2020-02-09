@@ -6,6 +6,7 @@
 #![allow(clippy::cast_possible_truncation)]
 #![allow(clippy::cast_possible_wrap)]
 #![allow(clippy::missing_errors_doc)]
+#![allow(clippy::cognitive_complexity)]
 
 #[macro_use]
 extern crate diesel;

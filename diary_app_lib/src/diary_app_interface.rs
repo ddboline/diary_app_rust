@@ -294,7 +294,7 @@ impl DiaryAppInterface {
                 DiaryEntries::get_by_date(entry_date, &self.pool).await
             {
                 current_entry.diary_text =
-                    format!("{}\n\n{}", &current_entry.diary_text, entry_string).into();
+                    format!("{}\n\n{}", &current_entry.diary_text, entry_string);
                 writeln!(stdout(), "update {}", diary_file)?;
                 let (current_entry, _) = current_entry.update_entry(&self.pool).await?;
                 Some(current_entry)
@@ -340,9 +340,7 @@ impl DiaryAppInterface {
         let mut entries = Vec::new();
         for line in ssh_inst.run_command_stream_stdout("/usr/bin/diary-app-rust ser")? {
             let item: DiaryCache = serde_json::from_str(&line)?;
-            if cache_set.contains(&item.diary_datetime) {
-                continue;
-            } else {
+            if !cache_set.contains(&item.diary_datetime) {
                 writeln!(stdout(), "{:?}", item)?;
                 entries.push(item);
             }
