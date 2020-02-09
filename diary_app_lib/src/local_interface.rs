@@ -228,7 +228,7 @@ mod tests {
     use crate::pgpool::PgPool;
 
     fn get_tempdir() -> Result<TempDir, Error> {
-        TempDir::new("test_diary")
+        TempDir::new("test_diary").map_err(Into::into)
     }
 
     fn get_li(tempdir: &TempDir) -> Result<LocalInterface, Error> {
