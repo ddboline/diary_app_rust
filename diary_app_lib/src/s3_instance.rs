@@ -271,6 +271,7 @@ impl S3Instance {
 mod tests {
     use crate::s3_instance::S3Instance;
     use std::io::{stdout, Write};
+    use anyhow::Error;
 
     #[test]
     #[ignore]
