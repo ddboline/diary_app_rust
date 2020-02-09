@@ -389,7 +389,7 @@ mod tests {
 
     use crate::config::Config;
     use crate::diary_app_interface::DiaryAppInterface;
-    use crate::models::{DiaryCache, DiaryConflict};
+    use crate::models::{DiaryCache, DiaryConflict, DiaryEntries};
     use crate::pgpool::PgPool;
 
     fn get_dap() -> Result<DiaryAppInterface, Error> {
@@ -441,13 +441,14 @@ mod tests {
     #[tokio::test]
     #[ignore]
     async fn test_get_matching_dates() -> Result<(), Error> {
-        let mod_map = DiaryEntries::get_modified_map(&self.pool).await?;
+        let dap = get_dap()?;
+        let mod_map = DiaryEntries::get_modified_map(&dap.pool).await?;
 
-        let results = DiaryAppInterface::get_matching_dates(&mod_map, Some("2011"), None, None).await?;
+        let results = DiaryAppInterface::get_matching_dates(&mod_map, Some("2011"), None, None)?;
         assert_eq!(results.len(), 47);
 
-        let results = DiaryAppInterface::get_matching_dates(&mod_map, Some("2011"), Some("06"), None)
-            .await?;
+        let results =
+            DiaryAppInterface::get_matching_dates(&mod_map, Some("2011"), Some("06"), None)?;
         assert_eq!(results.len(), 6);
         Ok(())
     }
@@ -460,7 +461,9 @@ mod tests {
         let test_text = "Test text";
         let result = dap.cache_text(test_text.into()).await?;
         writeln!(stdout(), "{}", result.diary_datetime)?;
-        let results = DiaryCache::get_cache_entries(&dap.pool).await.unwrap_or_else(|_| Vec::new());
+        let results = DiaryCache::get_cache_entries(&dap.pool)
+            .await
+            .unwrap_or_else(|_| Vec::new());
         let results2 = dap.serialize_cache().await?;
         result.delete_entry(&dap.pool).await?;
         assert_eq!(result.diary_text, "Test text");

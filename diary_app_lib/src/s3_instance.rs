@@ -270,8 +270,8 @@ impl S3Instance {
 #[cfg(test)]
 mod tests {
     use crate::s3_instance::S3Instance;
-    use std::io::{stdout, Write};
     use anyhow::Error;
+    use std::io::{stdout, Write};
 
     #[test]
     #[ignore]
