@@ -274,15 +274,15 @@ mod tests {
 
     #[test]
     #[ignore]
-    async fn test_list_buckets() {
+    async fn test_list_buckets() -> Result<(), Error> {
         let s3_instance = S3Instance::new("us-east-1").max_keys(100);
-        let blist = s3_instance.get_list_of_buckets().unwrap();
+        let blist = s3_instance.get_list_of_buckets().await?;
         let bucket = blist
             .get(0)
             .and_then(|b| b.name.clone())
             .unwrap_or_else(|| "".to_string());
-        let klist = s3_instance.get_list_of_keys(&bucket, None).unwrap();
-        writeln!(stdout().lock(), "{} {}", bucket, klist.len()).unwrap();
+        let klist = s3_instance.get_list_of_keys(&bucket, None).await?;
+        writeln!(stdout().lock(), "{} {}", bucket, klist.len())?;
         assert!(klist.len() > 0);
     }
 }

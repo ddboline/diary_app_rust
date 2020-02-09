@@ -383,6 +383,7 @@ impl DiaryAppInterface {
 
 #[cfg(test)]
 mod tests {
+    use anyhow::Error;
     use chrono::NaiveDate;
     use std::io::{stdout, Write};
 
@@ -391,28 +392,29 @@ mod tests {
     use crate::models::{DiaryCache, DiaryConflict};
     use crate::pgpool::PgPool;
 
-    fn get_dap() -> DiaryAppInterface {
-        let config = Config::init_config().unwrap();
+    fn get_dap() -> Result<DiaryAppInterface, Error> {
+        let config = Config::init_config()?;
         let pool = PgPool::new(&config.database_url);
-        DiaryAppInterface::new(config, pool)
+        Ok(DiaryAppInterface::new(config, pool))
     }
 
-    #[test]
+    #[tokio::test]
     #[ignore]
-    async fn test_search_text() {
-        let dap = get_dap();
+    async fn test_search_text() -> Result<(), Error> {
+        let dap = get_dap()?;
 
-        let results = dap.search_text("2011-05-23").unwrap();
+        let results = dap.search_text("2011-05-23").await?;
         assert_eq!(results.len(), 1);
         assert!(results[0].starts_with("2011-05-23"));
-        let results = dap.search_text("1952-01-01").unwrap();
+        let results = dap.search_text("1952-01-01").await?;
         assert_eq!(results.len(), 0);
+        Ok(())
     }
 
-    #[test]
+    #[tokio::test]
     #[ignore]
-    async fn test_get_list_of_dates() {
-        let dap = get_dap();
+    async fn test_get_list_of_dates() -> Result<(), Error> {
+        let dap = get_dap()?;
 
         let results = dap
             .get_list_of_dates(
@@ -421,7 +423,7 @@ mod tests {
                 None,
                 None,
             )
-            .unwrap();
+            .await?;
         assert_eq!(results.len(), 47);
 
         let results = dap
@@ -431,63 +433,67 @@ mod tests {
                 None,
                 Some(10),
             )
-            .unwrap();
+            .await?;
         assert_eq!(results.len(), 10);
+        Ok(())
     }
 
-    #[test]
+    #[tokio::test]
     #[ignore]
-    async fn test_get_matching_dates() {
-        let dap = get_dap();
+    async fn test_get_matching_dates() -> Result<(), Error> {
+        let dap = get_dap()?;
 
-        let results = dap.get_matching_dates(Some("2011"), None, None).unwrap();
+        let results = dap.get_matching_dates(Some("2011"), None, None).await?;
         assert_eq!(results.len(), 47);
 
         let results = dap
             .get_matching_dates(Some("2011"), Some("06"), None)
-            .unwrap();
+            .await?;
         assert_eq!(results.len(), 6);
+        Ok(())
     }
 
-    #[test]
+    #[tokio::test]
     #[ignore]
-    async fn test_cache_text() {
-        let dap = get_dap();
+    async fn test_cache_text() -> Result<(), Error> {
+        let dap = get_dap()?;
 
         let test_text = "Test text";
-        let result = dap.cache_text(test_text.into()).unwrap();
-        writeln!(stdout(), "{}", result.diary_datetime).unwrap();
+        let result = dap.cache_text(test_text.into()).await?;
+        writeln!(stdout(), "{}", result.diary_datetime)?;
         let results = DiaryCache::get_cache_entries(&dap.pool).unwrap_or_else(|_| Vec::new());
-        let results2 = dap.serialize_cache().unwrap();
-        result.delete_entry(&dap.pool).unwrap();
+        let results2 = dap.serialize_cache().await?;
+        result.delete_entry(&dap.pool).await?;
         assert_eq!(result.diary_text, "Test text");
         assert_eq!(results.len(), 1);
         assert_eq!(results[0], result);
         assert!(results2[0].contains("Test text"));
+        Ok(())
     }
 
-    #[test]
+    #[tokio::test]
     #[ignore]
-    async fn test_replace_text() {
-        let dap = get_dap();
+    async fn test_replace_text() -> Result<(), Error> {
+        let dap = get_dap()?;
         let test_date = NaiveDate::from_ymd(1950, 1, 1);
         let test_text = "Test text";
 
-        let (result, conflict) = dap.replace_text(test_date, test_text.into()).unwrap();
+        let (result, conflict) = dap.replace_text(test_date, test_text.into()).await?;
 
         let test_text2 = "Test text2";
-        let (result2, conflict2) = dap.replace_text(test_date, test_text2.into()).unwrap();
+        let (result2, conflict2) = dap.replace_text(test_date, test_text2.into()).await?;
 
-        result.delete_entry(&dap.pool).unwrap();
+        result.delete_entry(&dap.pool).await?;
 
         assert_eq!(result.diary_date, test_date);
         assert!(conflict.is_none());
         assert_eq!(result2.diary_date, test_date);
         assert_eq!(result2.diary_text, test_text2);
         assert!(conflict2.is_some());
-        let conflict2 = conflict2.unwrap();
-        let result3 = DiaryConflict::get_by_datetime(conflict2, &dap.pool).unwrap();
+        let conflict2 = conflict2?;
+        let result3 = DiaryConflict::get_by_datetime(conflict2, &dap.pool).await?;
         assert_eq!(result3.len(), 2);
-        DiaryConflict::remove_by_datetime(conflict2, &dap.pool).unwrap();
+        DiaryConflict::remove_by_datetime(conflict2, &dap.pool).await?;
+        Ok(())
     }
 }
