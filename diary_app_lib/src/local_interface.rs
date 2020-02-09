@@ -222,7 +222,6 @@ mod tests {
     use jwalk::WalkDir;
     use std::io::{stdout, Write};
     use tempdir::TempDir;
-    use anyhow::Error;
 
     use crate::config::{Config, ConfigInner};
     use crate::local_interface::LocalInterface;
