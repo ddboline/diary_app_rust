@@ -284,5 +284,6 @@ mod tests {
         let klist = s3_instance.get_list_of_keys(&bucket, None).await?;
         writeln!(stdout().lock(), "{} {}", bucket, klist.len())?;
         assert!(klist.len() > 0);
+        Ok(())
     }
 }
