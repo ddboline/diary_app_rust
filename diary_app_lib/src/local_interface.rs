@@ -273,6 +273,7 @@ mod tests {
         let results = results?;
         assert!(results.len() >= 9);
         assert_eq!(results.len(), nentries);
+        Ok(())
     }
 
     #[tokio::test]
@@ -302,5 +303,6 @@ mod tests {
         let results = results?;
         writeln!(stdout(), "{:?}", results)?;
         assert_eq!(results.len(), nresults);
+        Ok(())
     }
 }
