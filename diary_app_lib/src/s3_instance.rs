@@ -274,7 +274,7 @@ mod tests {
     use std::io::{stdout, Write};
 
     #[test]
-    #[ignore]
+    #[tokio::ignore]
     async fn test_list_buckets() -> Result<(), Error> {
         let s3_instance = S3Instance::new("us-east-1").max_keys(100);
         let blist = s3_instance.get_list_of_buckets().await?;

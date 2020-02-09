@@ -222,17 +222,18 @@ mod tests {
     use jwalk::WalkDir;
     use std::io::{stdout, Write};
     use tempdir::TempDir;
+    use anyhow::Error;
 
     use crate::config::{Config, ConfigInner};
     use crate::local_interface::LocalInterface;
     use crate::pgpool::PgPool;
 
-    fn get_tempdir() -> TempDir {
-        TempDir::new("test_diary").unwrap()
+    fn get_tempdir() -> Result<TempDir, Error> {
+        TempDir::new("test_diary")
     }
 
-    fn get_li(tempdir: &TempDir) -> LocalInterface {
-        let config = Config::init_config().unwrap().get_inner().unwrap();
+    fn get_li(tempdir: &TempDir) -> Result<LocalInterface, Error> {
+        let config = Config::init_config()?.get_inner()?;
         let inner = ConfigInner {
             diary_path: tempdir.path().to_string_lossy().to_string(),
             ssh_url: None,
@@ -241,19 +242,19 @@ mod tests {
         let config = Config::from_inner(inner);
 
         let pool = PgPool::new(&config.database_url);
-        LocalInterface::new(config, pool)
+        Ok(LocalInterface::new(config, pool))
     }
 
-    #[test]
+    #[tokio::test]
     #[ignore]
-    fn test_export_year_to_local() {
-        let t = get_tempdir();
-        let li = get_li(&t);
-        let results = li.export_year_to_local().unwrap();
+    async fn test_export_year_to_local() -> Result<(), Error> {
+        let t = get_tempdir()?;
+        let li = get_li(&t)?;
+        let results = li.export_year_to_local().await?;
         assert!(results.contains(&"2013 296".to_string()));
         let nentries = results.len();
-        writeln!(stdout(), "{:?}", results).unwrap();
-        writeln!(stdout(), "{:?}", t.path()).unwrap();
+        writeln!(stdout(), "{:?}", results)?;
+        writeln!(stdout(), "{:?}", t.path())?;
         let results: Result<Vec<_>, Error> = WalkDir::new(t.path())
             .sort(true)
             .preload_metadata(true)
@@ -270,19 +271,19 @@ mod tests {
             })
             .filter_map(|x| x.transpose())
             .collect();
-        let results = results.unwrap();
+        let results = results?;
         assert!(results.len() >= 9);
         assert_eq!(results.len(), nentries);
     }
 
-    #[test]
+    #[tokio::test]
     #[ignore]
-    fn test_cleanup_local() {
-        let t = get_tempdir();
-        let li = get_li(&t);
-        let results = li.cleanup_local().unwrap();
+    async fn test_cleanup_local() -> Result<(), Error> {
+        let t = get_tempdir()?;
+        let li = get_li(&t)?;
+        let results = li.cleanup_local().await?;
         let nresults = results.len();
-        writeln!(stdout(), "{:?}", results).unwrap();
+        writeln!(stdout(), "{:?}", results)?;
         let results: Result<Vec<_>, Error> = WalkDir::new(t.path())
             .sort(true)
             .preload_metadata(true)
@@ -299,8 +300,8 @@ mod tests {
             })
             .filter_map(|x| x.transpose())
             .collect();
-        let results = results.unwrap();
-        writeln!(stdout(), "{:?}", results).unwrap();
+        let results = results?;
+        writeln!(stdout(), "{:?}", results)?;
         assert_eq!(results.len(), nresults);
     }
 }
