@@ -465,7 +465,7 @@ mod tests {
             .await
             .unwrap_or_else(|_| Vec::new());
         let results2 = dap.serialize_cache().await?;
-        result.delete_entry(&dap.pool).await?;
+        let result = result.delete_entry(&dap.pool).await?;
         assert_eq!(result.diary_text, "Test text");
         assert_eq!(results.len(), 1);
         assert_eq!(results[0], result);
@@ -485,7 +485,7 @@ mod tests {
         let test_text2 = "Test text2";
         let (result2, conflict2) = dap.replace_text(test_date, test_text2.into()).await?;
 
-        result.delete_entry(&dap.pool).await?;
+        let result = result.delete_entry(&dap.pool).await?;
 
         assert_eq!(result.diary_date, test_date);
         assert!(conflict.is_none());
