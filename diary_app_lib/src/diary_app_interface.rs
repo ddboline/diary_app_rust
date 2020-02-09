@@ -1,6 +1,5 @@
 use anyhow::Error;
 use chrono::{DateTime, Datelike, Local, NaiveDate, Utc};
-use crossbeam_utils::thread;
 use futures::future::join_all;
 use log::debug;
 use regex::Regex;

@@ -2,7 +2,6 @@ use anyhow::{format_err, Error};
 use chrono::{DateTime, NaiveDate, Utc};
 use lazy_static::lazy_static;
 use log::debug;
-use rayon::iter::{IntoParallelIterator, IntoParallelRefIterator, ParallelIterator};
 use rusoto_s3::Object;
 use std::collections::HashMap;
 use std::convert::{TryFrom, TryInto};
@@ -71,7 +70,7 @@ impl S3Interface {
             self.s3_client
                 .get_list_of_keys(&self.config.diary_bucket, None)
                 .await?
-                .into_par_iter()
+                .into_iter()
                 .filter_map(|obj| obj.try_into().ok())
                 .collect(),
         );

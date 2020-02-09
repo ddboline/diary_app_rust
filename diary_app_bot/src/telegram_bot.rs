@@ -1,4 +1,3 @@
-use actix_threadpool::run as block;
 use anyhow::{format_err, Error};
 use futures::future::join;
 use futures::StreamExt;

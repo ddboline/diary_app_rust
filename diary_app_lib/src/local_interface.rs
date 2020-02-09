@@ -2,7 +2,6 @@ use anyhow::Error;
 use chrono::{DateTime, Datelike, Duration, Local, NaiveDate, TimeZone, Utc};
 use jwalk::WalkDir;
 use log::debug;
-use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use std::collections::BTreeMap;
 use std::fs::{metadata, read_to_string, remove_file, File};
 use std::io::{stdout, Write};

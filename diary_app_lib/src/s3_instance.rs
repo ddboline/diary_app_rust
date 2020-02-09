@@ -12,8 +12,6 @@ use std::path::Path;
 use sts_profile_auth::get_client_sts;
 use url::Url;
 
-use crate::exponential_retry;
-
 #[derive(Clone)]
 pub struct S3Instance {
     s3_client: S3Client,

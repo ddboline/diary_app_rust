@@ -65,20 +65,20 @@ impl HandleRequest for DiaryAppActor {
                 let output = self.sync_everything().await?;
                 Ok(output)
             }
-DiaryAppRequests::Replace { date, text } => {
-    let (entry, _) = self.replace_text(date, &text).await?;
-    let body = format!("{}\n{}", entry.diary_date, entry.diary_text);
-    Ok(vec![body])
-}
-DiaryAppRequests::List(opts) => {
-    let dates: Vec<_> = self
-        .get_list_of_dates(opts.min_date, opts.max_date, opts.start, opts.limit)
-        .await?
-        .into_iter()
-        .map(|x| x.to_string())
-        .collect();
-    Ok(dates)
-}
+            DiaryAppRequests::Replace { date, text } => {
+                let (entry, _) = self.replace_text(date, &text).await?;
+                let body = format!("{}\n{}", entry.diary_date, entry.diary_text);
+                Ok(vec![body])
+            }
+            DiaryAppRequests::List(opts) => {
+                let dates: Vec<_> = self
+                    .get_list_of_dates(opts.min_date, opts.max_date, opts.start, opts.limit)
+                    .await?
+                    .into_iter()
+                    .map(|x| x.to_string())
+                    .collect();
+                Ok(dates)
+            }
             DiaryAppRequests::Display(date) => {
                 let entry = DiaryEntries::get_by_date(date, &self.pool).await?;
                 Ok(vec![entry.diary_text.into()])
