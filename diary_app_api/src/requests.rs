@@ -51,7 +51,7 @@ impl HandleRequest for DiaryAppActor {
                     results
                 } else if let Some(date) = opts.date {
                     let entry = DiaryEntries::get_by_date(date, &self.pool).await?;
-                    vec![entry.diary_text.into()]
+                    vec![entry.diary_text]
                 } else {
                     vec!["".to_string()]
                 };
@@ -81,7 +81,7 @@ impl HandleRequest for DiaryAppActor {
             }
             DiaryAppRequests::Display(date) => {
                 let entry = DiaryEntries::get_by_date(date, &self.pool).await?;
-                Ok(vec![entry.diary_text.into()])
+                Ok(vec![entry.diary_text])
             }
             DiaryAppRequests::ListConflicts(None) => {
                 let conflicts: BTreeSet<_> = DiaryConflict::get_all_dates(&self.pool)
