@@ -31,7 +31,7 @@ async fn _search(
 ) -> Result<HttpResponse, Error> {
     let req = DiaryAppRequests::Search(query);
 
-    let body = block(move || state.db.handle(req)).await?;
+    let body = state.db.handle(req).await?;
 
     if is_api {
         let body = hashmap! {"text" => body.join("\n")};
@@ -75,13 +75,13 @@ pub async fn insert(
 ) -> Result<HttpResponse, Error> {
     let req = DiaryAppRequests::Insert(data.into_inner().text);
 
-    let body = block(move || state.db.handle(req)).await?;
+    let body = state.db.handle(req).await?;
     let body = hashmap! {"datetime" => body.join("\n")};
     to_json(&body)
 }
 
 pub async fn _sync(state: Data<AppState>, is_api: bool) -> Result<HttpResponse, Error> {
-    let body = block(move || state.db.handle(DiaryAppRequests::Sync)).await?;
+    let body = state.db.handle(DiaryAppRequests::Sync).await?;
     if is_api {
         let body = hashmap! {"response" => body.join("\n")};
         to_json(&body)
@@ -118,7 +118,7 @@ pub async fn replace(
         date: data.date,
         text: data.text,
     };
-    let body = block(move || state.db.handle(req)).await?;
+    let body = state.db.handle(req).await?;
     let body = hashmap! {"entry" => body.join("\n")};
     to_json(&body)
 }
@@ -180,14 +180,16 @@ async fn _list(
 ) -> Result<HttpResponse, Error> {
     let req = DiaryAppRequests::List(query);
     let state_ = state.clone();
-    let body = block(move || state_.db.handle(req)).await?;
+    let body = state_.db.handle(req).await?;
 
     if is_api {
         let body = hashmap! {"list" => body };
         to_json(&body)
     } else {
-        let conflicts: Vec<String> =
-            block(move || state.db.handle(DiaryAppRequests::ListConflicts(None))).await?;
+        let conflicts: Vec<String> = state
+            .db
+            .handle(DiaryAppRequests::ListConflicts(None))
+            .await?;
         let conflicts: HashSet<String> = conflicts.into_iter().collect();
         let body = _list_string(&conflicts, body, query);
         form_http_response(body)
@@ -224,7 +226,7 @@ pub async fn edit(
     let diary_date = query.date;
     let req = DiaryAppRequests::Display(diary_date);
 
-    let text = block(move || state.db.handle(req)).await?;
+    let text = state.db.handle(req).await?;
     let body = format!(
         r#"
         <textarea name="message" id="diary_editor_form" rows=50 cols=100
@@ -248,7 +250,7 @@ pub async fn display(
     let query = query.into_inner();
     let diary_date = query.date;
     let req = DiaryAppRequests::Display(diary_date);
-    let text = block(move || state.db.handle(req)).await?;
+    let text = state.db.handle(req).await?;
     let body = format!(
         r#"<textarea autofocus readonly="readonly" name="message" id="diary_editor_form" rows=50 cols=100>{text}</textarea><br>{editor}"#,
         text = text.join("\n"),
@@ -267,13 +269,14 @@ pub async fn diary_frontpage(_: LoggedUser, state: Data<AppState>) -> Result<Htt
     };
     let req = DiaryAppRequests::List(query);
     let state_ = state.clone();
-    let body = block(move || state_.db.handle(req)).await?;
+    let body = state_.db.handle(req).await?;
 
-    let conflicts: HashSet<_> =
-        block(move || state.db.handle(DiaryAppRequests::ListConflicts(None)))
-            .await?
-            .into_iter()
-            .collect();
+    let conflicts: HashSet<_> = state
+        .db
+        .handle(DiaryAppRequests::ListConflicts(None))
+        .await?
+        .into_iter()
+        .collect();
     let body = _list_string(&conflicts, body, query);
     let body = include_str!("../../templates/index.html")
         .replace("LIST_TEXT", &body)
@@ -295,7 +298,7 @@ pub async fn list_conflicts(
     let diary_date = query.into_inner().date;
     let req = DiaryAppRequests::ListConflicts(diary_date);
 
-    let body = block(move || state.db.handle(req)).await?;
+    let body = state.db.handle(req).await?;
     let text: Vec<_> = body
         .into_iter()
         .map(|t| {
@@ -332,7 +335,7 @@ pub async fn show_conflict(
         .unwrap_or_else(|| datetime.with_timezone(&Local).naive_local().date());
     let req = DiaryAppRequests::ShowConflict(datetime);
 
-    let text = block(move || state.db.handle(req)).await?;
+    let text = state.db.handle(req).await?;
     let body = format!(
         r#"{t}<br>
             <input type="button" name="display" value="Display" onclick="switchToDisplay('{d}')">
@@ -354,7 +357,7 @@ pub async fn remove_conflict(
     let datetime = query.into_inner().datetime.unwrap_or_else(Utc::now);
     let req = DiaryAppRequests::RemoveConflict(datetime);
 
-    let text = block(move || state.db.handle(req)).await?;
+    let text = state.db.handle(req).await?;
     form_http_response(text.join("\n"))
 }
 
@@ -375,7 +378,7 @@ pub async fn update_conflict(
         diff_text: query.diff_type,
     };
 
-    block(move || state.db.handle(req)).await?;
+    state.db.handle(req).await?;
 
     form_http_response("finished".to_string())
 }
@@ -393,7 +396,7 @@ pub async fn commit_conflict(
     let query = query.into_inner();
     let req = DiaryAppRequests::CommitConflict(query.datetime);
 
-    let body = block(move || state.db.handle(req)).await?;
+    let body = state.db.handle(req).await?;
     let body = hashmap! {"entry" => body.join("\n")};
     to_json(&body)
 }

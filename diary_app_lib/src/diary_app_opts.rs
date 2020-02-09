@@ -56,8 +56,7 @@ pub struct DiaryAppOpts {
 }
 
 impl DiaryAppOpts {
-    pub fn process_args() -> Result<(), Error> {
-        let stdout = stdout();
+    pub async fn process_args() -> Result<(), Error> {
         let opts = Self::from_args();
 
         let config = Config::init_config()?;
@@ -66,57 +65,65 @@ impl DiaryAppOpts {
 
         match opts.command {
             DiaryAppCommands::Search => {
-                let result = dap.search_text(&opts.text.join(" "))?;
-                writeln!(stdout.lock(), "{}", result.join("\n"))?;
+                let result = dap.search_text(&opts.text.join(" ")).await?;
+                writeln!(stdout().lock(), "{}", result.join("\n"))?;
             }
             DiaryAppCommands::Insert => {
-                dap.cache_text(opts.text.join(" ").into())?;
+                dap.cache_text(&opts.text.join(" ")).await?;
             }
             DiaryAppCommands::Sync => {
-                dap.sync_everything()?;
+                dap.sync_everything().await?;
             }
             DiaryAppCommands::Serialize => {
-                for entry in dap.serialize_cache()? {
-                    writeln!(stdout.lock(), "{}", entry)?;
+                for entry in dap.serialize_cache().await? {
+                    writeln!(stdout().lock(), "{}", entry)?;
                 }
             }
             DiaryAppCommands::ClearCache => {
-                for entry in DiaryCache::get_cache_entries(&dap.pool)? {
-                    writeln!(stdout.lock(), "{}", serde_json::to_string(&entry)?)?;
-                    entry.delete_entry(&dap.pool)?;
+                for entry in DiaryCache::get_cache_entries(&dap.pool).await? {
+                    writeln!(stdout().lock(), "{}", serde_json::to_string(&entry)?)?;
+                    entry.delete_entry(&dap.pool).await?;
                 }
             }
             DiaryAppCommands::ListConflicts => {
-                let get_all_conflicts = |date: NaiveDate| -> Result<(), Error> {
-                    let conflicts: BTreeSet<_> = DiaryConflict::get_by_date(date, &dap.pool)?
+                async fn get_all_conflicts(
+                    dap: &DiaryAppInterface,
+                    date: NaiveDate,
+                ) -> Result<(), Error> {
+                    let conflicts: BTreeSet<_> = DiaryConflict::get_by_date(date, &dap.pool)
+                        .await?
                         .into_iter()
                         .map(|entry| entry.format("%Y-%m-%dT%H:%M:%S%.fZ").to_string())
                         .collect();
                     for timestamp in conflicts {
-                        writeln!(stdout.lock(), "{}", timestamp)?;
+                        writeln!(stdout().lock(), "{}", timestamp)?;
                     }
                     Ok(())
-                };
+                }
 
                 if let Ok(date) = opts.text.join("").parse() {
-                    get_all_conflicts(date)?;
+                    get_all_conflicts(&dap, date).await?;
                 } else {
-                    let conflicts = DiaryConflict::get_all_dates(&dap.pool)?;
+                    let conflicts = DiaryConflict::get_all_dates(&dap.pool).await?;
                     if conflicts.len() > 1 {
                         for date in conflicts {
-                            writeln!(stdout.lock(), "{}", date)?;
+                            writeln!(stdout().lock(), "{}", date)?;
                         }
                     } else {
                         for date in conflicts {
-                            get_all_conflicts(date)?;
+                            get_all_conflicts(&dap, date).await?;
                         }
                     }
                 }
             }
             DiaryAppCommands::ShowConflict => {
-                let show_conflict = |datetime| -> Result<(), Error> {
-                    writeln!(stdout.lock(), "datetime {}", datetime)?;
-                    let conflicts: Vec<_> = DiaryConflict::get_by_datetime(datetime, &dap.pool)?
+                async fn show_conflict(
+                    dap: &DiaryAppInterface,
+                    datetime: DateTime<Utc>,
+                ) -> Result<(), Error> {
+                    writeln!(stdout().lock(), "datetime {}", datetime)?;
+                    let conflicts: Vec<_> = DiaryConflict::get_by_datetime(datetime, &dap.pool)
+                        .await?
                         .into_iter()
                         .map(|entry| match entry.diff_type.as_ref() {
                             "rem" => format!("\x1b[91m{}\x1b[0m", entry.diff_text),
@@ -125,7 +132,7 @@ impl DiaryAppOpts {
                         })
                         .collect();
                     for timestamp in conflicts {
-                        writeln!(stdout.lock(), "{}", timestamp)?;
+                        writeln!(stdout().lock(), "{}", timestamp)?;
                     }
                     Ok(())
                 };
@@ -134,9 +141,9 @@ impl DiaryAppOpts {
                     DateTime::parse_from_rfc3339(&opts.text.join("").replace("Z", "+00:00"))
                         .map(|x| x.with_timezone(&Utc))
                 {
-                    show_conflict(datetime)?;
-                } else if let Some(datetime) = DiaryConflict::get_first_conflict(&dap.pool)? {
-                    show_conflict(datetime)?;
+                    show_conflict(&dap, datetime).await?;
+                } else if let Some(datetime) = DiaryConflict::get_first_conflict(&dap.pool).await? {
+                    show_conflict(&dap, datetime).await?;
                 }
             }
             DiaryAppCommands::RemoveConflict => {
@@ -144,9 +151,9 @@ impl DiaryAppOpts {
                     DateTime::parse_from_rfc3339(&opts.text.join("").replace("Z", "+00:00"))
                         .map(|x| x.with_timezone(&Utc))
                 {
-                    DiaryConflict::remove_by_datetime(datetime, &dap.pool)?;
-                } else if let Some(datetime) = DiaryConflict::get_first_conflict(&dap.pool)? {
-                    DiaryConflict::remove_by_datetime(datetime, &dap.pool)?;
+                    DiaryConflict::remove_by_datetime(datetime, &dap.pool).await?;
+                } else if let Some(datetime) = DiaryConflict::get_first_conflict(&dap.pool).await? {
+                    DiaryConflict::remove_by_datetime(datetime, &dap.pool).await?;
                 }
             }
         }

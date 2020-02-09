@@ -5,8 +5,9 @@ use std::env::var;
 use diary_app_lib::models::AuthorizedUsers;
 use diary_app_lib::pgpool::PgPool;
 
-pub fn fill_from_db(pool: &PgPool) -> Result<(), Error> {
-    let users: Vec<_> = AuthorizedUsers::get_authorized_users(&pool)?
+pub async fn fill_from_db(pool: &PgPool) -> Result<(), Error> {
+    let users: Vec<_> = AuthorizedUsers::get_authorized_users(&pool)
+        .await?
         .into_iter()
         .map(|user| LoggedUser { email: user.email })
         .collect();

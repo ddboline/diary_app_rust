@@ -24,8 +24,8 @@ impl LocalInterface {
         Self { pool, config }
     }
 
-    pub fn export_year_to_local(&self) -> Result<Vec<String>, Error> {
-        let mod_map = DiaryEntries::get_modified_map(&self.pool)?;
+    pub async fn export_year_to_local(&self) -> Result<Vec<String>, Error> {
+        let mod_map = DiaryEntries::get_modified_map(&self.pool).await?;
         let year_mod_map: BTreeMap<i32, DateTime<Utc>> =
             mod_map.iter().fold(BTreeMap::new(), |mut acc, (k, v)| {
                 let year = k.year();
@@ -45,41 +45,39 @@ impl LocalInterface {
                 acc.entry(year).or_insert_with(Vec::new).push(d);
                 acc
             });
-        let results: Result<Vec<_>, Error> = year_map
-            .into_par_iter()
-            .map(|(year, date_list)| {
-                let fname = format!("{}/diary_{}.txt", &self.config.diary_path, year);
+        let mut output = Vec::new();
+        for (year, date_list) in year_map {
+            let fname = format!("{}/diary_{}.txt", &self.config.diary_path, year);
 
-                let filepath = Path::new(&fname);
-                if filepath.exists() {
-                    if let Ok(metadata) = filepath.metadata() {
-                        if let Ok(modified) = metadata.modified() {
-                            let modified: DateTime<Utc> = modified.into();
-                            if let Some(maxmod) = year_mod_map.get(&year) {
-                                if modified >= *maxmod {
-                                    return Ok(format!("{} 0", year));
-                                }
+            let filepath = Path::new(&fname);
+            if filepath.exists() {
+                if let Ok(metadata) = filepath.metadata() {
+                    if let Ok(modified) = metadata.modified() {
+                        let modified: DateTime<Utc> = modified.into();
+                        if let Some(maxmod) = year_mod_map.get(&year) {
+                            if modified >= *maxmod {
+                                output.push(format!("{} 0", year));
+                                continue;
                             }
                         }
                     }
                 }
+            }
 
-                let mut f = File::create(fname)?;
-                for date in &date_list {
-                    let entry = DiaryEntries::get_by_date(*date, &self.pool)?;
-                    writeln!(f, "{}\n", entry.diary_text)?;
-                }
-                Ok(format!("{} {}", year, date_list.len()))
-            })
-            .collect();
-        let results = results?;
-        writeln!(stdout().lock(), "{}", results.join("\n"))?;
-        Ok(results)
+            let mut f = File::create(fname)?;
+            for date in &date_list {
+                let entry = DiaryEntries::get_by_date(*date, &self.pool).await?;
+                writeln!(f, "{}\n", entry.diary_text)?;
+            }
+            output.push(format!("{} {}", year, date_list.len()));
+        }
+        writeln!(stdout().lock(), "{}", output.join("\n"))?;
+        Ok(output)
     }
 
-    pub fn cleanup_local(&self) -> Result<Vec<DiaryEntries>, Error> {
+    pub async fn cleanup_local(&self) -> Result<Vec<DiaryEntries>, Error> {
         let stdout = stdout();
-        let existing_map = DiaryEntries::get_modified_map(&self.pool)?;
+        let existing_map = DiaryEntries::get_modified_map(&self.pool).await?;
 
         let dates: Result<BTreeMap<_, _>, Error> = WalkDir::new(&self.config.diary_path)
             .sort(true)
@@ -116,109 +114,106 @@ impl LocalInterface {
         let dates = dates?;
         let current_date = Local::now().naive_local().date();
 
-        (0..4)
-            .map(|i| (current_date - Duration::days(i)))
-            .map(|current_date| {
-                if let Some((file_mod, file_size)) = dates.get(&current_date) {
-                    if let Some(db_mod) = existing_map.get(&current_date) {
-                        if file_mod < db_mod {
-                            if let Ok(existing_entry) =
-                                DiaryEntries::get_by_date(current_date, &self.pool)
-                            {
-                                let existing_size = existing_entry.diary_text.len();
-                                if existing_size > *file_size {
-                                    debug!("file db diff {} {}", file_mod, db_mod);
-                                    debug!("file db size {} {}", file_size, db_mod);
-                                    let filepath =
-                                        format!("{}/{}.txt", self.config.diary_path, current_date);
-                                    let mut f = File::create(&filepath)?;
-                                    writeln!(f, "{}", &existing_entry.diary_text)?;
-                                }
-                                return Ok(Some(existing_entry));
+        let mut entries = Vec::new();
+        for current_date in (0..4).map(|i| (current_date - Duration::days(i))) {
+            if let Some((file_mod, file_size)) = dates.get(&current_date) {
+                if let Some(db_mod) = existing_map.get(&current_date) {
+                    if file_mod < db_mod {
+                        if let Ok(existing_entry) =
+                            DiaryEntries::get_by_date(current_date, &self.pool).await
+                        {
+                            let existing_size = existing_entry.diary_text.len();
+                            if existing_size > *file_size {
+                                debug!("file db diff {} {}", file_mod, db_mod);
+                                debug!("file db size {} {}", file_size, db_mod);
+                                let filepath =
+                                    format!("{}/{}.txt", self.config.diary_path, current_date);
+                                let mut f = File::create(&filepath)?;
+                                writeln!(f, "{}", &existing_entry.diary_text)?;
                             }
+                            entries.push(existing_entry);
                         }
-                        Ok(None)
-                    } else {
-                        let d = DiaryEntries::new(current_date, "".into());
-                        d.upsert_entry(&self.pool)?;
-                        Ok(Some(d))
                     }
                 } else {
-                    let filepath = format!("{}/{}.txt", self.config.diary_path, current_date);
-                    let mut f = File::create(&filepath)?;
-
-                    if let Ok(existing_entry) = DiaryEntries::get_by_date(current_date, &self.pool)
-                    {
-                        writeln!(f, "{}", &existing_entry.diary_text)?;
-                        Ok(Some(existing_entry))
-                    } else {
-                        writeln!(f)?;
-                        let d = DiaryEntries::new(current_date, "".into());
-                        d.upsert_entry(&self.pool)?;
-                        Ok(Some(d))
-                    }
+                    let d = DiaryEntries::new(current_date, "".into());
+                    let (d, _) = d.upsert_entry(&self.pool).await?;
+                    entries.push(d);
                 }
-            })
-            .filter_map(Result::transpose)
-            .collect()
+            } else {
+                let filepath = format!("{}/{}.txt", self.config.diary_path, current_date);
+                let mut f = File::create(&filepath)?;
+
+                if let Ok(existing_entry) =
+                    DiaryEntries::get_by_date(current_date, &self.pool).await
+                {
+                    writeln!(f, "{}", &existing_entry.diary_text)?;
+                    entries.push(existing_entry)
+                } else {
+                    writeln!(f)?;
+                    let d = DiaryEntries::new(current_date, "".into());
+                    let (d, _) = d.upsert_entry(&self.pool).await?;
+                    entries.push(d);
+                }
+            }
+        }
+        Ok(entries)
     }
 
-    pub fn import_from_local(&self) -> Result<Vec<DiaryEntries>, Error> {
+    pub async fn import_from_local(&self) -> Result<Vec<DiaryEntries>, Error> {
         let stdout = stdout();
-        let existing_map = DiaryEntries::get_modified_map(&self.pool)?;
+        let existing_map = DiaryEntries::get_modified_map(&self.pool).await?;
 
-        WalkDir::new(&self.config.diary_path)
+        let mut entries = Vec::new();
+        for entry in WalkDir::new(&self.config.diary_path)
             .sort(true)
             .preload_metadata(true)
-            .into_iter()
-            .filter_map(|entry| {
-                let res = || {
-                    let entry = entry?;
-                    let filename = entry.file_name.to_string_lossy();
-                    if let Ok(date) = NaiveDate::parse_from_str(&filename, "%Y-%m-%d.txt") {
-                        if let Some(metadata) = entry.metadata.transpose()? {
-                            let filepath = format!("{}/{}", self.config.diary_path, filename);
-                            let modified: DateTime<Utc> = metadata.modified()?.into();
+        {
+            let entry = entry?;
+            let filename = entry.file_name.to_string_lossy();
+            let mut new_entry = None;
+            if let Ok(date) = NaiveDate::parse_from_str(&filename, "%Y-%m-%d.txt") {
+                if let Some(metadata) = entry.metadata.transpose()? {
+                    let filepath = format!("{}/{}", self.config.diary_path, filename);
+                    let modified: DateTime<Utc> = metadata.modified()?.into();
 
-                            let should_modify = match existing_map.get(&date) {
-                                Some(current_modified) => {
-                                    (*current_modified - modified).num_seconds() < -1
-                                }
-                                None => true,
-                            };
+                    let should_modify = match existing_map.get(&date) {
+                        Some(current_modified) => (*current_modified - modified).num_seconds() < -1,
+                        None => true,
+                    };
 
-                            if metadata.len() > 0 && should_modify {
-                                let d = DiaryEntries {
-                                    diary_date: date,
-                                    diary_text: read_to_string(&filepath)?.into(),
-                                    last_modified: modified,
-                                };
-                                return Ok(Some(d));
-                            }
-                        }
+                    if metadata.len() > 0 && should_modify {
+                        let d = DiaryEntries {
+                            diary_date: date,
+                            diary_text: read_to_string(&filepath)?.into(),
+                            last_modified: modified,
+                        };
+                        new_entry = Some(d);
                     }
-                    Ok(None)
-                };
-                res().transpose().map(|result| {
-                    result.and_then(|entry| {
-                        if !entry.diary_text.trim().is_empty() {
-                            writeln!(
-                                stdout.lock(),
-                                "import local date {} lines {}",
-                                entry.diary_date,
-                                entry.diary_text.match_indices('\n').count()
-                            )?;
-                            if existing_map.contains_key(&entry.diary_date) {
-                                entry.update_entry(&self.pool)?;
-                            } else {
-                                entry.upsert_entry(&self.pool)?;
-                            }
-                        }
-                        Ok(entry)
-                    })
-                })
-            })
-            .collect()
+                }
+            }
+            let entry = match new_entry {
+                Some(x) => x,
+                None => continue,
+            };
+
+            let entry = if !entry.diary_text.trim().is_empty() {
+                writeln!(
+                    stdout.lock(),
+                    "import local date {} lines {}",
+                    entry.diary_date,
+                    entry.diary_text.match_indices('\n').count()
+                )?;
+                if existing_map.contains_key(&entry.diary_date) {
+                    entry.update_entry(&self.pool).await?.0
+                } else {
+                    entry.upsert_entry(&self.pool).await?.0
+                }
+            } else {
+                entry
+            };
+            entries.push(entry)
+        }
+        Ok(entries)
     }
 }
 
