@@ -441,13 +441,12 @@ mod tests {
     #[tokio::test]
     #[ignore]
     async fn test_get_matching_dates() -> Result<(), Error> {
-        let dap = get_dap()?;
+        let mod_map = DiaryEntries::get_modified_map(&self.pool).await?;
 
-        let results = dap.get_matching_dates(Some("2011"), None, None).await?;
+        let results = DiaryAppInterface::get_matching_dates(&mod_map, Some("2011"), None, None).await?;
         assert_eq!(results.len(), 47);
 
-        let results = dap
-            .get_matching_dates(Some("2011"), Some("06"), None)
+        let results = DiaryAppInterface::get_matching_dates(&mod_map, Some("2011"), Some("06"), None)
             .await?;
         assert_eq!(results.len(), 6);
         Ok(())
@@ -461,7 +460,7 @@ mod tests {
         let test_text = "Test text";
         let result = dap.cache_text(test_text.into()).await?;
         writeln!(stdout(), "{}", result.diary_datetime)?;
-        let results = DiaryCache::get_cache_entries(&dap.pool).unwrap_or_else(|_| Vec::new());
+        let results = DiaryCache::get_cache_entries(&dap.pool).await.unwrap_or_else(|_| Vec::new());
         let results2 = dap.serialize_cache().await?;
         result.delete_entry(&dap.pool).await?;
         assert_eq!(result.diary_text, "Test text");
@@ -490,7 +489,7 @@ mod tests {
         assert_eq!(result2.diary_date, test_date);
         assert_eq!(result2.diary_text, test_text2);
         assert!(conflict2.is_some());
-        let conflict2 = conflict2?;
+        let conflict2 = conflict2.unwrap();
         let result3 = DiaryConflict::get_by_datetime(conflict2, &dap.pool).await?;
         assert_eq!(result3.len(), 2);
         DiaryConflict::remove_by_datetime(conflict2, &dap.pool).await?;
