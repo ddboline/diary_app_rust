@@ -9,8 +9,8 @@ r2d2 = "0.8"
 r2d2_postgres = "0.16"
 diesel = {version="1.4", features=["postgres", "r2d2", "chrono"]}
 chrono = "0.4"
-rusoto_core = {git = "https://github.com/rusoto/rusoto.git", branch = "master", default_features = false, features=["rustls"]}
-rusoto_s3 = {git = "https://github.com/rusoto/rusoto.git", branch = "master", default_features = false, features=["rustls"]}
+rusoto_core = {version = "0.43.0-beta.1", default_features = false, features=["rustls"]}
+rusoto_s3 = {version = "0.43.0-beta.1", default_features = false, features=["rustls"]}
 s4 = { git = "https://github.com/ddboline/s4.git", branch = "test_0.43" }
 sts_profile_auth = {git="https://github.com/ddboline/sts_profile_auth", branch="test_0.43.0"}
 rand = "0.7"
