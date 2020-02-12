@@ -201,20 +201,19 @@ impl S3Instance {
                 ..ListObjectsV2Request::default()
             };
             let current_list = self.s3_client.list_objects_v2(req).await?;
-
-            continuation_token = current_list.next_continuation_token.clone();
-
             match current_list.key_count {
                 Some(0) | None => (),
                 Some(_) => {
-                    list_of_keys.extend_from_slice(&current_list.contents.unwrap_or_else(Vec::new));
+                    if let Some(l) = &current_list.contents {
+                        list_of_keys.extend_from_slice(l);
+                    }
                 }
             };
-
-            match &continuation_token {
-                Some(_) => (),
-                None => break,
-            };
+            if let Some(token) = current_list.next_continuation_token {
+                continuation_token.replace(token);
+            } else {
+                break;
+            }
             if let Some(max_keys) = self.max_keys {
                 if list_of_keys.len() > max_keys {
                     list_of_keys.resize(max_keys, Object::default());
