@@ -72,7 +72,7 @@ impl From<DiaryConflict> for DiaryConflictInsert {
 }
 
 impl AuthorizedUsers {
-    pub fn get_authorized_users_sync(pool: &PgPool) -> Result<Vec<Self>, Error> {
+    fn get_authorized_users_sync(pool: &PgPool) -> Result<Vec<Self>, Error> {
         use crate::schema::authorized_users::dsl::authorized_users;
         let conn = pool.get()?;
         authorized_users.load(&conn).map_err(Into::into)
@@ -85,7 +85,7 @@ impl AuthorizedUsers {
 }
 
 impl DiaryConflict {
-    pub fn get_all_dates_sync(pool: &PgPool) -> Result<Vec<NaiveDate>, Error> {
+    fn get_all_dates_sync(pool: &PgPool) -> Result<Vec<NaiveDate>, Error> {
         use crate::schema::diary_conflict::dsl::{diary_conflict, diary_date};
         let conn = pool.get()?;
         diary_conflict
@@ -101,7 +101,7 @@ impl DiaryConflict {
         spawn_blocking(move || Self::get_all_dates_sync(&pool)).await?
     }
 
-    pub fn get_by_date_sync(date: NaiveDate, pool: &PgPool) -> Result<Vec<DateTime<Utc>>, Error> {
+    fn get_by_date_sync(date: NaiveDate, pool: &PgPool) -> Result<Vec<DateTime<Utc>>, Error> {
         use crate::schema::diary_conflict::dsl::{diary_conflict, diary_date, sync_datetime};
         let conn = pool.get()?;
 
@@ -119,10 +119,7 @@ impl DiaryConflict {
         spawn_blocking(move || Self::get_by_date_sync(date, &pool)).await?
     }
 
-    pub fn get_by_datetime_sync(
-        datetime: DateTime<Utc>,
-        pool: &PgPool,
-    ) -> Result<Vec<Self>, Error> {
+    fn get_by_datetime_sync(datetime: DateTime<Utc>, pool: &PgPool) -> Result<Vec<Self>, Error> {
         use crate::schema::diary_conflict::dsl::{diary_conflict, id, sync_datetime};
         let conn = pool.get()?;
         diary_conflict
@@ -140,7 +137,7 @@ impl DiaryConflict {
         spawn_blocking(move || Self::get_by_datetime_sync(datetime, &pool)).await?
     }
 
-    pub fn get_first_conflict_sync(pool: &PgPool) -> Result<Option<DateTime<Utc>>, Error> {
+    fn get_first_conflict_sync(pool: &PgPool) -> Result<Option<DateTime<Utc>>, Error> {
         let dates = Self::get_all_dates_sync(pool)?;
         if !dates.is_empty() {
             let conflicts = Self::get_by_date_sync(dates[0], pool)?;
@@ -156,7 +153,7 @@ impl DiaryConflict {
         spawn_blocking(move || Self::get_first_conflict_sync(&pool)).await?
     }
 
-    pub fn update_by_id_sync(id_: i32, new_diff_type: &str, pool: &PgPool) -> Result<(), Error> {
+    fn update_by_id_sync(id_: i32, new_diff_type: &str, pool: &PgPool) -> Result<(), Error> {
         use crate::schema::diary_conflict::dsl::{diary_conflict, diff_type, id};
         let conn = pool.get()?;
         diesel::update(diary_conflict.filter(id.eq(id_)))
@@ -172,7 +169,7 @@ impl DiaryConflict {
         spawn_blocking(move || Self::update_by_id_sync(id_, &new_diff_type, &pool)).await?
     }
 
-    pub fn remove_by_datetime_sync(datetime: DateTime<Utc>, pool: &PgPool) -> Result<(), Error> {
+    fn remove_by_datetime_sync(datetime: DateTime<Utc>, pool: &PgPool) -> Result<(), Error> {
         use crate::schema::diary_conflict::dsl::{diary_conflict, sync_datetime};
         let conn = pool.get()?;
         diesel::delete(diary_conflict.filter(sync_datetime.eq(datetime)))
@@ -257,7 +254,7 @@ impl DiaryEntries {
             .map_err(Into::into)
     }
 
-    pub fn insert_entry_sync(&self, pool: &PgPool) -> Result<Option<DateTime<Utc>>, Error> {
+    fn insert_entry_sync(&self, pool: &PgPool) -> Result<Option<DateTime<Utc>>, Error> {
         let conn = pool.get()?;
         self._insert_entry(&conn)
     }
@@ -290,7 +287,7 @@ impl DiaryEntries {
             .map_err(Into::into)
     }
 
-    pub fn update_entry_sync(&self, pool: &PgPool) -> Result<Option<DateTime<Utc>>, Error> {
+    fn update_entry_sync(&self, pool: &PgPool) -> Result<Option<DateTime<Utc>>, Error> {
         let conn = pool.get()?;
         self._update_entry(&conn)
     }
@@ -300,7 +297,7 @@ impl DiaryEntries {
         spawn_blocking(move || self.update_entry_sync(&pool).map(|x| (self, x))).await?
     }
 
-    pub fn upsert_entry_sync(&self, pool: &PgPool) -> Result<Option<DateTime<Utc>>, Error> {
+    fn upsert_entry_sync(&self, pool: &PgPool) -> Result<Option<DateTime<Utc>>, Error> {
         let conn = pool.get()?;
 
         conn.transaction(|| match Self::_get_by_date(self.diary_date, &conn) {
@@ -314,9 +311,7 @@ impl DiaryEntries {
         spawn_blocking(move || self.upsert_entry_sync(&pool).map(|x| (self, x))).await?
     }
 
-    pub fn get_modified_map_sync(
-        pool: &PgPool,
-    ) -> Result<HashMap<NaiveDate, DateTime<Utc>>, Error> {
+    fn get_modified_map_sync(pool: &PgPool) -> Result<HashMap<NaiveDate, DateTime<Utc>>, Error> {
         use crate::schema::diary_entries::dsl::{diary_date, diary_entries, last_modified};
         let conn = pool.get()?;
 
@@ -343,7 +338,7 @@ impl DiaryEntries {
             .map_err(Into::into)
     }
 
-    pub fn get_by_date_sync(date: NaiveDate, pool: &PgPool) -> Result<Self, Error> {
+    fn get_by_date_sync(date: NaiveDate, pool: &PgPool) -> Result<Self, Error> {
         let conn = pool.get()?;
         Self::_get_by_date(date, &conn)
     }
@@ -353,7 +348,7 @@ impl DiaryEntries {
         spawn_blocking(move || Self::get_by_date_sync(date, &pool)).await?
     }
 
-    pub fn get_by_text_sync(search_text: &str, pool: &PgPool) -> Result<Vec<Self>, Error> {
+    fn get_by_text_sync(search_text: &str, pool: &PgPool) -> Result<Vec<Self>, Error> {
         use crate::schema::diary_entries::dsl::{diary_date, diary_entries, diary_text};
         let conn = pool.get()?;
         diary_entries
@@ -374,7 +369,7 @@ impl DiaryEntries {
             .map(|original| Changeset::new(&original.diary_text, &self.diary_text, "\n"))
     }
 
-    pub fn get_difference_sync(&self, pool: &PgPool) -> Result<Changeset, Error> {
+    fn get_difference_sync(&self, pool: &PgPool) -> Result<Changeset, Error> {
         let conn = pool.get()?;
         self._get_difference(&conn)
     }
@@ -384,7 +379,7 @@ impl DiaryEntries {
         spawn_blocking(move || self.get_difference_sync(&pool).map(|x| (self, x))).await?
     }
 
-    pub fn delete_entry_sync(&self, pool: &PgPool) -> Result<(), Error> {
+    fn delete_entry_sync(&self, pool: &PgPool) -> Result<(), Error> {
         use crate::schema::diary_entries::dsl::{diary_date, diary_entries};
         let conn = pool.get()?;
         diesel::delete(diary_entries)
@@ -401,7 +396,7 @@ impl DiaryEntries {
 }
 
 impl DiaryCache {
-    pub fn insert_entry_sync(&self, pool: &PgPool) -> Result<(), Error> {
+    fn insert_entry_sync(&self, pool: &PgPool) -> Result<(), Error> {
         use crate::schema::diary_cache::dsl::diary_cache;
         let conn = pool.get()?;
         diesel::insert_into(diary_cache)
@@ -416,7 +411,7 @@ impl DiaryCache {
         spawn_blocking(move || self.insert_entry_sync(&pool).map(|_| self)).await?
     }
 
-    pub fn get_cache_entries_sync(pool: &PgPool) -> Result<Vec<Self>, Error> {
+    fn get_cache_entries_sync(pool: &PgPool) -> Result<Vec<Self>, Error> {
         use crate::schema::diary_cache::dsl::diary_cache;
         let conn = pool.get()?;
         diary_cache.load(&conn).map_err(Into::into)
@@ -427,7 +422,7 @@ impl DiaryCache {
         spawn_blocking(move || Self::get_cache_entries_sync(&pool)).await?
     }
 
-    pub fn get_by_text_sync(search_text: &str, pool: &PgPool) -> Result<Vec<Self>, Error> {
+    fn get_by_text_sync(search_text: &str, pool: &PgPool) -> Result<Vec<Self>, Error> {
         use crate::schema::diary_cache::dsl::{diary_cache, diary_text};
         let conn = pool.get()?;
         diary_cache
@@ -442,7 +437,7 @@ impl DiaryCache {
         spawn_blocking(move || Self::get_by_text_sync(&search_text, &pool)).await?
     }
 
-    pub fn delete_entry_sync(&self, pool: &PgPool) -> Result<(), Error> {
+    fn delete_entry_sync(&self, pool: &PgPool) -> Result<(), Error> {
         use crate::schema::diary_cache::dsl::{diary_cache, diary_datetime};
         let conn = pool.get()?;
         diesel::delete(diary_cache)

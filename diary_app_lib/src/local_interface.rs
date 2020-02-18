@@ -3,10 +3,11 @@ use chrono::{DateTime, Datelike, Duration, Local, NaiveDate, TimeZone, Utc};
 use jwalk::WalkDir;
 use log::debug;
 use std::collections::BTreeMap;
-use std::fs::{metadata, read_to_string, remove_file, File};
-use std::io::{stdout, Write};
+use std::fs::metadata;
 use std::path::Path;
 use std::time::SystemTime;
+use tokio::fs::{read_to_string, remove_file, File};
+use tokio::io::{stdout, AsyncWriteExt};
 
 use crate::config::Config;
 use crate::models::DiaryEntries;
@@ -63,54 +64,51 @@ impl LocalInterface {
                 }
             }
 
-            let mut f = File::create(fname)?;
+            let mut f = File::create(fname).await?;
             for date in &date_list {
                 let entry = DiaryEntries::get_by_date(*date, &self.pool).await?;
-                writeln!(f, "{}\n", entry.diary_text)?;
+                f.write_all(format!("{}\n", entry.diary_text).as_bytes())
+                    .await?;
             }
             output.push(format!("{} {}", year, date_list.len()));
         }
-        writeln!(stdout().lock(), "{}", output.join("\n"))?;
+        debug!("{}", output.join("\n"));
         Ok(output)
     }
 
     pub async fn cleanup_local(&self) -> Result<Vec<DiaryEntries>, Error> {
-        let stdout = stdout();
+        let mut stdout = stdout();
         let existing_map = DiaryEntries::get_modified_map(&self.pool).await?;
 
-        let dates: Result<BTreeMap<_, _>, Error> = WalkDir::new(&self.config.diary_path)
+        let mut dates = BTreeMap::new();
+
+        for entry in WalkDir::new(&self.config.diary_path)
             .sort(true)
             .preload_metadata(true)
-            .into_iter()
-            .map(|entry| {
-                let entry = entry?;
-                let filename = entry.file_name.to_string_lossy();
-                if let Ok(date) = NaiveDate::parse_from_str(&filename, "%Y-%m-%d.txt") {
-                    let previous_date = (Local::now() - Duration::days(4)).naive_local().date();
+        {
+            let entry = entry?;
+            let filename = entry.file_name.to_string_lossy();
+            if let Ok(date) = NaiveDate::parse_from_str(&filename, "%Y-%m-%d.txt") {
+                let previous_date = (Local::now() - Duration::days(4)).naive_local().date();
 
-                    if date <= previous_date {
-                        let filepath = format!("{}/{}", self.config.diary_path, filename);
-                        writeln!(stdout.lock(), "{}", filepath)?;
-                        remove_file(&filepath)?;
-                        Ok(None)
-                    } else {
-                        let filepath = format!("{}/{}", self.config.diary_path, filename);
-                        let metadata = metadata(&filepath)?;
-                        let size = metadata.len() as usize;
-                        let modified_secs = metadata
-                            .modified()?
-                            .duration_since(SystemTime::UNIX_EPOCH)?
-                            .as_secs() as i64;
-                        let modified = Utc.timestamp(modified_secs, 0);
-                        Ok(Some((date, (modified, size))))
-                    }
+                if date <= previous_date {
+                    let filepath = format!("{}/{}", self.config.diary_path, filename);
+                    stdout.write_all(format!("{}\n", filepath).as_bytes()).await?;
+                    remove_file(&filepath).await?;
                 } else {
-                    Ok(None)
+                    let filepath = format!("{}/{}", self.config.diary_path, filename);
+                    let metadata = metadata(&filepath)?;
+                    let size = metadata.len() as usize;
+                    let modified_secs = metadata
+                        .modified()?
+                        .duration_since(SystemTime::UNIX_EPOCH)?
+                        .as_secs() as i64;
+                    let modified = Utc.timestamp(modified_secs, 0);
+                    dates.insert(date, (modified, size));
                 }
-            })
-            .filter_map(Result::transpose)
-            .collect();
-        let dates = dates?;
+            }
+        }
+
         let current_date = Local::now().naive_local().date();
 
         let mut entries = Vec::new();
@@ -127,8 +125,9 @@ impl LocalInterface {
                                 debug!("file db size {} {}", file_size, db_mod);
                                 let filepath =
                                     format!("{}/{}.txt", self.config.diary_path, current_date);
-                                let mut f = File::create(&filepath)?;
-                                writeln!(f, "{}", &existing_entry.diary_text)?;
+                                let mut f = File::create(&filepath).await?;
+                                f.write_all(format!("{}\n", existing_entry.diary_text).as_bytes())
+                                    .await?;
                             }
                             entries.push(existing_entry);
                         }
@@ -140,15 +139,16 @@ impl LocalInterface {
                 }
             } else {
                 let filepath = format!("{}/{}.txt", self.config.diary_path, current_date);
-                let mut f = File::create(&filepath)?;
+                let mut f = File::create(&filepath).await?;
 
                 if let Ok(existing_entry) =
                     DiaryEntries::get_by_date(current_date, &self.pool).await
                 {
-                    writeln!(f, "{}", &existing_entry.diary_text)?;
+                    f.write_all(format!("{}\n", existing_entry.diary_text).as_bytes())
+                        .await?;
                     entries.push(existing_entry)
                 } else {
-                    writeln!(f)?;
+                    f.write_all(b"\n").await?;
                     let d = DiaryEntries::new(current_date, "");
                     let (d, _) = d.upsert_entry(&self.pool).await?;
                     entries.push(d);
@@ -159,7 +159,7 @@ impl LocalInterface {
     }
 
     pub async fn import_from_local(&self) -> Result<Vec<DiaryEntries>, Error> {
-        let stdout = stdout();
+        let mut stdout = stdout();
         let existing_map = DiaryEntries::get_modified_map(&self.pool).await?;
 
         let mut entries = Vec::new();
@@ -183,7 +183,7 @@ impl LocalInterface {
                     if metadata.len() > 0 && should_modify {
                         let d = DiaryEntries {
                             diary_date: date,
-                            diary_text: read_to_string(&filepath)?,
+                            diary_text: read_to_string(&filepath).await?,
                             last_modified: modified,
                         };
                         new_entry = Some(d);
@@ -198,12 +198,16 @@ impl LocalInterface {
             let entry = if entry.diary_text.trim().is_empty() {
                 entry
             } else {
-                writeln!(
-                    stdout.lock(),
-                    "import local date {} lines {}",
-                    entry.diary_date,
-                    entry.diary_text.match_indices('\n').count()
-                )?;
+                stdout
+                    .write_all(
+                        format!(
+                            "import local date {} lines {}\n",
+                            entry.diary_date,
+                            entry.diary_text.match_indices('\n').count()
+                        )
+                        .as_bytes(),
+                    )
+                    .await?;
                 if existing_map.contains_key(&entry.diary_date) {
                     entry.update_entry(&self.pool).await?.0
                 } else {
