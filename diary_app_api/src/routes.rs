@@ -8,7 +8,7 @@ use std::collections::HashSet;
 
 use super::app::AppState;
 use super::errors::ServiceError as Error;
-use super::logged_user::{LoggedUser, TRIGGER_DB_UPDATE};
+use super::logged_user::LoggedUser;
 use super::requests::{DiaryAppRequests, HandleRequest, ListOptions, SearchOptions};
 
 fn form_http_response(body: String) -> Result<HttpResponse, Error> {
@@ -82,7 +82,6 @@ pub async fn insert(
 
 pub async fn _sync(state: Data<AppState>, is_api: bool) -> Result<HttpResponse, Error> {
     let body = state.db.handle(DiaryAppRequests::Sync).await?;
-    TRIGGER_DB_UPDATE.set();
     if is_api {
         let body = hashmap! {"response" => body.join("\n")};
         to_json(&body)
