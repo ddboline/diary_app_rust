@@ -179,8 +179,7 @@ async fn _list(
     is_api: bool,
 ) -> Result<HttpResponse, Error> {
     let req = DiaryAppRequests::List(query);
-    let state_ = state.clone();
-    let body = state_.db.handle(req).await?;
+    let body = state.db.handle(req).await?;
 
     if is_api {
         let body = hashmap! {"list" => body };
@@ -268,8 +267,7 @@ pub async fn diary_frontpage(_: LoggedUser, state: Data<AppState>) -> Result<Htt
         ..ListOptions::default()
     };
     let req = DiaryAppRequests::List(query);
-    let state_ = state.clone();
-    let body = state_.db.handle(req).await?;
+    let body = state.db.handle(req).await?;
 
     let conflicts: HashSet<_> = state
         .db

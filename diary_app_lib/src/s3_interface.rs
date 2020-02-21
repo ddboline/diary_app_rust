@@ -31,7 +31,11 @@ struct KeyMetaData {
 impl TryFrom<Object> for KeyMetaData {
     type Error = Error;
     fn try_from(obj: Object) -> Result<Self, Error> {
-        let key = obj.key.as_ref().ok_or_else(|| format_err!("No Key"))?;
+        let key = obj
+            .key
+            .as_ref()
+            .ok_or_else(|| format_err!("No Key"))?
+            .clone();
         let date = NaiveDate::parse_from_str(&key, "%Y-%m-%d.txt")?;
         let last_modified = obj
             .last_modified
@@ -40,7 +44,7 @@ impl TryFrom<Object> for KeyMetaData {
             .map_or_else(Utc::now, |d| d.with_timezone(&Utc));
         let size = obj.size.unwrap_or(0);
         Ok(Self {
-            key: key.clone(),
+            key,
             date,
             last_modified,
             size,
