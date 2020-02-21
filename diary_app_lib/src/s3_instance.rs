@@ -4,11 +4,9 @@ use rusoto_s3::{
     Bucket, CopyObjectRequest, CreateBucketRequest, DeleteBucketRequest, DeleteObjectRequest,
     GetObjectRequest, ListObjectsV2Request, Object, PutObjectRequest, S3Client, S3,
 };
-use s4::S4;
 use std::convert::Into;
 use std::fmt;
 use std::io::Read;
-use std::path::Path;
 use sts_profile_auth::get_client_sts;
 use url::Url;
 
@@ -106,24 +104,6 @@ impl S3Instance {
             .map(|x| x.copy_object_result.and_then(|s| s.e_tag))
     }
 
-    pub async fn upload(
-        &self,
-        fname: &str,
-        bucket_name: &str,
-        key_name: &str,
-    ) -> Result<(), Error> {
-        if !Path::new(fname).exists() {
-            return Err(format_err!("File doesn't exist"));
-        }
-        let req = PutObjectRequest {
-            bucket: bucket_name.into(),
-            key: key_name.into(),
-            ..PutObjectRequest::default()
-        };
-        self.s3_client.upload_from_file(fname, req).await?;
-        Ok(())
-    }
-
     pub async fn upload_from_string(
         &self,
         input_str: &str,
@@ -159,29 +139,6 @@ impl S3Instance {
         let mut buf = String::new();
         body.into_blocking_read().read_to_string(&mut buf)?;
         Ok(buf)
-    }
-
-    pub async fn download(
-        &self,
-        bucket_name: &str,
-        key_name: &str,
-        fname: &str,
-    ) -> Result<String, Error> {
-        let req = GetObjectRequest {
-            bucket: bucket_name.into(),
-            key: key_name.into(),
-            ..GetObjectRequest::default()
-        };
-        self.s3_client
-            .download_to_file(req, fname)
-            .await
-            .map_err(Into::into)
-            .and_then(|x| {
-                x.e_tag
-                    .as_ref()
-                    .map(|y| y.trim_matches('"').into())
-                    .ok_or_else(|| format_err!("Failed download"))
-            })
     }
 
     pub async fn get_list_of_keys(
