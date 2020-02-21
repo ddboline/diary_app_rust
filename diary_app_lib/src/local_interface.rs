@@ -93,7 +93,9 @@ impl LocalInterface {
 
                 if date <= previous_date {
                     let filepath = format!("{}/{}", self.config.diary_path, filename);
-                    stdout.write_all(format!("{}\n", filepath).as_bytes()).await?;
+                    stdout
+                        .write_all(format!("{}\n", filepath).as_bytes())
+                        .await?;
                     remove_file(&filepath).await?;
                 } else {
                     let filepath = format!("{}/{}", self.config.diary_path, filename);
