@@ -7,6 +7,7 @@ use std::collections::{HashMap, HashSet};
 use std::fs::OpenOptions;
 use std::io::{stdout, Write};
 use std::path::Path;
+use std::sync::Arc;
 use tokio::task::spawn_blocking;
 use url::Url;
 
@@ -349,10 +350,11 @@ impl DiaryAppInterface {
     }
 
     pub async fn sync_ssh(&self) -> Result<Vec<DiaryCache>, Error> {
-        if self.config.ssh_url.is_none() {
-            return Ok(Vec::new());
-        }
-        let ssh_url = self.config.ssh_url.as_ref().expect("Not possible?");
+        let ssh_url = match &self.config.ssh_url {
+            Some(ssh_url) => Arc::new(ssh_url.clone()),
+            None => return Ok(Vec::new()),
+        };
+
         if ssh_url.scheme() != "ssh" {
             return Ok(Vec::new());
         }
@@ -361,17 +363,17 @@ impl DiaryAppInterface {
             .into_iter()
             .map(|entry| entry.diary_datetime)
             .collect();
-        let ssh_url_ = ssh_url.clone();
-        let entries =
-            spawn_blocking(move || Self::process_ssh(&ssh_url_.clone(), &cache_set)).await??;
+        let entries = {
+            let ssh_url = ssh_url.clone();
+            spawn_blocking(move || Self::process_ssh(&ssh_url, &cache_set)).await?
+        }?;
         let mut inserted_entries = Vec::new();
         for item in entries {
             inserted_entries.push(item.insert_entry(&self.pool).await?);
         }
         if !inserted_entries.is_empty() {
-            let ssh_url_ = ssh_url.clone();
             spawn_blocking(move || {
-                SSHInstance::from_url(&ssh_url_)?.run_command_ssh("/usr/bin/diary-app-rust clear")
+                SSHInstance::from_url(&ssh_url)?.run_command_ssh("/usr/bin/diary-app-rust clear")
             })
             .await??;
         }
