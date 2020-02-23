@@ -22,25 +22,29 @@ pub mod s3_interface;
 pub mod schema;
 pub mod ssh_instance;
 
-use anyhow::{format_err, Error};
-use log::error;
-use retry::{delay::jitter, delay::Exponential, retry};
+use anyhow::Error;
+use rand::distributions::{Distribution, Uniform};
+use rand::thread_rng;
+use std::future::Future;
+use tokio::time::{delay_for, Duration};
 
-pub fn exponential_retry<T, U>(closure: T) -> Result<U, Error>
+pub async fn exponential_retry<T, U, F>(f: T) -> Result<U, Error>
 where
-    T: Fn() -> Result<U, Error>,
+    T: Fn() -> F,
+    F: Future<Output = Result<U, Error>>,
 {
-    retry(
-        Exponential::from_millis(2)
-            .map(jitter)
-            .map(|x| x * 500)
-            .take(6),
-        || {
-            closure().map_err(|e| {
-                error!("Got error {:?} , retrying", e);
-                e
-            })
-        },
-    )
-    .map_err(|e| format_err!("{:?}", e))
+    let mut timeout: f64 = 1.0;
+    let range = Uniform::from(0..1000);
+    loop {
+        match f().await {
+            Ok(resp) => return Ok(resp),
+            Err(err) => {
+                delay_for(Duration::from_millis((timeout * 1000.0) as u64)).await;
+                timeout *= 4.0 * f64::from(range.sample(&mut thread_rng())) / 1000.0;
+                if timeout >= 64.0 {
+                    return Err(err);
+                }
+            }
+        }
+    }
 }

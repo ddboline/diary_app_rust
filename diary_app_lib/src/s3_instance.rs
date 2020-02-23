@@ -1,14 +1,14 @@
 use anyhow::{format_err, Error};
+use futures::stream::{StreamExt, TryStreamExt};
 use rusoto_core::Region;
-use rusoto_s3::{
-    Bucket, CopyObjectRequest, CreateBucketRequest, DeleteBucketRequest, DeleteObjectRequest,
-    GetObjectRequest, ListObjectsV2Request, Object, PutObjectRequest, S3Client, S3,
-};
+use rusoto_s3::{Bucket, GetObjectRequest, Object, PutObjectRequest, S3Client, S3};
+use s3_ext::S3Ext;
 use std::convert::Into;
 use std::fmt;
-use std::io::Read;
 use sts_profile_auth::get_client_sts;
-use url::Url;
+use tokio::io::AsyncReadExt;
+
+use crate::exponential_retry;
 
 #[derive(Clone)]
 pub struct S3Instance {
@@ -46,62 +46,14 @@ impl S3Instance {
     }
 
     pub async fn get_list_of_buckets(&self) -> Result<Vec<Bucket>, Error> {
-        self.s3_client
-            .list_buckets()
-            .await
-            .map(|l| l.buckets.unwrap_or_default())
-            .map_err(Into::into)
-    }
-
-    pub async fn create_bucket(&self, bucket_name: &str) -> Result<String, Error> {
-        let req = CreateBucketRequest {
-            bucket: bucket_name.into(),
-            ..CreateBucketRequest::default()
-        };
-        self.s3_client
-            .create_bucket(req)
-            .await?
-            .location
-            .ok_or_else(|| format_err!("Failed to create bucket"))
-    }
-
-    pub async fn delete_bucket(&self, bucket_name: &str) -> Result<(), Error> {
-        let req = DeleteBucketRequest {
-            bucket: bucket_name.into(),
-        };
-        self.s3_client.delete_bucket(req).await.map_err(Into::into)
-    }
-
-    pub async fn delete_key(&self, bucket_name: &str, key_name: &str) -> Result<(), Error> {
-        let req = DeleteObjectRequest {
-            bucket: bucket_name.into(),
-            key: key_name.into(),
-            ..DeleteObjectRequest::default()
-        };
-        self.s3_client
-            .delete_object(req)
-            .await
-            .map(|_| ())
-            .map_err(Into::into)
-    }
-
-    pub async fn copy_key(
-        &self,
-        source: &Url,
-        bucket_to: &str,
-        key_to: &str,
-    ) -> Result<Option<String>, Error> {
-        let req = CopyObjectRequest {
-            copy_source: source.to_string(),
-            bucket: bucket_to.into(),
-            key: key_to.into(),
-            ..CopyObjectRequest::default()
-        };
-        self.s3_client
-            .copy_object(req)
-            .await
-            .map_err(Into::into)
-            .map(|x| x.copy_object_result.and_then(|s| s.e_tag))
+        exponential_retry(|| async move {
+            self.s3_client
+                .list_buckets()
+                .await
+                .map(|l| l.buckets.unwrap_or_default())
+                .map_err(Into::into)
+        })
+        .await
     }
 
     pub async fn upload_from_string(
@@ -110,17 +62,22 @@ impl S3Instance {
         bucket_name: &str,
         key_name: &str,
     ) -> Result<(), Error> {
-        let target = PutObjectRequest {
-            bucket: bucket_name.into(),
-            key: key_name.into(),
-            body: Some(input_str.to_string().into_bytes().into()),
-            ..PutObjectRequest::default()
-        };
-        self.s3_client
-            .put_object(target)
-            .await
-            .map(|_| ())
-            .map_err(Into::into)
+        exponential_retry(|| {
+            let target = PutObjectRequest {
+                bucket: bucket_name.into(),
+                key: key_name.into(),
+                body: Some(input_str.to_string().into_bytes().into()),
+                ..PutObjectRequest::default()
+            };
+            async move {
+                self.s3_client
+                    .put_object(target)
+                    .await
+                    .map(|_| ())
+                    .map_err(Into::into)
+            }
+        })
+        .await
     }
 
     pub async fn download_to_string(
@@ -128,17 +85,22 @@ impl S3Instance {
         bucket_name: &str,
         key_name: &str,
     ) -> Result<String, Error> {
-        let source = GetObjectRequest {
-            bucket: bucket_name.into(),
-            key: key_name.into(),
-            ..GetObjectRequest::default()
-        };
-        let mut resp = self.s3_client.get_object(source).await?;
-        let body = resp.body.take().ok_or_else(|| format_err!("no body"))?;
+        exponential_retry(|| {
+            let source = GetObjectRequest {
+                bucket: bucket_name.into(),
+                key: key_name.into(),
+                ..GetObjectRequest::default()
+            };
+            async move {
+                let mut resp = self.s3_client.get_object(source).await?;
+                let body = resp.body.take().ok_or_else(|| format_err!("no body"))?;
 
-        let mut buf = String::new();
-        body.into_blocking_read().read_to_string(&mut buf)?;
-        Ok(buf)
+                let mut buf = String::new();
+                body.into_async_read().read_to_string(&mut buf).await?;
+                Ok(buf)
+            }
+        })
+        .await
     }
 
     pub async fn get_list_of_keys(
@@ -146,80 +108,19 @@ impl S3Instance {
         bucket: &str,
         prefix: Option<&str>,
     ) -> Result<Vec<Object>, Error> {
-        let mut continuation_token = None;
-
-        let mut list_of_keys = Vec::new();
-
-        loop {
-            let req = ListObjectsV2Request {
-                bucket: bucket.into(),
-                continuation_token: continuation_token.clone(),
-                prefix: prefix.map(Into::into),
-                ..ListObjectsV2Request::default()
-            };
-            let current_list = self.s3_client.list_objects_v2(req).await?;
-            match current_list.key_count {
-                Some(0) | None => (),
-                Some(_) => {
-                    if let Some(l) = &current_list.contents {
-                        list_of_keys.extend_from_slice(l);
-                    }
-                }
-            };
-            if let Some(token) = current_list.next_continuation_token {
-                continuation_token.replace(token);
-            } else {
-                break;
+        exponential_retry(|| async move {
+            let stream = match prefix {
+                Some(p) => self.s3_client.iter_objects_with_prefix(bucket, p),
+                None => self.s3_client.iter_objects(bucket),
             }
-            if let Some(max_keys) = self.max_keys {
-                if list_of_keys.len() > max_keys {
-                    list_of_keys.resize(max_keys, Object::default());
-                    break;
-                }
-            }
-        }
-
-        Ok(list_of_keys)
-    }
-
-    pub async fn process_list_of_keys<T>(
-        &self,
-        bucket: &str,
-        prefix: Option<&str>,
-        callback: T,
-    ) -> Result<(), Error>
-    where
-        T: Fn(&Object) -> () + Send + Sync,
-    {
-        let mut continuation_token = None;
-
-        loop {
-            let req = ListObjectsV2Request {
-                bucket: bucket.into(),
-                continuation_token: continuation_token.clone(),
-                prefix: prefix.map(Into::into),
-                ..ListObjectsV2Request::default()
+            .into_stream();
+            let results: Result<Vec<_>, _> = match self.max_keys {
+                Some(nkeys) => stream.take(nkeys).try_collect().await,
+                None => stream.try_collect().await,
             };
-            let current_list = self.s3_client.list_objects_v2(req).await?;
-
-            continuation_token = current_list.next_continuation_token.clone();
-
-            match current_list.key_count {
-                Some(0) | None => (),
-                Some(_) => {
-                    for item in current_list.contents.unwrap_or_else(Vec::new) {
-                        callback(&item);
-                    }
-                }
-            };
-
-            match &continuation_token {
-                Some(_) => (),
-                None => break,
-            };
-        }
-
-        Ok(())
+            results.map_err(Into::into)
+        })
+        .await
     }
 }
 
