@@ -1,10 +1,12 @@
 use anyhow::Error;
 use chrono::{DateTime, Datelike, Duration, Local, NaiveDate, TimeZone, Utc};
+use futures::future::try_join_all;
 use jwalk::WalkDir;
 use log::debug;
 use std::collections::BTreeMap;
 use std::fs::metadata;
 use std::path::Path;
+use std::sync::Arc;
 use std::time::SystemTime;
 use tokio::fs::{read_to_string, remove_file, File};
 use tokio::io::{stdout, AsyncWriteExt};
@@ -37,6 +39,7 @@ impl LocalInterface {
                 }
                 acc
             });
+        let year_mod_map = Arc::new(year_mod_map);
         let mut date_list: Vec<_> = mod_map.into_iter().map(|(k, _)| k).collect();
         date_list.sort();
         let year_map: BTreeMap<i32, Vec<_>> =
@@ -45,33 +48,39 @@ impl LocalInterface {
                 acc.entry(year).or_insert_with(Vec::new).push(d);
                 acc
             });
-        let mut output = Vec::new();
-        for (year, date_list) in year_map {
-            let fname = format!("{}/diary_{}.txt", &self.config.diary_path, year);
 
-            let filepath = Path::new(&fname);
-            if filepath.exists() {
-                if let Ok(metadata) = filepath.metadata() {
-                    if let Ok(modified) = metadata.modified() {
-                        let modified: DateTime<Utc> = modified.into();
-                        if let Some(maxmod) = year_mod_map.get(&year) {
-                            if modified >= *maxmod {
-                                output.push(format!("{} 0", year));
-                                continue;
+        let futures: Vec<_> = year_map
+            .into_iter()
+            .map(|(year, date_list)| {
+                let year_mod_map = year_mod_map.clone();
+                async move {
+                    let filepath =
+                        Path::new(&self.config.diary_path).join(format!("diary_{}.txt", year));
+                    if filepath.exists() {
+                        if let Ok(metadata) = filepath.metadata() {
+                            if let Ok(modified) = metadata.modified() {
+                                let modified: DateTime<Utc> = modified.into();
+                                if let Some(maxmod) = year_mod_map.get(&year) {
+                                    if modified >= *maxmod {
+                                        return Ok(format!("{} 0", year));
+                                    }
+                                }
                             }
                         }
                     }
-                }
-            }
 
-            let mut f = File::create(fname).await?;
-            for date in &date_list {
-                let entry = DiaryEntries::get_by_date(*date, &self.pool).await?;
-                f.write_all(format!("{}\n", entry.diary_text).as_bytes())
-                    .await?;
-            }
-            output.push(format!("{} {}", year, date_list.len()));
-        }
+                    let mut f = File::create(filepath).await?;
+                    for date in &date_list {
+                        let entry = DiaryEntries::get_by_date(*date, &self.pool).await?;
+                        f.write_all(format!("{}\n", entry.diary_text).as_bytes())
+                            .await?;
+                    }
+                    Ok(format!("{} {}", year, date_list.len()))
+                }
+            })
+            .collect();
+        let results: Result<Vec<_>, Error> = try_join_all(futures).await;
+        let output = results?;
         debug!("{}", output.join("\n"));
         Ok(output)
     }
