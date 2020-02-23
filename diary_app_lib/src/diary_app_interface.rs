@@ -1,6 +1,6 @@
 use anyhow::Error;
 use chrono::{DateTime, Datelike, Local, NaiveDate, Utc};
-use futures::future::join_all;
+use futures::future::try_join_all;
 use log::debug;
 use regex::Regex;
 use std::collections::{HashMap, HashSet};
@@ -311,11 +311,7 @@ impl DiaryAppInterface {
                 .map(|entry| entry.delete_entry(&self.pool))
                 .collect();
 
-            let res: Result<Vec<_>, Error> = join_all(res)
-                .await
-                .into_iter()
-                .map(|x| x.map(|_| ()))
-                .collect();
+            let res: Result<Vec<_>, Error> = try_join_all(res).await;
             res?;
 
             if let Some(entry) = result {
