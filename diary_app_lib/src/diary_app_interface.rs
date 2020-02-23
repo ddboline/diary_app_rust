@@ -8,7 +8,7 @@ use std::fs::OpenOptions;
 use std::io::{stdout, Write};
 use std::path::Path;
 use std::sync::Arc;
-use tokio::task::spawn_blocking;
+use tokio::task::{spawn, spawn_blocking};
 use url::Url;
 
 use crate::config::Config;
@@ -227,14 +227,22 @@ impl DiaryAppInterface {
             .collect();
         output.extend_from_slice(&entries);
 
-        let local = self.local.import_from_local().await?;
-        let s3 = self.s3.import_from_s3().await?;
+        let local = spawn({
+            let local = self.local.clone();
+            async move { local.import_from_local().await }
+        });
+        let s3 = spawn({
+            let s3 = self.s3.clone();
+            async move { s3.import_from_s3().await }
+        });
         let entries: Vec<_> = local
+            .await??
             .into_iter()
             .map(|c| format!("local import {}", c.diary_date))
             .collect();
         output.extend_from_slice(&entries);
         let entries: Vec<_> = s3
+            .await??
             .into_iter()
             .map(|c| format!("s3 import {}", c.diary_date))
             .collect();
