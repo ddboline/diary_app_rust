@@ -105,7 +105,7 @@ impl S3Interface {
             key_cache.1 = Arc::new(Vec::new());
         }
 
-        let futures: Vec<_> = DiaryEntries::get_modified_map(&self.pool)
+        let futures = DiaryEntries::get_modified_map(&self.pool)
             .await?
             .into_iter()
             .map(|(diary_date, last_modified)| {
@@ -158,8 +158,7 @@ impl S3Interface {
                     }
                     Ok(None)
                 }
-            })
-            .collect();
+            });
         let results: Result<Vec<_>, Error> = try_join_all(futures).await;
         let results: Vec<_> = results?.into_iter().filter_map(|x| x).collect();
 
@@ -174,7 +173,7 @@ impl S3Interface {
 
         let key_cache = KEY_CACHE.read().await.1.clone();
 
-        let futures: Vec<_> = key_cache
+        let futures = key_cache
             .iter()
             .map(|obj| {
                 let existing_map = existing_map.clone();
@@ -231,8 +230,7 @@ impl S3Interface {
                     }
                     Ok(None)
                 }
-            })
-            .collect();
+            });
         let results: Result<Vec<_>, Error> = try_join_all(futures).await;
         let entries: Vec<_> = results?.into_iter().filter_map(|x| x).collect();
 

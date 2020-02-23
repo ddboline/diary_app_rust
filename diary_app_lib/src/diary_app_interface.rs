@@ -322,10 +322,9 @@ impl DiaryAppInterface {
                 Some(new_entry)
             };
 
-            let res: Vec<_> = entry_list
+            let res = entry_list
                 .into_iter()
-                .map(|entry| entry.delete_entry(&self.pool))
-                .collect();
+                .map(|entry| entry.delete_entry(&self.pool));
 
             let res: Result<Vec<_>, Error> = try_join_all(res).await;
             res?;

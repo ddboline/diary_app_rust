@@ -49,36 +49,33 @@ impl LocalInterface {
                 acc
             });
 
-        let futures: Vec<_> = year_map
-            .into_iter()
-            .map(|(year, date_list)| {
-                let year_mod_map = year_mod_map.clone();
-                async move {
-                    let filepath =
-                        Path::new(&self.config.diary_path).join(format!("diary_{}.txt", year));
-                    if filepath.exists() {
-                        if let Ok(metadata) = filepath.metadata() {
-                            if let Ok(modified) = metadata.modified() {
-                                let modified: DateTime<Utc> = modified.into();
-                                if let Some(maxmod) = year_mod_map.get(&year) {
-                                    if modified >= *maxmod {
-                                        return Ok(format!("{} 0", year));
-                                    }
+        let futures = year_map.into_iter().map(|(year, date_list)| {
+            let year_mod_map = year_mod_map.clone();
+            async move {
+                let filepath =
+                    Path::new(&self.config.diary_path).join(format!("diary_{}.txt", year));
+                if filepath.exists() {
+                    if let Ok(metadata) = filepath.metadata() {
+                        if let Ok(modified) = metadata.modified() {
+                            let modified: DateTime<Utc> = modified.into();
+                            if let Some(maxmod) = year_mod_map.get(&year) {
+                                if modified >= *maxmod {
+                                    return Ok(format!("{} 0", year));
                                 }
                             }
                         }
                     }
-
-                    let mut f = File::create(filepath).await?;
-                    for date in &date_list {
-                        let entry = DiaryEntries::get_by_date(*date, &self.pool).await?;
-                        f.write_all(format!("{}\n", entry.diary_text).as_bytes())
-                            .await?;
-                    }
-                    Ok(format!("{} {}", year, date_list.len()))
                 }
-            })
-            .collect();
+
+                let mut f = File::create(filepath).await?;
+                for date in &date_list {
+                    let entry = DiaryEntries::get_by_date(*date, &self.pool).await?;
+                    f.write_all(format!("{}\n", entry.diary_text).as_bytes())
+                        .await?;
+                }
+                Ok(format!("{} {}", year, date_list.len()))
+            }
+        });
         let results: Result<Vec<_>, Error> = try_join_all(futures).await;
         let output = results?;
         debug!("{}", output.join("\n"));
@@ -88,7 +85,7 @@ impl LocalInterface {
     pub async fn cleanup_local(&self) -> Result<Vec<DiaryEntries>, Error> {
         let existing_map = DiaryEntries::get_modified_map(&self.pool).await?;
 
-        let futures: Vec<_> = WalkDir::new(&self.config.diary_path)
+        let futures = WalkDir::new(&self.config.diary_path)
             .sort(true)
             .preload_metadata(true)
             .into_iter()
@@ -117,8 +114,7 @@ impl LocalInterface {
                     }
                 }
                 Ok(None)
-            })
-            .collect();
+            });
         let results: Result<Vec<_>, Error> = try_join_all(futures).await;
         let dates: BTreeMap<_, _> = results?.into_iter().filter_map(|x| x).collect();
 
