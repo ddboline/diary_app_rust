@@ -1,4 +1,5 @@
 use anyhow::{format_err, Error};
+use async_trait::async_trait;
 use chrono::{DateTime, NaiveDate, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
@@ -35,66 +36,71 @@ pub enum DiaryAppRequests {
     CommitConflict(DateTime<Utc>),
 }
 
+#[async_trait]
 pub trait HandleRequest {
-    fn handle(&self, req: DiaryAppRequests) -> Result<Vec<String>, Error>;
+    async fn handle(&self, req: DiaryAppRequests) -> Result<Vec<String>, Error>;
 }
 
+#[async_trait]
 impl HandleRequest for DiaryAppActor {
-    fn handle(&self, req: DiaryAppRequests) -> Result<Vec<String>, Error> {
+    async fn handle(&self, req: DiaryAppRequests) -> Result<Vec<String>, Error> {
         match req {
             DiaryAppRequests::Search(opts) => {
                 let body = if let Some(text) = opts.text {
-                    let results: Vec<_> = self.search_text(&text)?;
+                    let results: Vec<_> = self.search_text(&text).await?;
                     results
                 } else if let Some(date) = opts.date {
-                    let entry = DiaryEntries::get_by_date(date, &self.pool)?;
-                    vec![entry.diary_text.into()]
+                    let entry = DiaryEntries::get_by_date(date, &self.pool).await?;
+                    vec![entry.diary_text]
                 } else {
                     vec!["".to_string()]
                 };
                 Ok(body)
             }
             DiaryAppRequests::Insert(text) => {
-                let cache = self.cache_text(text.into())?;
+                let cache = self.cache_text(&text).await?;
                 Ok(vec![format!("{}", cache.diary_datetime)])
             }
             DiaryAppRequests::Sync => {
-                let output = self.sync_everything()?;
+                let output = self.sync_everything().await?;
                 Ok(output)
             }
             DiaryAppRequests::Replace { date, text } => {
-                let (entry, _) = self.replace_text(date, text.into())?;
+                let (entry, _) = self.replace_text(date, &text).await?;
                 let body = format!("{}\n{}", entry.diary_date, entry.diary_text);
                 Ok(vec![body])
             }
             DiaryAppRequests::List(opts) => {
                 let dates: Vec<_> = self
-                    .get_list_of_dates(opts.min_date, opts.max_date, opts.start, opts.limit)?
+                    .get_list_of_dates(opts.min_date, opts.max_date, opts.start, opts.limit)
+                    .await?
                     .into_iter()
                     .map(|x| x.to_string())
                     .collect();
                 Ok(dates)
             }
             DiaryAppRequests::Display(date) => {
-                let entry = DiaryEntries::get_by_date(date, &self.pool)?;
-                Ok(vec![entry.diary_text.into()])
+                let entry = DiaryEntries::get_by_date(date, &self.pool).await?;
+                Ok(vec![entry.diary_text])
             }
             DiaryAppRequests::ListConflicts(None) => {
-                let conflicts: BTreeSet<_> = DiaryConflict::get_all_dates(&self.pool)?
+                let conflicts: BTreeSet<_> = DiaryConflict::get_all_dates(&self.pool)
+                    .await?
                     .into_iter()
                     .map(|x| x.to_string())
                     .collect();
                 Ok(conflicts.into_iter().collect())
             }
             DiaryAppRequests::ListConflicts(Some(date)) => {
-                let conflicts: BTreeSet<_> = DiaryConflict::get_by_date(date, &self.pool)?
+                let conflicts: BTreeSet<_> = DiaryConflict::get_by_date(date, &self.pool)
+                    .await?
                     .into_iter()
                     .map(|entry| entry.format("%Y-%m-%dT%H:%M:%S%.fZ").to_string())
                     .collect();
                 Ok(conflicts.into_iter().collect())
             }
             DiaryAppRequests::ShowConflict(datetime) => {
-                let conflicts = DiaryConflict::get_by_datetime(datetime, &self.pool)?;
+                let conflicts = DiaryConflict::get_by_datetime(datetime, &self.pool).await?;
                 let diary_dates: BTreeSet<NaiveDate> =
                     conflicts.iter().map(|entry| entry.diary_date).collect();
                 if diary_dates.len() > 1 {
@@ -141,7 +147,7 @@ impl HandleRequest for DiaryAppActor {
                 Ok(conflicts)
             }
             DiaryAppRequests::RemoveConflict(datetime) => {
-                DiaryConflict::remove_by_datetime(datetime, &self.pool)?;
+                DiaryConflict::remove_by_datetime(datetime, &self.pool).await?;
                 Ok(vec![format!("remove {}", datetime)])
             }
             DiaryAppRequests::UpdateConflict { id, diff_text } => {
@@ -150,11 +156,11 @@ impl HandleRequest for DiaryAppActor {
                     "add" => "add",
                     _ => return Err(format_err!("Bad diff type {}", diff_text)),
                 };
-                DiaryConflict::update_by_id(id, new_diff_type, &self.pool)?;
+                DiaryConflict::update_by_id(id, new_diff_type, &self.pool).await?;
                 Ok(Vec::new())
             }
             DiaryAppRequests::CommitConflict(datetime) => {
-                let conflicts = DiaryConflict::get_by_datetime(datetime, &self.pool)?;
+                let conflicts = DiaryConflict::get_by_datetime(datetime, &self.pool).await?;
                 let diary_dates: BTreeSet<NaiveDate> =
                     conflicts.iter().map(|entry| entry.diary_date).collect();
                 if diary_dates.len() > 1 {
@@ -171,14 +177,14 @@ impl HandleRequest for DiaryAppActor {
                     .into_iter()
                     .filter_map(|entry| {
                         if entry.diff_type == "add" || entry.diff_type == "same" {
-                            Some(entry.diff_text.into())
+                            Some(entry.diff_text)
                         } else {
                             None
                         }
                     })
                     .collect();
                 let additions = additions.join("\n");
-                let (entry, _) = self.replace_text(date, additions.into())?;
+                let (entry, _) = self.replace_text(date, &additions).await?;
                 let body = format!("{}\n{}", entry.diary_date, entry.diary_text);
                 Ok(vec![body])
             }

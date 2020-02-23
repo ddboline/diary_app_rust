@@ -1,14 +1,15 @@
 use anyhow::Error;
 use chrono::{DateTime, Datelike, Local, NaiveDate, Utc};
-use crossbeam_utils::thread;
+use futures::future::try_join_all;
 use log::debug;
-use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use regex::Regex;
-use std::borrow::Cow;
 use std::collections::{HashMap, HashSet};
 use std::fs::OpenOptions;
 use std::io::{stdout, Write};
 use std::path::Path;
+use std::sync::Arc;
+use tokio::task::{spawn, spawn_blocking};
+use url::Url;
 
 use crate::config::Config;
 use crate::local_interface::LocalInterface;
@@ -35,33 +36,32 @@ impl DiaryAppInterface {
         }
     }
 
-    pub fn cache_text<'a>(&self, diary_text: Cow<'a, str>) -> Result<DiaryCache<'a>, Error> {
+    pub async fn cache_text(&self, diary_text: &str) -> Result<DiaryCache, Error> {
         let dc = DiaryCache {
             diary_datetime: Utc::now(),
-            diary_text,
+            diary_text: diary_text.into(),
         };
-        dc.insert_entry(&self.pool)?;
-        Ok(dc)
+        dc.insert_entry(&self.pool).await
     }
 
-    pub fn replace_text<'a>(
+    pub async fn replace_text(
         &self,
         diary_date: NaiveDate,
-        diary_text: Cow<'a, str>,
-    ) -> Result<(DiaryEntries<'a>, Option<DateTime<Utc>>), Error> {
+        diary_text: &str,
+    ) -> Result<(DiaryEntries, Option<DateTime<Utc>>), Error> {
         let de = DiaryEntries::new(diary_date, diary_text);
-        let conflict_opt = de.upsert_entry(&self.pool)?;
-        Ok((de, conflict_opt))
+        de.upsert_entry(&self.pool).await
     }
 
-    pub fn get_list_of_dates(
+    pub async fn get_list_of_dates(
         &self,
         min_date: Option<NaiveDate>,
         max_date: Option<NaiveDate>,
         start: Option<usize>,
         limit: Option<usize>,
     ) -> Result<Vec<NaiveDate>, Error> {
-        let mut dates: Vec<_> = DiaryEntries::get_modified_map(&self.pool)?
+        let mut dates: Vec<_> = DiaryEntries::get_modified_map(&self.pool)
+            .await?
             .into_iter()
             .filter_map(|(d, _)| {
                 if let Some(min_date) = min_date {
@@ -91,14 +91,14 @@ impl DiaryAppInterface {
     }
 
     fn get_matching_dates(
-        &self,
+        mod_map: &HashMap<NaiveDate, DateTime<Utc>>,
         year: Option<&str>,
         month: Option<&str>,
         day: Option<&str>,
     ) -> Result<Vec<NaiveDate>, Error> {
-        let matching_dates: Vec<_> = DiaryEntries::get_modified_map(&self.pool)?
-            .into_iter()
-            .map(|(d, _)| d)
+        let matching_dates: Vec<_> = mod_map
+            .iter()
+            .map(|(d, _)| *d)
             .filter(|date| {
                 if let Some(y) = year {
                     let result = if let Some(m) = month {
@@ -120,7 +120,10 @@ impl DiaryAppInterface {
         Ok(matching_dates)
     }
 
-    pub fn search_text(&self, search_text: &str) -> Result<Vec<String>, Error> {
+    fn get_dates_from_search_text(
+        mod_map: &HashMap<NaiveDate, DateTime<Utc>>,
+        search_text: &str,
+    ) -> Result<Vec<NaiveDate>, Error> {
         let year_month_day_regex = Regex::new(r"(?P<year>\d{4})-(?P<month>\d{2})-(?P<day>\d{2})")?;
         let year_month_regex = Regex::new(r"(?P<year>\d{4})-(?P<month>\d{2})")?;
         let year_regex = Regex::new(r"(?P<year>\d{4})")?;
@@ -134,30 +137,39 @@ impl DiaryAppInterface {
                 let year = cap.name("year").map(|x| x.as_str());
                 let month = cap.name("month").map(|x| x.as_str());
                 let day = cap.name("day").map(|x| x.as_str());
-                dates.extend_from_slice(&self.get_matching_dates(year, month, day)?);
+                dates.extend_from_slice(&Self::get_matching_dates(&mod_map, year, month, day)?);
             }
         } else if year_month_regex.is_match(search_text) {
             for cap in year_month_regex.captures_iter(search_text) {
                 let year = cap.name("year").map(|x| x.as_str());
                 let month = cap.name("month").map(|x| x.as_str());
-                dates.extend_from_slice(&self.get_matching_dates(year, month, None)?);
+                dates.extend_from_slice(&Self::get_matching_dates(&mod_map, year, month, None)?);
             }
         } else if year_regex.is_match(search_text) {
             for cap in year_regex.captures_iter(search_text) {
                 let year = cap.name("year").map(|x| x.as_str());
-                dates.extend_from_slice(&self.get_matching_dates(year, None, None)?);
+                dates.extend_from_slice(&Self::get_matching_dates(&mod_map, year, None, None)?);
             }
         }
+        Ok(dates)
+    }
+
+    pub async fn search_text(&self, search_text: &str) -> Result<Vec<String>, Error> {
+        let mod_map = DiaryEntries::get_modified_map(&self.pool).await?;
+
+        let mut dates = Self::get_dates_from_search_text(&mod_map, search_text)?;
 
         dates.sort();
         debug!("search dates {}", dates.len());
 
         if dates.is_empty() {
-            let mut diary_entries: Vec<_> = DiaryEntries::get_by_text(search_text, &self.pool)?
+            let mut diary_entries: Vec<_> = DiaryEntries::get_by_text(search_text, &self.pool)
+                .await?
                 .into_iter()
                 .map(|entry| format!("{}\n{}", entry.diary_date, entry.diary_text))
                 .collect();
-            let diary_cache_entries: Vec<_> = DiaryCache::get_by_text(search_text, &self.pool)?
+            let diary_cache_entries: Vec<_> = DiaryCache::get_by_text(search_text, &self.pool)
+                .await?
                 .into_iter()
                 .map(|entry| {
                     format!(
@@ -173,10 +185,11 @@ impl DiaryAppInterface {
             let mut diary_entries = Vec::new();
             for date in dates {
                 debug!("search date {}", date);
-                let entry = DiaryEntries::get_by_date(date, &self.pool)?;
+                let entry = DiaryEntries::get_by_date(date, &self.pool).await?;
                 let entry = format!("{}\n{}", entry.diary_date, entry.diary_text);
                 diary_entries.push(entry);
-                let diary_cache_entries: Vec<_> = DiaryCache::get_cache_entries(&self.pool)?
+                let diary_cache_entries: Vec<_> = DiaryCache::get_cache_entries(&self.pool)
+                    .await?
                     .into_iter()
                     .filter_map(|entry| {
                         if entry
@@ -198,67 +211,77 @@ impl DiaryAppInterface {
         }
     }
 
-    pub fn sync_everything(&self) -> Result<Vec<String>, Error> {
+    pub async fn sync_everything(&self) -> Result<Vec<String>, Error> {
         let mut output: Vec<_> = self
-            .sync_ssh()?
+            .sync_ssh()
+            .await?
             .into_iter()
             .map(|c| format!("ssh cache {}", c.diary_datetime))
             .collect();
 
         let entries: Vec<_> = self
-            .sync_merge_cache_to_entries()?
+            .sync_merge_cache_to_entries()
+            .await?
             .into_iter()
             .map(|c| format!("update {}", c.diary_date))
             .collect();
         output.extend_from_slice(&entries);
 
-        thread::scope(|s| {
-            let local = s.spawn(move |_| self.local.import_from_local());
-            let s3 = s.spawn(move |_| self.s3.import_from_s3());
-            let entries: Vec<_> = local
-                .join()
-                .expect("import_from_local paniced")?
-                .into_iter()
-                .map(|c| format!("local import {}", c.diary_date))
-                .collect();
-            output.extend_from_slice(&entries);
-            let entries: Vec<_> = s3
-                .join()
-                .expect("import_from_s3 paniced")?
-                .into_iter()
-                .map(|c| format!("s3 import {}", c.diary_date))
-                .collect();
-            output.extend_from_slice(&entries);
+        let local = spawn({
+            let local = self.local.clone();
+            async move { local.import_from_local().await }
+        });
+        let s3 = spawn({
+            let s3 = self.s3.clone();
+            async move { s3.import_from_s3().await }
+        });
+        let entries: Vec<_> = local
+            .await??
+            .into_iter()
+            .map(|c| format!("local import {}", c.diary_date))
+            .collect();
+        output.extend_from_slice(&entries);
+        let entries: Vec<_> = s3
+            .await??
+            .into_iter()
+            .map(|c| format!("s3 import {}", c.diary_date))
+            .collect();
+        output.extend_from_slice(&entries);
 
-            let entries: Vec<_> = self
-                .local
-                .cleanup_local()?
-                .into_iter()
-                .map(|c| format!("local cleanup {}", c.diary_date))
-                .collect();
-            output.extend_from_slice(&entries);
+        let entries: Vec<_> = self
+            .local
+            .cleanup_local()
+            .await?
+            .into_iter()
+            .map(|c| format!("local cleanup {}", c.diary_date))
+            .collect();
+        output.extend_from_slice(&entries);
 
-            let s3 = s.spawn(move |_| self.s3.export_to_s3());
-            let local = s.spawn(move |_| self.local.export_year_to_local());
-            let entries: Vec<_> = local.join().expect("import_from_local paniced")?;
-            output.extend_from_slice(&entries);
-            let entries: Vec<_> = s3
-                .join()
-                .expect("import_from_s3 paniced")?
-                .into_iter()
-                .map(|c| format!("s3 export {}", c.diary_date))
-                .collect();
-            output.extend_from_slice(&entries);
+        let s3 = spawn({
+            let s3 = self.s3.clone();
+            async move { s3.export_to_s3().await }
+        });
+        let local = spawn({
+            let local = self.local.clone();
+            async move { local.export_year_to_local().await }
+        });
+        let entries = local.await??;
+        output.extend_from_slice(&entries);
+        let entries: Vec<_> = s3
+            .await??
+            .into_iter()
+            .map(|c| format!("s3 export {}", c.diary_date))
+            .collect();
+        output.extend_from_slice(&entries);
 
-            Ok(output)
-        })
-        .expect("scoped thread panic")
+        Ok(output)
     }
 
-    pub fn sync_merge_cache_to_entries(&self) -> Result<Vec<DiaryEntries>, Error> {
-        let date_entry_map = DiaryCache::get_cache_entries(&self.pool)?.into_iter().fold(
-            HashMap::new(),
-            |mut acc, entry| {
+    pub async fn sync_merge_cache_to_entries(&self) -> Result<Vec<DiaryEntries>, Error> {
+        let date_entry_map = DiaryCache::get_cache_entries(&self.pool)
+            .await?
+            .into_iter()
+            .fold(HashMap::new(), |mut acc, entry| {
                 let entry_date = entry
                     .diary_datetime
                     .with_timezone(&Local)
@@ -266,91 +289,105 @@ impl DiaryAppInterface {
                     .date();
                 acc.entry(entry_date).or_insert_with(Vec::new).push(entry);
                 acc
-            },
-        );
+            });
 
-        date_entry_map
-            .into_par_iter()
-            .map(|(entry_date, entry_list)| {
-                let entry_string: Vec<_> = entry_list
-                    .iter()
-                    .map(|entry| {
-                        let entry_datetime = entry.diary_datetime.with_timezone(&Local);
-                        format!("{}\n{}", entry_datetime, entry.diary_text)
-                    })
-                    .collect();
-                let entry_string = entry_string.join("\n\n");
+        let mut entries = Vec::new();
+        for (entry_date, entry_list) in date_entry_map {
+            let entry_string: Vec<_> = entry_list
+                .iter()
+                .map(|entry| {
+                    let entry_datetime = entry.diary_datetime.with_timezone(&Local);
+                    format!("{}\n{}", entry_datetime, entry.diary_text)
+                })
+                .collect();
+            let entry_string = entry_string.join("\n\n");
 
-                let diary_file = format!("{}/{}.txt", self.config.diary_path, entry_date);
-                let result = if Path::new(&diary_file).exists() {
-                    let mut f = OpenOptions::new().append(true).open(&diary_file)?;
-                    writeln!(f, "\n\n{}\n\n", entry_string)?;
-                    None
-                } else if let Ok(mut current_entry) =
-                    DiaryEntries::get_by_date(entry_date, &self.pool)
-                {
-                    current_entry.diary_text =
-                        format!("{}\n\n{}", &current_entry.diary_text, entry_string).into();
-                    writeln!(stdout(), "update {}", diary_file)?;
-                    current_entry.update_entry(&self.pool)?;
-                    Some(current_entry)
-                } else {
-                    let new_entry = DiaryEntries::new(entry_date, entry_string.into());
-                    writeln!(stdout(), "upsert {}", diary_file)?;
-                    new_entry.upsert_entry(&self.pool)?;
-                    Some(new_entry)
-                };
+            let diary_file = format!("{}/{}.txt", self.config.diary_path, entry_date);
+            let result = if Path::new(&diary_file).exists() {
+                let mut f = OpenOptions::new().append(true).open(&diary_file)?;
+                writeln!(f, "\n\n{}\n\n", entry_string)?;
+                continue;
+            } else if let Ok(mut current_entry) =
+                DiaryEntries::get_by_date(entry_date, &self.pool).await
+            {
+                current_entry.diary_text =
+                    format!("{}\n\n{}", &current_entry.diary_text, entry_string);
+                writeln!(stdout(), "update {}", diary_file)?;
+                let (current_entry, _) = current_entry.update_entry(&self.pool).await?;
+                Some(current_entry)
+            } else {
+                let new_entry = DiaryEntries::new(entry_date, &entry_string);
+                writeln!(stdout(), "upsert {}", diary_file)?;
+                let (new_entry, _) = new_entry.upsert_entry(&self.pool).await?;
+                Some(new_entry)
+            };
 
-                let res: Result<Vec<_>, Error> = entry_list
-                    .into_par_iter()
-                    .map(|entry| entry.delete_entry(&self.pool))
-                    .collect();
-                res?;
+            let res: Vec<_> = entry_list
+                .into_iter()
+                .map(|entry| entry.delete_entry(&self.pool))
+                .collect();
 
-                Ok(result)
-            })
-            .filter_map(Result::transpose)
-            .collect()
+            let res: Result<Vec<_>, Error> = try_join_all(res).await;
+            res?;
+
+            if let Some(entry) = result {
+                entries.push(entry);
+            }
+        }
+        Ok(entries)
     }
 
-    pub fn serialize_cache(&self) -> Result<Vec<String>, Error> {
-        DiaryCache::get_cache_entries(&self.pool)?
+    pub async fn serialize_cache(&self) -> Result<Vec<String>, Error> {
+        DiaryCache::get_cache_entries(&self.pool)
+            .await?
             .into_iter()
             .map(|entry| serde_json::to_string(&entry).map_err(Into::into))
             .collect()
     }
 
-    pub fn sync_ssh(&self) -> Result<Vec<DiaryCache>, Error> {
-        if self.config.ssh_url.is_none() {
-            return Ok(Vec::new());
+    fn process_ssh(
+        ssh_url: &Url,
+        cache_set: &HashSet<DateTime<Utc>>,
+    ) -> Result<Vec<DiaryCache>, Error> {
+        let ssh_inst = SSHInstance::from_url(ssh_url)?;
+        let mut entries = Vec::new();
+        for line in ssh_inst.run_command_stream_stdout("/usr/bin/diary-app-rust ser")? {
+            let item: DiaryCache = serde_json::from_str(&line)?;
+            if !cache_set.contains(&item.diary_datetime) {
+                writeln!(stdout(), "{:?}", item)?;
+                entries.push(item);
+            }
         }
-        let ssh_url = self.config.ssh_url.as_ref().expect("Not possible?");
+        Ok(entries)
+    }
+
+    pub async fn sync_ssh(&self) -> Result<Vec<DiaryCache>, Error> {
+        let ssh_url = match &self.config.ssh_url {
+            Some(ssh_url) => Arc::new(ssh_url.clone()),
+            None => return Ok(Vec::new()),
+        };
+
         if ssh_url.scheme() != "ssh" {
             return Ok(Vec::new());
         }
-        let cache_set: HashSet<_> = DiaryCache::get_cache_entries(&self.pool)?
+        let cache_set: HashSet<_> = DiaryCache::get_cache_entries(&self.pool)
+            .await?
             .into_iter()
             .map(|entry| entry.diary_datetime)
             .collect();
-        let ssh_inst = SSHInstance::from_url(ssh_url)?;
-        let inserted_entries: Result<Vec<_>, Error> = ssh_inst
-            .run_command_stream_stdout("/usr/bin/diary-app-rust ser")?
-            .into_iter()
-            .map(|line| {
-                let item: DiaryCache = serde_json::from_str(&line)?;
-                if cache_set.contains(&item.diary_datetime) {
-                    Ok(None)
-                } else {
-                    writeln!(stdout(), "{:?}", item)?;
-                    item.insert_entry(&self.pool)?;
-                    Ok(Some(item))
-                }
-            })
-            .filter_map(Result::transpose)
-            .collect();
-        let inserted_entries = inserted_entries?;
+        let entries = {
+            let ssh_url = ssh_url.clone();
+            spawn_blocking(move || Self::process_ssh(&ssh_url, &cache_set)).await?
+        }?;
+        let mut inserted_entries = Vec::new();
+        for item in entries {
+            inserted_entries.push(item.insert_entry(&self.pool).await?);
+        }
         if !inserted_entries.is_empty() {
-            ssh_inst.run_command_ssh("/usr/bin/diary-app-rust clear")?;
+            spawn_blocking(move || {
+                SSHInstance::from_url(&ssh_url)?.run_command_ssh("/usr/bin/diary-app-rust clear")
+            })
+            .await??;
         }
         Ok(inserted_entries)
     }
@@ -358,36 +395,38 @@ impl DiaryAppInterface {
 
 #[cfg(test)]
 mod tests {
+    use anyhow::Error;
     use chrono::NaiveDate;
     use std::io::{stdout, Write};
 
     use crate::config::Config;
     use crate::diary_app_interface::DiaryAppInterface;
-    use crate::models::{DiaryCache, DiaryConflict};
+    use crate::models::{DiaryCache, DiaryConflict, DiaryEntries};
     use crate::pgpool::PgPool;
 
-    fn get_dap() -> DiaryAppInterface {
-        let config = Config::init_config().unwrap();
+    fn get_dap() -> Result<DiaryAppInterface, Error> {
+        let config = Config::init_config()?;
         let pool = PgPool::new(&config.database_url);
-        DiaryAppInterface::new(config, pool)
+        Ok(DiaryAppInterface::new(config, pool))
     }
 
-    #[test]
+    #[tokio::test]
     #[ignore]
-    fn test_search_text() {
-        let dap = get_dap();
+    async fn test_search_text() -> Result<(), Error> {
+        let dap = get_dap()?;
 
-        let results = dap.search_text("2011-05-23").unwrap();
+        let results = dap.search_text("2011-05-23").await?;
         assert_eq!(results.len(), 1);
         assert!(results[0].starts_with("2011-05-23"));
-        let results = dap.search_text("1952-01-01").unwrap();
+        let results = dap.search_text("1952-01-01").await?;
         assert_eq!(results.len(), 0);
+        Ok(())
     }
 
-    #[test]
+    #[tokio::test]
     #[ignore]
-    fn test_get_list_of_dates() {
-        let dap = get_dap();
+    async fn test_get_list_of_dates() -> Result<(), Error> {
+        let dap = get_dap()?;
 
         let results = dap
             .get_list_of_dates(
@@ -396,7 +435,7 @@ mod tests {
                 None,
                 None,
             )
-            .unwrap();
+            .await?;
         assert_eq!(results.len(), 47);
 
         let results = dap
@@ -406,54 +445,59 @@ mod tests {
                 None,
                 Some(10),
             )
-            .unwrap();
+            .await?;
         assert_eq!(results.len(), 10);
+        Ok(())
     }
 
-    #[test]
+    #[tokio::test]
     #[ignore]
-    fn test_get_matching_dates() {
-        let dap = get_dap();
+    async fn test_get_matching_dates() -> Result<(), Error> {
+        let dap = get_dap()?;
+        let mod_map = DiaryEntries::get_modified_map(&dap.pool).await?;
 
-        let results = dap.get_matching_dates(Some("2011"), None, None).unwrap();
+        let results = DiaryAppInterface::get_matching_dates(&mod_map, Some("2011"), None, None)?;
         assert_eq!(results.len(), 47);
 
-        let results = dap
-            .get_matching_dates(Some("2011"), Some("06"), None)
-            .unwrap();
+        let results =
+            DiaryAppInterface::get_matching_dates(&mod_map, Some("2011"), Some("06"), None)?;
         assert_eq!(results.len(), 6);
+        Ok(())
     }
 
-    #[test]
+    #[tokio::test]
     #[ignore]
-    fn test_cache_text() {
-        let dap = get_dap();
+    async fn test_cache_text() -> Result<(), Error> {
+        let dap = get_dap()?;
 
         let test_text = "Test text";
-        let result = dap.cache_text(test_text.into()).unwrap();
-        writeln!(stdout(), "{}", result.diary_datetime).unwrap();
-        let results = DiaryCache::get_cache_entries(&dap.pool).unwrap_or_else(|_| Vec::new());
-        let results2 = dap.serialize_cache().unwrap();
-        result.delete_entry(&dap.pool).unwrap();
+        let result = dap.cache_text(test_text.into()).await?;
+        writeln!(stdout(), "{}", result.diary_datetime)?;
+        let results = DiaryCache::get_cache_entries(&dap.pool)
+            .await
+            .unwrap_or_else(|_| Vec::new());
+        let results2 = dap.serialize_cache().await?;
+        let result = result.delete_entry(&dap.pool).await?;
         assert_eq!(result.diary_text, "Test text");
         assert_eq!(results.len(), 1);
         assert_eq!(results[0], result);
         assert!(results2[0].contains("Test text"));
+        Ok(())
     }
 
-    #[test]
+    #[tokio::test]
     #[ignore]
-    fn test_replace_text() {
-        let dap = get_dap();
+    async fn test_replace_text() -> Result<(), Error> {
+        let dap = get_dap()?;
         let test_date = NaiveDate::from_ymd(1950, 1, 1);
         let test_text = "Test text";
 
-        let (result, conflict) = dap.replace_text(test_date, test_text.into()).unwrap();
+        let (result, conflict) = dap.replace_text(test_date, test_text.into()).await?;
 
         let test_text2 = "Test text2";
-        let (result2, conflict2) = dap.replace_text(test_date, test_text2.into()).unwrap();
+        let (result2, conflict2) = dap.replace_text(test_date, test_text2.into()).await?;
 
-        result.delete_entry(&dap.pool).unwrap();
+        let result = result.delete_entry(&dap.pool).await?;
 
         assert_eq!(result.diary_date, test_date);
         assert!(conflict.is_none());
@@ -461,8 +505,9 @@ mod tests {
         assert_eq!(result2.diary_text, test_text2);
         assert!(conflict2.is_some());
         let conflict2 = conflict2.unwrap();
-        let result3 = DiaryConflict::get_by_datetime(conflict2, &dap.pool).unwrap();
+        let result3 = DiaryConflict::get_by_datetime(conflict2, &dap.pool).await?;
         assert_eq!(result3.len(), 2);
-        DiaryConflict::remove_by_datetime(conflict2, &dap.pool).unwrap();
+        DiaryConflict::remove_by_datetime(conflict2, &dap.pool).await?;
+        Ok(())
     }
 }

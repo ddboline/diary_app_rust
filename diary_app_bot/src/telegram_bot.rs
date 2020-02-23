@@ -1,4 +1,3 @@
-use actix_threadpool::run as block;
 use anyhow::{format_err, Error};
 use futures::future::join;
 use futures::StreamExt;
@@ -98,9 +97,8 @@ async fn bot_handler(dapp_interface: DiaryAppInterface) -> Result<(), Error> {
                                 .trim()
                                 .to_string();
                             OUTPUT_BUFFER.write().await.clear();
-                            let d = dapp_interface.clone();
                             if let Ok(mut search_results) =
-                                block(move || d.search_text(&search_text)).await
+                                dapp_interface.search_text(&search_text).await
                             {
                                 search_results.reverse();
                                 OUTPUT_BUFFER
@@ -128,10 +126,7 @@ async fn bot_handler(dapp_interface: DiaryAppInterface) -> Result<(), Error> {
                                 .trim_start_matches(first_word.unwrap())
                                 .trim()
                                 .to_string();
-                            let d = dapp_interface.clone();
-                            if let Ok(cache_entry) =
-                                block(move || d.cache_text(insert_text.into())).await
-                            {
+                            if let Ok(cache_entry) = dapp_interface.cache_text(&insert_text).await {
                                 api.send(
                                     message.text_reply(format!("cached entry {:?}", cache_entry)),
                                 )
@@ -143,10 +138,8 @@ async fn bot_handler(dapp_interface: DiaryAppInterface) -> Result<(), Error> {
                             FAILURE_COUNT.check()?;
                         }
                         _ => {
-                            let d = dapp_interface.clone();
                             let data = data.to_string();
-                            if let Ok(cache_entry) = block(move || d.cache_text(data.into())).await
-                            {
+                            if let Ok(cache_entry) = dapp_interface.cache_text(&data).await {
                                 api.send(
                                     message.text_reply(format!("cached entry {:?}", cache_entry)),
                                 )
@@ -172,7 +165,7 @@ async fn bot_handler(dapp_interface: DiaryAppInterface) -> Result<(), Error> {
     Ok(())
 }
 
-async fn telegram_worker(dapp: &DiaryAppInterface) -> Result<(), Error> {
+async fn telegram_worker(dapp: DiaryAppInterface) -> Result<(), Error> {
     loop {
         FAILURE_COUNT.check()?;
         let d = dapp.clone();
@@ -188,15 +181,12 @@ async fn fill_telegram_user_ids(pool: PgPool) -> Result<(), Error> {
     loop {
         FAILURE_COUNT.check()?;
         let p = pool.clone();
-        if let Ok(authorized_users) = block(move || AuthorizedUsers::get_authorized_users(&p)).await
-        {
-            let mut telegram_userid_set = TELEGRAM_USERIDS.write().await;
-            telegram_userid_set.clear();
-            for user in authorized_users {
-                if let Some(userid) = user.telegram_userid {
-                    telegram_userid_set.insert(UserId::new(userid));
-                }
-            }
+        if let Ok(authorized_users) = AuthorizedUsers::get_authorized_users(&p).await {
+            let telegram_userid_set: HashSet<_> = authorized_users
+                .into_iter()
+                .filter_map(|user| user.telegram_userid.map(|userid| UserId::new(userid)))
+                .collect();
+            *TELEGRAM_USERIDS.write().await = telegram_userid_set;
             FAILURE_COUNT.reset()?;
         } else {
             FAILURE_COUNT.increment()?
@@ -213,7 +203,7 @@ pub async fn run_bot() -> Result<(), Error> {
     let pool_ = dapp.pool.clone();
 
     let userid_handle = fill_telegram_user_ids(pool_);
-    let telegram_handle = telegram_worker(&dapp);
+    let telegram_handle = telegram_worker(dapp);
 
     let (r0, r1) = join(userid_handle, telegram_handle).await;
     r0.and_then(|_| r1)

@@ -35,7 +35,7 @@ pub async fn run_app() {
         let mut i = interval(time::Duration::from_secs(60));
         loop {
             i.tick().await;
-            fill_from_db(&pool).unwrap_or(());
+            fill_from_db(&pool).await.unwrap_or(());
         }
     }
 

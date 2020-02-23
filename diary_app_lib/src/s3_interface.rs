@@ -1,13 +1,14 @@
 use anyhow::{format_err, Error};
 use chrono::{DateTime, NaiveDate, Utc};
+use futures::future::try_join_all;
 use lazy_static::lazy_static;
 use log::debug;
-use parking_lot::Mutex;
-use rayon::iter::{IntoParallelIterator, IntoParallelRefIterator, ParallelIterator};
 use rusoto_s3::Object;
 use std::collections::HashMap;
 use std::convert::{TryFrom, TryInto};
 use std::io::{stdout, Write};
+use std::sync::Arc;
+use tokio::sync::RwLock;
 
 use crate::config::Config;
 use crate::models::DiaryEntries;
@@ -17,8 +18,8 @@ use crate::s3_instance::S3Instance;
 const TIME_BUFFER: i64 = 60;
 
 lazy_static! {
-    static ref KEY_CACHE: Mutex<(DateTime<Utc>, Vec<KeyMetaData>)> =
-        Mutex::new((Utc::now(), Vec::new()));
+    static ref KEY_CACHE: RwLock<(DateTime<Utc>, Arc<Vec<KeyMetaData>>)> =
+        RwLock::new((Utc::now(), Arc::new(Vec::new())));
 }
 
 #[derive(Debug, Clone)]
@@ -32,7 +33,11 @@ struct KeyMetaData {
 impl TryFrom<Object> for KeyMetaData {
     type Error = Error;
     fn try_from(obj: Object) -> Result<Self, Error> {
-        let key = obj.key.as_ref().ok_or_else(|| format_err!("No Key"))?;
+        let key = obj
+            .key
+            .as_ref()
+            .ok_or_else(|| format_err!("No Key"))?
+            .clone();
         let date = NaiveDate::parse_from_str(&key, "%Y-%m-%d.txt")?;
         let last_modified = obj
             .last_modified
@@ -41,7 +46,7 @@ impl TryFrom<Object> for KeyMetaData {
             .map_or_else(Utc::now, |d| d.with_timezone(&Utc));
         let size = obj.size.unwrap_or(0);
         Ok(Self {
-            key: key.clone(),
+            key,
             date,
             last_modified,
             size,
@@ -65,146 +70,172 @@ impl S3Interface {
         }
     }
 
-    fn fill_cache(&self) -> Result<(), Error> {
-        *KEY_CACHE.lock() = (
+    async fn fill_cache(&self) -> Result<(), Error> {
+        *KEY_CACHE.write().await = (
             Utc::now(),
-            self.s3_client
-                .get_list_of_keys(&self.config.diary_bucket, None)?
-                .into_par_iter()
-                .filter_map(|obj| obj.try_into().ok())
-                .collect(),
+            Arc::new(
+                self.s3_client
+                    .get_list_of_keys(&self.config.diary_bucket, None)
+                    .await?
+                    .into_iter()
+                    .filter_map(|obj| obj.try_into().ok())
+                    .collect(),
+            ),
         );
         Ok(())
     }
 
-    pub fn export_to_s3(&self) -> Result<Vec<DiaryEntries>, Error> {
-        let stdout = stdout();
-        if let Some(key_cache) = KEY_CACHE.try_lock() {
+    pub async fn export_to_s3(&self) -> Result<Vec<DiaryEntries>, Error> {
+        {
+            let key_cache = KEY_CACHE.read().await;
             if (Utc::now() - key_cache.0).num_seconds() > 5 * TIME_BUFFER {
-                self.fill_cache()?;
+                self.fill_cache().await?;
             }
         }
         let s3_key_map: HashMap<NaiveDate, (DateTime<Utc>, i64)> = KEY_CACHE
-            .lock()
+            .read()
+            .await
             .1
             .iter()
             .map(|obj| (obj.date, (obj.last_modified, obj.size)))
             .collect();
-        if let Some(mut key_cache) = KEY_CACHE.try_lock() {
-            key_cache.1.clear();
+        let s3_key_map = Arc::new(s3_key_map);
+        {
+            let mut key_cache = KEY_CACHE.write().await;
+            key_cache.1 = Arc::new(Vec::new());
         }
-        DiaryEntries::get_modified_map(&self.pool)?
-            .into_par_iter()
+
+        let futures: Vec<_> = DiaryEntries::get_modified_map(&self.pool)
+            .await?
+            .into_iter()
             .map(|(diary_date, last_modified)| {
-                let should_update = match s3_key_map.get(&diary_date) {
-                    Some((lm, sz)) => {
-                        if (last_modified - *lm).num_seconds() > -TIME_BUFFER {
-                            if let Ok(entry) = DiaryEntries::get_by_date(diary_date, &self.pool) {
-                                let ln = entry.diary_text.len() as i64;
-                                if *sz != ln {
-                                    debug!(
-                                        "last_modified {} {} {} {} {}",
-                                        diary_date, *lm, last_modified, sz, ln
-                                    );
+                let s3_key_map = s3_key_map.clone();
+                async move {
+                    let should_update = match s3_key_map.get(&diary_date) {
+                        Some((lm, sz)) => {
+                            if (last_modified - *lm).num_seconds() > -TIME_BUFFER {
+                                if let Ok(entry) =
+                                    DiaryEntries::get_by_date(diary_date, &self.pool).await
+                                {
+                                    let ln = entry.diary_text.len() as i64;
+                                    if *sz != ln {
+                                        debug!(
+                                            "last_modified {} {} {} {} {}",
+                                            diary_date, *lm, last_modified, sz, ln
+                                        );
+                                    }
+                                    *sz < ln
+                                } else {
+                                    false
                                 }
-                                *sz < ln
                             } else {
-                                false
+                                (last_modified - *lm).num_seconds() > TIME_BUFFER
                             }
-                        } else {
-                            (last_modified - *lm).num_seconds() > TIME_BUFFER
+                        }
+                        None => true,
+                    };
+                    if should_update {
+                        if let Ok(entry) = DiaryEntries::get_by_date(diary_date, &self.pool).await {
+                            if entry.diary_text.trim().is_empty() {
+                                return Ok(None);
+                            }
+                            writeln!(
+                                stdout(),
+                                "export s3 date {} lines {}",
+                                entry.diary_date,
+                                entry.diary_text.match_indices('\n').count()
+                            )?;
+                            let key = format!("{}.txt", entry.diary_date);
+                            self.s3_client
+                                .upload_from_string(
+                                    &entry.diary_text,
+                                    &self.config.diary_bucket,
+                                    &key,
+                                )
+                                .await?;
+                            return Ok(Some(entry));
                         }
                     }
-                    None => true,
-                };
-                if should_update {
-                    if let Ok(entry) = DiaryEntries::get_by_date(diary_date, &self.pool) {
-                        if entry.diary_text.trim().is_empty() {
-                            return Ok(None);
-                        }
-                        writeln!(
-                            stdout.lock(),
-                            "export s3 date {} lines {}",
-                            entry.diary_date,
-                            entry.diary_text.match_indices('\n').count()
-                        )?;
-                        let key = format!("{}.txt", entry.diary_date);
-                        self.s3_client.upload_from_string(
-                            &entry.diary_text,
-                            &self.config.diary_bucket,
-                            &key,
-                        )?;
-                        return Ok(Some(entry));
-                    }
+                    Ok(None)
                 }
-                Ok(None)
             })
-            .filter_map(Result::transpose)
-            .collect()
+            .collect();
+        let results: Result<Vec<_>, Error> = try_join_all(futures).await;
+        let results: Vec<_> = results?.into_iter().filter_map(|x| x).collect();
+
+        Ok(results)
     }
 
-    pub fn import_from_s3(&self) -> Result<Vec<DiaryEntries>, Error> {
-        let stdout = stdout();
-        let existing_map = DiaryEntries::get_modified_map(&self.pool)?;
+    pub async fn import_from_s3(&self) -> Result<Vec<DiaryEntries>, Error> {
+        let existing_map = Arc::new(DiaryEntries::get_modified_map(&self.pool).await?);
 
         debug!("{}", self.config.diary_bucket);
-        self.fill_cache()?;
+        self.fill_cache().await?;
 
-        KEY_CACHE
-            .lock()
-            .1
-            .as_slice()
-            .par_iter()
-            .filter_map(|obj| {
-                let should_modify = match existing_map.get(&obj.date) {
-                    Some(current_modified) => {
-                        if (*current_modified - obj.last_modified).num_seconds() < TIME_BUFFER {
-                            if let Ok(entry) = DiaryEntries::get_by_date(obj.date, &self.pool) {
-                                let ln = entry.diary_text.len() as i64;
-                                if obj.size != ln {
-                                    debug!(
-                                        "last_modified {} {} {} {} {}",
-                                        obj.date,
-                                        *current_modified,
-                                        obj.last_modified,
-                                        obj.size,
-                                        ln
-                                    );
+        let key_cache = KEY_CACHE.read().await.1.clone();
+
+        let futures: Vec<_> = key_cache
+            .iter()
+            .map(|obj| {
+                let existing_map = existing_map.clone();
+                async move {
+                    let should_modify = match existing_map.get(&obj.date) {
+                        Some(current_modified) => {
+                            if (*current_modified - obj.last_modified).num_seconds() < TIME_BUFFER {
+                                if let Ok(entry) =
+                                    DiaryEntries::get_by_date(obj.date, &self.pool).await
+                                {
+                                    let ln = entry.diary_text.len() as i64;
+                                    if obj.size != ln {
+                                        debug!(
+                                            "last_modified {} {} {} {} {}",
+                                            obj.date,
+                                            *current_modified,
+                                            obj.last_modified,
+                                            obj.size,
+                                            ln
+                                        );
+                                    }
+                                    obj.size > ln
+                                } else {
+                                    false
                                 }
-                                obj.size > ln
                             } else {
-                                false
+                                (*current_modified - obj.last_modified).num_seconds() < -TIME_BUFFER
                             }
-                        } else {
-                            (*current_modified - obj.last_modified).num_seconds() < -TIME_BUFFER
+                        }
+                        None => true,
+                    };
+                    if obj.size > 0 && should_modify {
+                        if let Ok(val) = self
+                            .s3_client
+                            .download_to_string(&self.config.diary_bucket, &obj.key)
+                            .await
+                        {
+                            let entry = DiaryEntries {
+                                diary_date: obj.date,
+                                diary_text: val,
+                                last_modified: obj.last_modified,
+                            };
+                            if entry.diary_text.trim().is_empty() {
+                                writeln!(
+                                    stdout(),
+                                    "import s3 date {} lines {}",
+                                    entry.diary_date,
+                                    entry.diary_text.match_indices('\n').count()
+                                )?;
+                                let (entry, _) = entry.upsert_entry(&self.pool).await?;
+                                return Ok(Some(entry));
+                            }
                         }
                     }
-                    None => true,
-                };
-                if obj.size > 0 && should_modify {
-                    self.s3_client
-                        .download_to_string(&self.config.diary_bucket, &obj.key)
-                        .ok()
-                        .map(|val| DiaryEntries {
-                            diary_date: obj.date,
-                            diary_text: val.into(),
-                            last_modified: obj.last_modified,
-                        })
-                } else {
-                    None
+                    Ok(None)
                 }
             })
-            .filter(|entry| !entry.diary_text.trim().is_empty())
-            .map(|entry| {
-                writeln!(
-                    stdout.lock(),
-                    "import s3 date {} lines {}",
-                    entry.diary_date,
-                    entry.diary_text.match_indices('\n').count()
-                )?;
-                entry.upsert_entry(&self.pool)?;
-                Ok(entry)
-            })
-            .collect()
+            .collect();
+        let results: Result<Vec<_>, Error> = try_join_all(futures).await;
+        let entries: Vec<_> = results?.into_iter().filter_map(|x| x).collect();
+
+        Ok(entries)
     }
 }
