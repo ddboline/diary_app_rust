@@ -86,39 +86,41 @@ impl LocalInterface {
     }
 
     pub async fn cleanup_local(&self) -> Result<Vec<DiaryEntries>, Error> {
-        let mut stdout = stdout();
         let existing_map = DiaryEntries::get_modified_map(&self.pool).await?;
 
-        let mut dates = BTreeMap::new();
-
-        for entry in WalkDir::new(&self.config.diary_path)
+        let futures: Vec<_> = WalkDir::new(&self.config.diary_path)
             .sort(true)
             .preload_metadata(true)
-        {
-            let entry = entry?;
-            let filename = entry.file_name.to_string_lossy();
-            if let Ok(date) = NaiveDate::parse_from_str(&filename, "%Y-%m-%d.txt") {
-                let previous_date = (Local::now() - Duration::days(4)).naive_local().date();
+            .into_iter()
+            .map(|entry| async move {
+                let entry = entry?;
+                let filename = entry.file_name.to_string_lossy();
+                if let Ok(date) = NaiveDate::parse_from_str(&filename, "%Y-%m-%d.txt") {
+                    let previous_date = (Local::now() - Duration::days(4)).naive_local().date();
 
-                if date <= previous_date {
-                    let filepath = format!("{}/{}", self.config.diary_path, filename);
-                    stdout
-                        .write_all(format!("{}\n", filepath).as_bytes())
-                        .await?;
-                    remove_file(&filepath).await?;
-                } else {
-                    let filepath = format!("{}/{}", self.config.diary_path, filename);
-                    let metadata = metadata(&filepath)?;
-                    let size = metadata.len() as usize;
-                    let modified_secs = metadata
-                        .modified()?
-                        .duration_since(SystemTime::UNIX_EPOCH)?
-                        .as_secs() as i64;
-                    let modified = Utc.timestamp(modified_secs, 0);
-                    dates.insert(date, (modified, size));
+                    if date <= previous_date {
+                        let filepath = format!("{}/{}", self.config.diary_path, filename);
+                        stdout()
+                            .write_all(format!("{}\n", filepath).as_bytes())
+                            .await?;
+                        remove_file(&filepath).await?;
+                    } else {
+                        let filepath = format!("{}/{}", self.config.diary_path, filename);
+                        let metadata = metadata(&filepath)?;
+                        let size = metadata.len() as usize;
+                        let modified_secs = metadata
+                            .modified()?
+                            .duration_since(SystemTime::UNIX_EPOCH)?
+                            .as_secs() as i64;
+                        let modified = Utc.timestamp(modified_secs, 0);
+                        return Ok(Some((date, (modified, size))));
+                    }
                 }
-            }
-        }
+                Ok(None)
+            })
+            .collect();
+        let results: Result<Vec<_>, Error> = try_join_all(futures).await;
+        let dates: BTreeMap<_, _> = results?.into_iter().filter_map(|x| x).collect();
 
         let current_date = Local::now().naive_local().date();
 
