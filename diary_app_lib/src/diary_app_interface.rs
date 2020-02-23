@@ -257,10 +257,18 @@ impl DiaryAppInterface {
             .collect();
         output.extend_from_slice(&entries);
 
-        let s3 = self.s3.export_to_s3().await?;
-        let entries = self.local.export_year_to_local().await?;
+        let s3 = spawn({
+            let s3 = self.s3.clone();
+            async move { s3.export_to_s3().await }
+        });
+        let local = spawn({
+            let local = self.local.clone();
+            async move { local.export_year_to_local().await }
+        });
+        let entries = local.await??;
         output.extend_from_slice(&entries);
         let entries: Vec<_> = s3
+            .await??
             .into_iter()
             .map(|c| format!("s3 export {}", c.diary_date))
             .collect();
