@@ -139,12 +139,11 @@ impl S3Interface {
                             if entry.diary_text.trim().is_empty() {
                                 return Ok(None);
                             }
-                            writeln!(
-                                stdout(),
+                            debug!(
                                 "export s3 date {} lines {}",
                                 entry.diary_date,
                                 entry.diary_text.match_indices('\n').count()
-                            )?;
+                            );
                             let key = format!("{}.txt", entry.diary_date);
                             self.s3_client
                                 .upload_from_string(
