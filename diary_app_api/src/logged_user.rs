@@ -1,11 +1,13 @@
 use anyhow::Error;
 pub use rust_auth_server::logged_user::{LoggedUser, AUTHORIZED_USERS, TRIGGER_DB_UPDATE};
 use std::env::var;
+use log::debug;
 
 use diary_app_lib::models::AuthorizedUsers;
 use diary_app_lib::pgpool::PgPool;
 
 pub async fn fill_from_db(pool: &PgPool) -> Result<(), Error> {
+    debug!("{:?}", *TRIGGER_DB_UPDATE);
     if TRIGGER_DB_UPDATE.check() {
         let users: Vec<_> = AuthorizedUsers::get_authorized_users(&pool)
             .await?
@@ -20,8 +22,8 @@ pub async fn fill_from_db(pool: &PgPool) -> Result<(), Error> {
             AUTHORIZED_USERS.merge_users(&[user])?;
         }
 
-        AUTHORIZED_USERS.merge_users(&users)
-    } else {
-        Ok(())
+        AUTHORIZED_USERS.merge_users(&users)?;
     }
+    debug!("{:?}", *AUTHORIZED_USERS);
+    Ok(())
 }
