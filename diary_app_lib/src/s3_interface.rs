@@ -172,64 +172,61 @@ impl S3Interface {
 
         let key_cache = KEY_CACHE.read().await.1.clone();
 
-        let futures = key_cache
-            .iter()
-            .map(|obj| {
-                let existing_map = existing_map.clone();
-                async move {
-                    let should_modify = match existing_map.get(&obj.date) {
-                        Some(current_modified) => {
-                            if (*current_modified - obj.last_modified).num_seconds() < TIME_BUFFER {
-                                if let Ok(entry) =
-                                    DiaryEntries::get_by_date(obj.date, &self.pool).await
-                                {
-                                    let ln = entry.diary_text.len() as i64;
-                                    if obj.size != ln {
-                                        debug!(
-                                            "last_modified {} {} {} {} {}",
-                                            obj.date,
-                                            *current_modified,
-                                            obj.last_modified,
-                                            obj.size,
-                                            ln
-                                        );
-                                    }
-                                    obj.size > ln
-                                } else {
-                                    false
+        let futures = key_cache.iter().map(|obj| {
+            let existing_map = existing_map.clone();
+            async move {
+                let should_modify = match existing_map.get(&obj.date) {
+                    Some(current_modified) => {
+                        if (*current_modified - obj.last_modified).num_seconds() < TIME_BUFFER {
+                            if let Ok(entry) = DiaryEntries::get_by_date(obj.date, &self.pool).await
+                            {
+                                let ln = entry.diary_text.len() as i64;
+                                if obj.size != ln {
+                                    debug!(
+                                        "last_modified {} {} {} {} {}",
+                                        obj.date,
+                                        *current_modified,
+                                        obj.last_modified,
+                                        obj.size,
+                                        ln
+                                    );
                                 }
+                                obj.size > ln
                             } else {
-                                (*current_modified - obj.last_modified).num_seconds() < -TIME_BUFFER
+                                false
                             }
-                        }
-                        None => true,
-                    };
-                    if obj.size > 0 && should_modify {
-                        if let Ok(val) = self
-                            .s3_client
-                            .download_to_string(&self.config.diary_bucket, &obj.key)
-                            .await
-                        {
-                            let entry = DiaryEntries {
-                                diary_date: obj.date,
-                                diary_text: val,
-                                last_modified: obj.last_modified,
-                            };
-                            if entry.diary_text.trim().is_empty() {
-                                writeln!(
-                                    stdout(),
-                                    "import s3 date {} lines {}",
-                                    entry.diary_date,
-                                    entry.diary_text.match_indices('\n').count()
-                                )?;
-                                let (entry, _) = entry.upsert_entry(&self.pool).await?;
-                                return Ok(Some(entry));
-                            }
+                        } else {
+                            (*current_modified - obj.last_modified).num_seconds() < -TIME_BUFFER
                         }
                     }
-                    Ok(None)
+                    None => true,
+                };
+                if obj.size > 0 && should_modify {
+                    if let Ok(val) = self
+                        .s3_client
+                        .download_to_string(&self.config.diary_bucket, &obj.key)
+                        .await
+                    {
+                        let entry = DiaryEntries {
+                            diary_date: obj.date,
+                            diary_text: val,
+                            last_modified: obj.last_modified,
+                        };
+                        if entry.diary_text.trim().is_empty() {
+                            writeln!(
+                                stdout(),
+                                "import s3 date {} lines {}",
+                                entry.diary_date,
+                                entry.diary_text.match_indices('\n').count()
+                            )?;
+                            let (entry, _) = entry.upsert_entry(&self.pool).await?;
+                            return Ok(Some(entry));
+                        }
+                    }
                 }
-            });
+                Ok(None)
+            }
+        });
         let results: Result<Vec<_>, Error> = try_join_all(futures).await;
         let entries: Vec<_> = results?.into_iter().filter_map(|x| x).collect();
 
