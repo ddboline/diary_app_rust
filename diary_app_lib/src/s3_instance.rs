@@ -110,10 +110,9 @@ impl S3Instance {
     ) -> Result<Vec<Object>, Error> {
         exponential_retry(|| async move {
             let stream = match prefix {
-                Some(p) => self.s3_client.iter_objects_with_prefix(bucket, p),
-                None => self.s3_client.iter_objects(bucket),
-            }
-            .into_stream();
+                Some(p) => self.s3_client.stream_objects_with_prefix(bucket, p),
+                None => self.s3_client.stream_objects(bucket),
+            };
             let results: Result<Vec<_>, _> = match self.max_keys {
                 Some(nkeys) => stream.take(nkeys).try_collect().await,
                 None => stream.try_collect().await,
