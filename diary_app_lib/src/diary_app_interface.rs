@@ -4,10 +4,10 @@ use futures::future::try_join_all;
 use log::debug;
 use regex::Regex;
 use std::collections::{HashMap, HashSet};
-use std::fs::OpenOptions;
-use std::io::{stdout, Write};
 use std::path::Path;
 use std::sync::Arc;
+use tokio::fs::OpenOptions;
+use tokio::io::{stdout, AsyncWriteExt};
 use tokio::task::{spawn, spawn_blocking};
 use url::Url;
 
@@ -291,8 +291,7 @@ impl DiaryAppInterface {
                 acc
             });
 
-        let mut entries = Vec::new();
-        for (entry_date, entry_list) in date_entry_map {
+        let futures = date_entry_map.into_iter().map(|(entry_date, entry_list)| {
             let entry_string: Vec<_> = entry_list
                 .iter()
                 .map(|entry| {
@@ -303,36 +302,39 @@ impl DiaryAppInterface {
             let entry_string = entry_string.join("\n\n");
 
             let diary_file = format!("{}/{}.txt", self.config.diary_path, entry_date);
-            let result = if Path::new(&diary_file).exists() {
-                let mut f = OpenOptions::new().append(true).open(&diary_file)?;
-                writeln!(f, "\n\n{}\n\n", entry_string)?;
-                continue;
-            } else if let Ok(mut current_entry) =
-                DiaryEntries::get_by_date(entry_date, &self.pool).await
-            {
-                current_entry.diary_text =
-                    format!("{}\n\n{}", &current_entry.diary_text, entry_string);
-                writeln!(stdout(), "update {}", diary_file)?;
-                let (current_entry, _) = current_entry.update_entry(&self.pool).await?;
-                Some(current_entry)
-            } else {
-                let new_entry = DiaryEntries::new(entry_date, &entry_string);
-                writeln!(stdout(), "upsert {}", diary_file)?;
-                let (new_entry, _) = new_entry.upsert_entry(&self.pool).await?;
-                Some(new_entry)
-            };
 
-            let res = entry_list
-                .into_iter()
-                .map(|entry| entry.delete_entry(&self.pool));
-
-            let res: Result<Vec<_>, Error> = try_join_all(res).await;
-            res?;
-
-            if let Some(entry) = result {
-                entries.push(entry);
+            async move {
+                let result = if Path::new(&diary_file).exists() {
+                    let mut f = OpenOptions::new().append(true).open(&diary_file).await?;
+                    f.write_all(format!("\n\n{}\n\n", entry_string).as_bytes())
+                        .await?;
+                    None
+                } else if let Ok(mut current_entry) =
+                    DiaryEntries::get_by_date(entry_date, &self.pool).await
+                {
+                    current_entry.diary_text =
+                        format!("{}\n\n{}", &current_entry.diary_text, entry_string);
+                    stdout()
+                        .write_all(format!("update {}", diary_file).as_bytes())
+                        .await?;
+                    let (current_entry, _) = current_entry.update_entry(&self.pool).await?;
+                    Some(current_entry)
+                } else {
+                    let new_entry = DiaryEntries::new(entry_date, &entry_string);
+                    stdout()
+                        .write_all(format!("upsert {}", diary_file).as_bytes())
+                        .await?;
+                    let (new_entry, _) = new_entry.upsert_entry(&self.pool).await?;
+                    Some(new_entry)
+                };
+                for entry in entry_list {
+                    entry.delete_entry(&self.pool).await?;
+                }
+                Ok(result)
             }
-        }
+        });
+        let results: Result<Vec<_>, Error> = try_join_all(futures).await;
+        let entries: Vec<_> = results?.into_iter().filter_map(|x| x).collect();
         Ok(entries)
     }
 
@@ -353,7 +355,7 @@ impl DiaryAppInterface {
         for line in ssh_inst.run_command_stream_stdout("/usr/bin/diary-app-rust ser")? {
             let item: DiaryCache = serde_json::from_str(&line)?;
             if !cache_set.contains(&item.diary_datetime) {
-                writeln!(stdout(), "{:?}", item)?;
+                debug!("{:?}", item);
                 entries.push(item);
             }
         }
