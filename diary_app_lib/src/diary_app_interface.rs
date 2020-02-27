@@ -378,10 +378,12 @@ impl DiaryAppInterface {
             let ssh_url = ssh_url.clone();
             spawn_blocking(move || Self::process_ssh(&ssh_url, &cache_set)).await?
         }?;
-        let mut inserted_entries = Vec::new();
-        for item in entries {
-            inserted_entries.push(item.insert_entry(&self.pool).await?);
-        }
+        let futures = entries.into_iter().map(|item| {
+            let pool = self.pool.clone();
+            async move { item.insert_entry(&pool).await }
+        });
+        let results: Result<Vec<_>, Error> = try_join_all(futures).await;
+        let inserted_entries: Vec<_> = results?;
         if !inserted_entries.is_empty() {
             spawn_blocking(move || {
                 SSHInstance::from_url(&ssh_url)?.run_command_ssh("/usr/bin/diary-app-rust clear")
