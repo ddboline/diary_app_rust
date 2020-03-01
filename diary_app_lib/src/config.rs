@@ -1,8 +1,5 @@
 use anyhow::{format_err, Error};
-use std::env::var;
-use std::ops::Deref;
-use std::path::Path;
-use std::sync::Arc;
+use std::{env::var, ops::Deref, path::Path, sync::Arc};
 use url::Url;
 
 #[derive(Default, Debug)]

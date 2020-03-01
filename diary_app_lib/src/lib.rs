@@ -23,8 +23,10 @@ pub mod schema;
 pub mod ssh_instance;
 
 use anyhow::Error;
-use rand::distributions::{Distribution, Uniform};
-use rand::thread_rng;
+use rand::{
+    distributions::{Distribution, Uniform},
+    thread_rng,
+};
 use std::future::Future;
 use tokio::time::{delay_for, Duration};
 

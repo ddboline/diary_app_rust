@@ -6,12 +6,16 @@ use diesel::{
 };
 use difference::{Changeset, Difference};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-use std::io::{stdout, Write};
+use std::{
+    collections::HashMap,
+    io::{stdout, Write},
+};
 use tokio::task::spawn_blocking;
 
-use crate::pgpool::{PgPool, PgPoolConn};
-use crate::schema::{authorized_users, diary_cache, diary_conflict, diary_entries};
+use crate::{
+    pgpool::{PgPool, PgPoolConn},
+    schema::{authorized_users, diary_cache, diary_conflict, diary_entries},
+};
 
 #[derive(Queryable, Insertable, Clone, Debug)]
 #[table_name = "diary_entries"]

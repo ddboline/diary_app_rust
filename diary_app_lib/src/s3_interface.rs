@@ -4,16 +4,15 @@ use futures::future::try_join_all;
 use lazy_static::lazy_static;
 use log::debug;
 use rusoto_s3::Object;
-use std::collections::HashMap;
-use std::convert::{TryFrom, TryInto};
-use std::io::{stdout, Write};
-use std::sync::Arc;
+use std::{
+    collections::HashMap,
+    convert::{TryFrom, TryInto},
+    io::{stdout, Write},
+    sync::Arc,
+};
 use tokio::sync::RwLock;
 
-use crate::config::Config;
-use crate::models::DiaryEntries;
-use crate::pgpool::PgPool;
-use crate::s3_instance::S3Instance;
+use crate::{config::Config, models::DiaryEntries, pgpool::PgPool, s3_instance::S3Instance};
 
 const TIME_BUFFER: i64 = 60;
 

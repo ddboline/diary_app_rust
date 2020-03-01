@@ -3,17 +3,13 @@ use chrono::{DateTime, Datelike, Duration, Local, NaiveDate, TimeZone, Utc};
 use futures::future::try_join_all;
 use jwalk::WalkDir;
 use log::debug;
-use std::collections::BTreeMap;
-use std::fs::metadata;
-use std::path::Path;
-use std::sync::Arc;
-use std::time::SystemTime;
-use tokio::fs::{read_to_string, remove_file, File};
-use tokio::io::{stdout, AsyncWriteExt};
+use std::{collections::BTreeMap, fs::metadata, path::Path, sync::Arc, time::SystemTime};
+use tokio::{
+    fs::{read_to_string, remove_file, File},
+    io::{stdout, AsyncWriteExt},
+};
 
-use crate::config::Config;
-use crate::models::DiaryEntries;
-use crate::pgpool::PgPool;
+use crate::{config::Config, models::DiaryEntries, pgpool::PgPool};
 
 #[derive(Clone, Debug)]
 pub struct LocalInterface {
@@ -236,9 +232,11 @@ mod tests {
     use std::io::{stdout, Write};
     use tempdir::TempDir;
 
-    use crate::config::{Config, ConfigInner};
-    use crate::local_interface::LocalInterface;
-    use crate::pgpool::PgPool;
+    use crate::{
+        config::{Config, ConfigInner},
+        local_interface::LocalInterface,
+        pgpool::PgPool,
+    };
 
     fn get_tempdir() -> Result<TempDir, Error> {
         TempDir::new("test_diary").map_err(Into::into)

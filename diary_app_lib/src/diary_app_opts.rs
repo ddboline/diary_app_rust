@@ -1,14 +1,18 @@
 use anyhow::{format_err, Error};
 use chrono::{DateTime, NaiveDate, Utc};
-use std::collections::BTreeSet;
-use std::io::{stdout, Write};
-use std::str::FromStr;
+use std::{
+    collections::BTreeSet,
+    io::{stdout, Write},
+    str::FromStr,
+};
 use structopt::StructOpt;
 
-use crate::config::Config;
-use crate::diary_app_interface::DiaryAppInterface;
-use crate::models::{DiaryCache, DiaryConflict};
-use crate::pgpool::PgPool;
+use crate::{
+    config::Config,
+    diary_app_interface::DiaryAppInterface,
+    models::{DiaryCache, DiaryConflict},
+    pgpool::PgPool,
+};
 
 #[derive(Debug, Clone, Copy)]
 pub enum DiaryAppCommands {

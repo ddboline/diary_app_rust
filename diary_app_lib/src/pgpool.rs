@@ -1,9 +1,7 @@
 use anyhow::Error;
-use diesel::pg::PgConnection;
-use diesel::r2d2::ConnectionManager;
+use diesel::{pg::PgConnection, r2d2::ConnectionManager};
 use r2d2::{Pool, PooledConnection};
-use std::fmt;
-use std::sync::Arc;
+use std::{fmt, sync::Arc};
 
 pub type PgPoolConn = PooledConnection<ConnectionManager<PgConnection>>;
 

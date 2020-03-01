@@ -1,19 +1,20 @@
 use anyhow::{format_err, Error};
-use futures::future::join;
-use futures::StreamExt;
+use futures::{future::join, StreamExt};
 use lazy_static::lazy_static;
 use log::debug;
-use std::collections::HashSet;
-use std::sync::atomic::{AtomicUsize, Ordering};
-use telegram_bot::types::refs::UserId;
-use telegram_bot::{Api, CanReplySendMessage, MessageKind, UpdateKind};
-use tokio::sync::RwLock;
-use tokio::time::{delay_for, timeout, Duration};
+use std::{
+    collections::HashSet,
+    sync::atomic::{AtomicUsize, Ordering},
+};
+use telegram_bot::{types::refs::UserId, Api, CanReplySendMessage, MessageKind, UpdateKind};
+use tokio::{
+    sync::RwLock,
+    time::{delay_for, timeout, Duration},
+};
 
-use diary_app_lib::config::Config;
-use diary_app_lib::diary_app_interface::DiaryAppInterface;
-use diary_app_lib::models::AuthorizedUsers;
-use diary_app_lib::pgpool::PgPool;
+use diary_app_lib::{
+    config::Config, diary_app_interface::DiaryAppInterface, models::AuthorizedUsers, pgpool::PgPool,
+};
 
 type UserIds = RwLock<HashSet<UserId>>;
 type OBuffer = RwLock<Vec<String>>;

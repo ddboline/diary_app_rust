@@ -3,8 +3,7 @@ use futures::stream::{StreamExt, TryStreamExt};
 use rusoto_core::Region;
 use rusoto_s3::{Bucket, GetObjectRequest, Object, PutObjectRequest, S3Client, S3};
 use s3_ext::S3Ext;
-use std::convert::Into;
-use std::fmt;
+use std::{convert::Into, fmt};
 use sts_profile_auth::get_client_sts;
 use tokio::io::AsyncReadExt;
 

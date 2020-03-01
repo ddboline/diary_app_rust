@@ -2,9 +2,10 @@ use anyhow::{format_err, Error};
 use lazy_static::lazy_static;
 use log::debug;
 use parking_lot::{Mutex, RwLock};
-use std::collections::HashMap;
-use std::io::{stdout, Write};
-use std::io::{BufRead, BufReader};
+use std::{
+    collections::HashMap,
+    io::{stdout, BufRead, BufReader, Write},
+};
 use subprocess::Exec;
 use url::Url;
 

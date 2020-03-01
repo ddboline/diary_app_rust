@@ -1,18 +1,18 @@
 use actix_identity::{CookieIdentityPolicy, IdentityService};
 use actix_web::{web, App, HttpServer};
 use chrono::Duration;
-use std::ops::Deref;
-use std::time;
+use std::{ops::Deref, time};
 use tokio::time::interval;
 
-use diary_app_lib::config::Config;
-use diary_app_lib::diary_app_interface::DiaryAppInterface;
-use diary_app_lib::pgpool::PgPool;
+use diary_app_lib::{config::Config, diary_app_interface::DiaryAppInterface, pgpool::PgPool};
 
-use super::logged_user::{fill_from_db, TRIGGER_DB_UPDATE};
-use super::routes::{
-    commit_conflict, diary_frontpage, display, edit, insert, list, list_api, list_conflicts,
-    remove_conflict, replace, search, search_api, show_conflict, sync, sync_api, update_conflict,
+use super::{
+    logged_user::{fill_from_db, TRIGGER_DB_UPDATE},
+    routes::{
+        commit_conflict, diary_frontpage, display, edit, insert, list, list_api, list_conflicts,
+        remove_conflict, replace, search, search_api, show_conflict, sync, sync_api,
+        update_conflict,
+    },
 };
 
 #[derive(Clone)]

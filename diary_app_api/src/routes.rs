@@ -1,15 +1,19 @@
-use actix_web::http::StatusCode;
-use actix_web::web::{Data, Json, Query};
-use actix_web::HttpResponse;
+use actix_web::{
+    http::StatusCode,
+    web::{Data, Json, Query},
+    HttpResponse,
+};
 use chrono::{DateTime, Local, NaiveDate, Utc};
 use maplit::hashmap;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 
-use super::app::AppState;
-use super::errors::ServiceError as Error;
-use super::logged_user::LoggedUser;
-use super::requests::{DiaryAppRequests, HandleRequest, ListOptions, SearchOptions};
+use super::{
+    app::AppState,
+    errors::ServiceError as Error,
+    logged_user::LoggedUser,
+    requests::{DiaryAppRequests, HandleRequest, ListOptions, SearchOptions},
+};
 
 fn form_http_response(body: String) -> Result<HttpResponse, Error> {
     Ok(HttpResponse::build(StatusCode::OK)

@@ -3,20 +3,26 @@ use chrono::{DateTime, Datelike, Local, NaiveDate, Utc};
 use futures::future::try_join_all;
 use log::debug;
 use regex::Regex;
-use std::collections::{HashMap, HashSet};
-use std::path::Path;
-use std::sync::Arc;
-use tokio::fs::OpenOptions;
-use tokio::io::{stdout, AsyncWriteExt};
-use tokio::task::{spawn, spawn_blocking};
+use std::{
+    collections::{HashMap, HashSet},
+    path::Path,
+    sync::Arc,
+};
+use tokio::{
+    fs::OpenOptions,
+    io::{stdout, AsyncWriteExt},
+    task::{spawn, spawn_blocking},
+};
 use url::Url;
 
-use crate::config::Config;
-use crate::local_interface::LocalInterface;
-use crate::models::{DiaryCache, DiaryEntries};
-use crate::pgpool::PgPool;
-use crate::s3_interface::S3Interface;
-use crate::ssh_instance::SSHInstance;
+use crate::{
+    config::Config,
+    local_interface::LocalInterface,
+    models::{DiaryCache, DiaryEntries},
+    pgpool::PgPool,
+    s3_interface::S3Interface,
+    ssh_instance::SSHInstance,
+};
 
 #[derive(Clone)]
 pub struct DiaryAppInterface {
@@ -402,10 +408,12 @@ mod tests {
     use chrono::NaiveDate;
     use std::io::{stdout, Write};
 
-    use crate::config::Config;
-    use crate::diary_app_interface::DiaryAppInterface;
-    use crate::models::{DiaryCache, DiaryConflict, DiaryEntries};
-    use crate::pgpool::PgPool;
+    use crate::{
+        config::Config,
+        diary_app_interface::DiaryAppInterface,
+        models::{DiaryCache, DiaryConflict, DiaryEntries},
+        pgpool::PgPool,
+    };
 
     fn get_dap() -> Result<DiaryAppInterface, Error> {
         let config = Config::init_config()?;
