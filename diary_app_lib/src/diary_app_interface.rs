@@ -237,6 +237,9 @@ impl DiaryAppInterface {
             let local = self.local.clone();
             async move { local.import_from_local().await }
         });
+
+        self.s3.fix_s3().await?;
+
         let s3 = spawn({
             let s3 = self.s3.clone();
             async move { s3.import_from_s3().await }
