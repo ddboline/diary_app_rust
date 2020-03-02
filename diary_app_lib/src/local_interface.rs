@@ -164,6 +164,7 @@ impl LocalInterface {
 
     pub async fn import_from_local(&self) -> Result<Vec<DiaryEntries>, Error> {
         let mut stdout = stdout();
+        let existing_map = DiaryEntries::get_modified_map(&self.pool).await?;
         let mut entries = Vec::new();
         for entry in WalkDir::new(&self.config.diary_path)
             .sort(true)
@@ -176,8 +177,12 @@ impl LocalInterface {
                 if let Some(metadata) = entry.metadata.transpose()? {
                     let filepath = Path::new(&self.config.diary_path).join(filename.as_ref());
                     let modified: DateTime<Utc> = metadata.modified()?.into();
+                    let should_modify = match existing_map.get(&date) {
+                        Some(current_modified) => (*current_modified - modified).num_seconds() < -1,
+                        None => true,
+                    };
 
-                    if metadata.len() > 0 {
+                    if metadata.len() > 0 && should_modify {
                         let d = DiaryEntries {
                             diary_date: date,
                             diary_text: read_to_string(&filepath).await?,
