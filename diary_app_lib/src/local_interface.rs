@@ -80,6 +80,7 @@ impl LocalInterface {
 
     pub async fn cleanup_local(&self) -> Result<Vec<DiaryEntries>, Error> {
         let existing_map = DiaryEntries::get_modified_map(&self.pool).await?;
+        let previous_date = (Local::now() - Duration::days(4)).naive_local().date();
 
         let futures = WalkDir::new(&self.config.diary_path)
             .sort(true)
@@ -89,8 +90,6 @@ impl LocalInterface {
                 let entry = entry?;
                 let filename = entry.file_name.to_string_lossy();
                 if let Ok(date) = NaiveDate::parse_from_str(&filename, "%Y-%m-%d.txt") {
-                    let previous_date = (Local::now() - Duration::days(4)).naive_local().date();
-
                     if date <= previous_date {
                         let filepath = format!("{}/{}", self.config.diary_path, filename);
                         stdout()
@@ -165,8 +164,6 @@ impl LocalInterface {
 
     pub async fn import_from_local(&self) -> Result<Vec<DiaryEntries>, Error> {
         let mut stdout = stdout();
-        let existing_map = DiaryEntries::get_modified_map(&self.pool).await?;
-
         let mut entries = Vec::new();
         for entry in WalkDir::new(&self.config.diary_path)
             .sort(true)
@@ -177,15 +174,10 @@ impl LocalInterface {
             let mut new_entry = None;
             if let Ok(date) = NaiveDate::parse_from_str(&filename, "%Y-%m-%d.txt") {
                 if let Some(metadata) = entry.metadata.transpose()? {
-                    let filepath = format!("{}/{}", self.config.diary_path, filename);
+                    let filepath = Path::new(&self.config.diary_path).join(filename.as_ref());
                     let modified: DateTime<Utc> = metadata.modified()?.into();
 
-                    let should_modify = match existing_map.get(&date) {
-                        Some(current_modified) => (*current_modified - modified).num_seconds() < -1,
-                        None => true,
-                    };
-
-                    if metadata.len() > 0 && should_modify {
+                    if metadata.len() > 0 {
                         let d = DiaryEntries {
                             diary_date: date,
                             diary_text: read_to_string(&filepath).await?,
@@ -213,11 +205,7 @@ impl LocalInterface {
                         .as_bytes(),
                     )
                     .await?;
-                if existing_map.contains_key(&entry.diary_date) {
-                    entry.update_entry(&self.pool).await?.0
-                } else {
-                    entry.upsert_entry(&self.pool).await?.0
-                }
+                entry.upsert_entry(&self.pool).await?.0
             };
             entries.push(entry)
         }

@@ -123,7 +123,7 @@ impl S3Interface {
                                             diary_date, *lm, last_modified, sz, ln
                                         );
                                     }
-                                    *sz < ln
+                                    *sz != ln
                                 } else {
                                     false
                                 }
@@ -163,6 +163,50 @@ impl S3Interface {
         Ok(results)
     }
 
+    pub async fn fix_s3(&self) -> Result<Vec<DiaryEntries>, Error> {
+        debug!("{}", self.config.diary_bucket);
+        self.fill_cache().await?;
+
+        let key_cache = KEY_CACHE.read().await.1.clone();
+
+        let futures = key_cache.iter().map(|obj| async move {
+            let should_import =
+                if let Ok(entry) = DiaryEntries::get_by_date(obj.date, &self.pool).await {
+                    let ln = entry.diary_text.len() as i64;
+                    obj.size != ln
+                } else {
+                    true
+                };
+            if should_import {
+                if let Ok(val) = self
+                    .s3_client
+                    .download_to_string(&self.config.diary_bucket, &obj.key)
+                    .await
+                {
+                    let entry = DiaryEntries {
+                        diary_date: obj.date,
+                        diary_text: val,
+                        last_modified: obj.last_modified,
+                    };
+                    if entry.diary_text.trim().is_empty() {
+                        return Ok(None);
+                    }
+                    writeln!(
+                        stdout(),
+                        "import s3 date {} lines {}",
+                        entry.diary_date,
+                        entry.diary_text.match_indices('\n').count()
+                    )?;
+                    let (entry, _) = entry.upsert_entry(&self.pool).await?;
+                    return Ok(Some(entry));
+                }
+            }
+            Ok(None)
+        });
+        let results: Result<Vec<_>, Error> = try_join_all(futures).await;
+        Ok(results?.into_iter().filter_map(|x| x).collect())
+    }
+
     pub async fn import_from_s3(&self) -> Result<Vec<DiaryEntries>, Error> {
         let existing_map = Arc::new(DiaryEntries::get_modified_map(&self.pool).await?);
 
@@ -190,7 +234,7 @@ impl S3Interface {
                                         ln
                                     );
                                 }
-                                obj.size > ln
+                                obj.size != ln
                             } else {
                                 false
                             }
@@ -212,15 +256,16 @@ impl S3Interface {
                             last_modified: obj.last_modified,
                         };
                         if entry.diary_text.trim().is_empty() {
-                            writeln!(
-                                stdout(),
-                                "import s3 date {} lines {}",
-                                entry.diary_date,
-                                entry.diary_text.match_indices('\n').count()
-                            )?;
-                            let (entry, _) = entry.upsert_entry(&self.pool).await?;
-                            return Ok(Some(entry));
+                            return Ok(None);
                         }
+                        writeln!(
+                            stdout(),
+                            "import s3 date {} lines {}",
+                            entry.diary_date,
+                            entry.diary_text.match_indices('\n').count()
+                        )?;
+                        let (entry, _) = entry.upsert_entry(&self.pool).await?;
+                        return Ok(Some(entry));
                     }
                 }
                 Ok(None)
