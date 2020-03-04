@@ -182,12 +182,11 @@ impl LocalInterface {
                     };
 
                     if metadata.len() > 0 && should_modify {
-                        let d = DiaryEntries {
+                        DiaryEntries {
                             diary_date: date,
                             diary_text: read_to_string(&filepath).await?,
                             last_modified: modified,
-                        };
-                        d
+                        }
                     } else {
                         continue;
                     }
