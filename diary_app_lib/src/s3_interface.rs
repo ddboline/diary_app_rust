@@ -174,8 +174,11 @@ impl S3Interface {
         let futures = key_cache.iter().map(|obj| {
             let existing_map = existing_map.clone();
             async move {
+                let mut insert_new = true;
                 let should_modify = match existing_map.get(&obj.date) {
                     Some(current_modified) => {
+                        insert_new =
+                            (*current_modified - obj.last_modified).num_seconds() < -TIME_BUFFER;
                         if (*current_modified - obj.last_modified).num_seconds() < TIME_BUFFER {
                             if let Ok(entry) = DiaryEntries::get_by_date(obj.date, &self.pool).await
                             {
@@ -220,7 +223,7 @@ impl S3Interface {
                             entry.diary_date,
                             entry.diary_text.match_indices('\n').count()
                         )?;
-                        let (entry, _) = entry.upsert_entry(&self.pool).await?;
+                        let (entry, _) = entry.upsert_entry(&self.pool, insert_new).await?;
                         return Ok(Some(entry));
                     }
                 }

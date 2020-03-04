@@ -138,7 +138,7 @@ impl LocalInterface {
                     }
                 } else {
                     let d = DiaryEntries::new(current_date, "");
-                    let (d, _) = d.upsert_entry(&self.pool).await?;
+                    let (d, _) = d.upsert_entry(&self.pool, true).await?;
                     entries.push(d);
                 }
             } else {
@@ -154,7 +154,7 @@ impl LocalInterface {
                 } else {
                     f.write_all(b"\n").await?;
                     let d = DiaryEntries::new(current_date, "");
-                    let (d, _) = d.upsert_entry(&self.pool).await?;
+                    let (d, _) = d.upsert_entry(&self.pool, true).await?;
                     entries.push(d);
                 }
             }
@@ -172,8 +172,7 @@ impl LocalInterface {
         {
             let entry = entry?;
             let filename = entry.file_name.to_string_lossy();
-            let mut new_entry = None;
-            if let Ok(date) = NaiveDate::parse_from_str(&filename, "%Y-%m-%d.txt") {
+            let entry = if let Ok(date) = NaiveDate::parse_from_str(&filename, "%Y-%m-%d.txt") {
                 if let Some(metadata) = entry.metadata.transpose()? {
                     let filepath = Path::new(&self.config.diary_path).join(filename.as_ref());
                     let modified: DateTime<Utc> = metadata.modified()?.into();
@@ -188,13 +187,15 @@ impl LocalInterface {
                             diary_text: read_to_string(&filepath).await?,
                             last_modified: modified,
                         };
-                        new_entry = Some(d);
+                        d
+                    } else {
+                        continue;
                     }
+                } else {
+                    continue;
                 }
-            }
-            let entry = match new_entry {
-                Some(x) => x,
-                None => continue,
+            } else {
+                continue;
             };
 
             let entry = if entry.diary_text.trim().is_empty() {
@@ -210,7 +211,7 @@ impl LocalInterface {
                         .as_bytes(),
                     )
                     .await?;
-                entry.upsert_entry(&self.pool).await?.0
+                entry.upsert_entry(&self.pool, true).await?.0
             };
             entries.push(entry)
         }

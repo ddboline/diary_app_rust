@@ -268,12 +268,16 @@ impl DiaryEntries {
         spawn_blocking(move || self.insert_entry_sync(&pool).map(|x| (self, x))).await?
     }
 
-    fn _update_entry(&self, conn: &PgPoolConn) -> Result<Option<DateTime<Utc>>, Error> {
+    fn _update_entry(
+        &self,
+        conn: &PgPoolConn,
+        insert_new: bool,
+    ) -> Result<Option<DateTime<Utc>>, Error> {
         use crate::schema::diary_entries::dsl::{
             diary_date, diary_entries, diary_text, last_modified,
         };
 
-        let changeset = self._get_difference(conn)?;
+        let changeset = self._get_difference(conn, insert_new)?;
 
         let conflict_opt = if changeset.distance > 0 {
             DiaryConflict::insert_from_changeset(self.diary_date, changeset, conn)?
@@ -281,38 +285,58 @@ impl DiaryEntries {
             None
         };
 
-        diesel::update(diary_entries.filter(diary_date.eq(self.diary_date)))
-            .set((
-                diary_text.eq(&self.diary_text),
-                last_modified.eq(Utc::now()),
-            ))
-            .execute(conn)
-            .map(|_| conflict_opt)
-            .map_err(Into::into)
+        if insert_new {
+            diesel::update(diary_entries.filter(diary_date.eq(self.diary_date)))
+                .set((
+                    diary_text.eq(&self.diary_text),
+                    last_modified.eq(Utc::now()),
+                ))
+                .execute(conn)
+                .map(|_| conflict_opt)
+                .map_err(Into::into)
+        } else {
+            Ok(None)
+        }
     }
 
-    fn update_entry_sync(&self, pool: &PgPool) -> Result<Option<DateTime<Utc>>, Error> {
+    fn update_entry_sync(
+        &self,
+        pool: &PgPool,
+        insert_new: bool,
+    ) -> Result<Option<DateTime<Utc>>, Error> {
         let conn = pool.get()?;
-        self._update_entry(&conn)
+        self._update_entry(&conn, insert_new)
     }
 
-    pub async fn update_entry(self, pool: &PgPool) -> Result<(Self, Option<DateTime<Utc>>), Error> {
+    pub async fn update_entry(
+        self,
+        pool: &PgPool,
+        insert_new: bool,
+    ) -> Result<(Self, Option<DateTime<Utc>>), Error> {
         let pool = pool.clone();
-        spawn_blocking(move || self.update_entry_sync(&pool).map(|x| (self, x))).await?
+        spawn_blocking(move || self.update_entry_sync(&pool, insert_new).map(|x| (self, x))).await?
     }
 
-    fn upsert_entry_sync(&self, pool: &PgPool) -> Result<Option<DateTime<Utc>>, Error> {
+    fn upsert_entry_sync(
+        &self,
+        pool: &PgPool,
+        insert_new: bool,
+    ) -> Result<Option<DateTime<Utc>>, Error> {
         let conn = pool.get()?;
 
         conn.transaction(|| match Self::_get_by_date(self.diary_date, &conn) {
-            Ok(_) => self._update_entry(&conn),
+            Ok(_) => self._update_entry(&conn, insert_new),
             Err(_) => self._insert_entry(&conn),
         })
     }
 
-    pub async fn upsert_entry(self, pool: &PgPool) -> Result<(Self, Option<DateTime<Utc>>), Error> {
+    pub async fn upsert_entry(
+        self,
+        pool: &PgPool,
+        insert_new: bool,
+    ) -> Result<(Self, Option<DateTime<Utc>>), Error> {
         let pool = pool.clone();
-        spawn_blocking(move || self.upsert_entry_sync(&pool).map(|x| (self, x))).await?
+        spawn_blocking(move || self.upsert_entry_sync(&pool, insert_new).map(|x| (self, x))).await?
     }
 
     fn get_modified_map_sync(pool: &PgPool) -> Result<HashMap<NaiveDate, DateTime<Utc>>, Error> {
@@ -368,14 +392,19 @@ impl DiaryEntries {
         spawn_blocking(move || Self::get_by_text_sync(&search_text, &pool)).await?
     }
 
-    fn _get_difference(&self, conn: &PgPoolConn) -> Result<Changeset, Error> {
-        Self::_get_by_date(self.diary_date, conn)
-            .map(|original| Changeset::new(&original.diary_text, &self.diary_text, "\n"))
+    fn _get_difference(&self, conn: &PgPoolConn, insert_new: bool) -> Result<Changeset, Error> {
+        Self::_get_by_date(self.diary_date, conn).map(|original| {
+            if insert_new {
+                Changeset::new(&original.diary_text, &self.diary_text, "\n")
+            } else {
+                Changeset::new(&self.diary_text, &original.diary_text, "\n")
+            }
+        })
     }
 
     fn get_difference_sync(&self, pool: &PgPool) -> Result<Changeset, Error> {
         let conn = pool.get()?;
-        self._get_difference(&conn)
+        self._get_difference(&conn, true)
     }
 
     pub async fn get_difference(self, pool: &PgPool) -> Result<(Self, Changeset), Error> {

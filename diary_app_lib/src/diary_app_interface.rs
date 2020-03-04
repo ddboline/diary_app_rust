@@ -56,7 +56,7 @@ impl DiaryAppInterface {
         diary_text: &str,
     ) -> Result<(DiaryEntries, Option<DateTime<Utc>>), Error> {
         let de = DiaryEntries::new(diary_date, diary_text);
-        de.upsert_entry(&self.pool).await
+        de.upsert_entry(&self.pool, true).await
     }
 
     pub async fn get_list_of_dates(
@@ -324,14 +324,14 @@ impl DiaryAppInterface {
                     stdout()
                         .write_all(format!("update {}", diary_file).as_bytes())
                         .await?;
-                    let (current_entry, _) = current_entry.update_entry(&self.pool).await?;
+                    let (current_entry, _) = current_entry.update_entry(&self.pool, true).await?;
                     Some(current_entry)
                 } else {
                     let new_entry = DiaryEntries::new(entry_date, &entry_string);
                     stdout()
                         .write_all(format!("upsert {}", diary_file).as_bytes())
                         .await?;
-                    let (new_entry, _) = new_entry.upsert_entry(&self.pool).await?;
+                    let (new_entry, _) = new_entry.upsert_entry(&self.pool, true).await?;
                     Some(new_entry)
                 };
                 for entry in entry_list {
