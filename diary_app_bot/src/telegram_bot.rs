@@ -8,7 +8,9 @@ use std::{
 };
 use telegram_bot::{types::refs::UserId, Api, CanReplySendMessage, MessageKind, UpdateKind};
 use tokio::{
+    sync::mpsc::{channel, Receiver},
     sync::RwLock,
+    task::spawn,
     time::{delay_for, timeout, Duration},
 };
 
@@ -72,7 +74,23 @@ impl FailureCount {
     }
 }
 
+async fn diary_sync(
+    dapp_interface: DiaryAppInterface,
+    mut recv: Receiver<()>,
+) -> Result<(), Error> {
+    while recv.recv().await.is_some() {
+        let output = dapp_interface.sync_everything().await?;
+        OUTPUT_BUFFER.write().await.extend_from_slice(&output);
+    }
+    Ok(())
+}
+
 async fn bot_handler(dapp_interface: DiaryAppInterface) -> Result<(), Error> {
+    let (mut send, recv) = channel(1);
+    let sync_task = {
+        let d = dapp_interface.clone();
+        spawn(diary_sync(d, recv))
+    };
     let api = Api::new(&dapp_interface.config.telegram_bot_token);
     let mut stream = api.stream();
     while let Some(update) = stream.next().await {
@@ -114,6 +132,23 @@ async fn bot_handler(dapp_interface: DiaryAppInterface) -> Result<(), Error> {
                                 api.send(message.text_reply("...")).await?;
                             }
                             FAILURE_COUNT.check()?;
+                        }
+                        Some(":help") | Some(":h") => {
+                            let help_text = format!(
+                                "{}\n{}\n{}\n{}",
+                                ":s, :search => search for text, get text for given date, or for `today`",
+                                ":n, :next => get the next page of search results",
+                                ":sync => sync with local and s3",
+                                ":i, :insert => insert text (also the action if no other command is specified"
+                            );
+                            api.send(message.text_reply(help_text)).await?;
+                        }
+                        Some(":sync") => {
+                            send.send(()).await?;
+                            api.send(
+                                message.text_reply("started sync, reply with :n to see result"),
+                            )
+                            .await?;
                         }
                         Some(":next") | Some(":n") => {
                             if let Some(entry) = OUTPUT_BUFFER.write().await.pop() {
@@ -163,7 +198,7 @@ async fn bot_handler(dapp_interface: DiaryAppInterface) -> Result<(), Error> {
             }
         }
     }
-    Ok(())
+    sync_task.await?
 }
 
 async fn telegram_worker(dapp: DiaryAppInterface) -> Result<(), Error> {
