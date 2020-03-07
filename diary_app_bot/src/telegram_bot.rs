@@ -80,7 +80,7 @@ async fn diary_sync(
 ) -> Result<(), Error> {
     while recv.recv().await.is_some() {
         let output = dapp_interface.sync_everything().await?;
-        OUTPUT_BUFFER.write().await.extend_from_slice(&output);
+        OUTPUT_BUFFER.write().await.push(output.join("\n"));
     }
     Ok(())
 }
