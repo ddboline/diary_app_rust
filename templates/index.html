@@ -84,6 +84,7 @@ DISPLAY_TEXT
 </article>
 
 <script language="JavaScript" type="text/javascript">
+    var autosave_timeout = null;
     function updateMainArticle( url , nav_update=null, status="done" ) {
         let xmlhttp = new XMLHttpRequest();
         xmlhttp.onload = function f() {
@@ -112,6 +113,9 @@ DISPLAY_TEXT
         }
     }
     function switchToDate( date ) {
+        if (autosave_timeout) {
+            clearInterval(autosave_timeout);
+        }
         updateMainArticle('../api/display?date=' + date, null, status=date)
     }
     function listConflicts( date ) {
@@ -202,6 +206,9 @@ DISPLAY_TEXT
     function switchToEditor( date ) {
         let url = '../api/edit?date=' + date;
         updateMainArticle(url, null, status=date);
+        autosave_timeout = setInterval(function() {
+            autoSave(date)
+        }, 60000);
     }
     function updateConflictAdd( id, date, datetime ) {
         let url = '../api/update_conflict?id=' + id + '&diff_type=add';

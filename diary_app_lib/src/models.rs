@@ -5,11 +5,9 @@ use diesel::{
     TextExpressionMethods,
 };
 use difference::{Changeset, Difference};
+use log::debug;
 use serde::{Deserialize, Serialize};
-use std::{
-    collections::HashMap,
-    io::{stdout, Write},
-};
+use std::collections::HashMap;
 use tokio::task::spawn_blocking;
 
 use crate::{
@@ -226,8 +224,8 @@ impl DiaryConflict {
             .count();
 
         if n_removed_lines > 0 {
-            writeln!(stdout(), "update_entry {:?}", removed_lines)?;
-            writeln!(stdout(), "difference {}", n_removed_lines)?;
+            debug!("update_entry {:?}", removed_lines);
+            debug!("difference {}", n_removed_lines);
             diesel::insert_into(diary_conflict)
                 .values(&removed_lines)
                 .execute(conn)
