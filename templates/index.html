@@ -135,6 +135,15 @@ DISPLAY_TEXT
         }
         xmlhttp.send(null);
     }
+    function commitConflict( date, datetime ) {
+        let url = '../api/commit_conflict?datetime=' + datetime;
+        let xmlhttp = new XMLHttpRequest();
+        xmlhttp.open('GET', url, true);
+        xmlhttp.onload = function see_result() {
+            removeConflict( date, datetime );
+        }
+        xmlhttp.send(null);
+    }
     function searchDiary() {
         let text_form = document.getElementById( 'search_text' );
         let url = encodeURI('../api/search?text=' + text_form.value);
@@ -181,15 +190,6 @@ DISPLAY_TEXT
         }
         xmlhttp.setRequestHeader('Content-Type', 'application/json');
         xmlhttp.send(data);
-    }
-    function commitConflict( date, datetime ) {
-        let url = '../api/commit_conflict?datetime=' + datetime;
-        let xmlhttp = new XMLHttpRequest();
-        xmlhttp.open('GET', url, true);
-        xmlhttp.onload = function see_result() {
-            removeConflict( date, datetime );
-        }
-        xmlhttp.send(null);
     }
     function switchToDisplay( date ) {
         switchToDate( date );

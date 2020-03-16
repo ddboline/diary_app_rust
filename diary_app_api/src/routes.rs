@@ -342,6 +342,7 @@ pub async fn show_conflict(
         r#"{t}<br>
             <input type="button" name="display" value="Display" onclick="switchToDisplay('{d}')">
             <input type="button" name="commit" value="Commit" onclick="commitConflict('{d}', '{dt}')">
+            <input type="button" name="remove" value="Remove" onclick="removeConflict('{d}', '{dt}')">
             <input type="button" name="edit" value="Edit" onclick="switchToEditor('{d}')">
             "#,
         t = text.join("\n"),
