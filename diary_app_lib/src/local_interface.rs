@@ -66,7 +66,7 @@ impl LocalInterface {
                 let mut f = File::create(filepath).await?;
                 for date in &date_list {
                     let entry = DiaryEntries::get_by_date(*date, &self.pool).await?;
-                    f.write_all(format!("{}", entry.diary_text).as_bytes())
+                    f.write_all(format!("{}\n", entry.diary_text).as_bytes())
                         .await?;
                 }
                 Ok(format!("{} {}", year, date_list.len()))
@@ -129,7 +129,7 @@ impl LocalInterface {
                                 let filepath =
                                     format!("{}/{}.txt", self.config.diary_path, current_date);
                                 let mut f = File::create(&filepath).await?;
-                                f.write_all(format!("{}", existing_entry.diary_text).as_bytes())
+                                f.write_all(existing_entry.diary_text.as_bytes())
                                     .await?;
                             }
                             entries.push(existing_entry);
@@ -147,11 +147,11 @@ impl LocalInterface {
                 if let Ok(existing_entry) =
                     DiaryEntries::get_by_date(current_date, &self.pool).await
                 {
-                    f.write_all(format!("{}", existing_entry.diary_text).as_bytes())
+                    f.write_all(existing_entry.diary_text.as_bytes())
                         .await?;
                     entries.push(existing_entry)
                 } else {
-                    f.write_all(b"").await?;
+                    f.write_all(b"\n").await?;
                     let d = DiaryEntries::new(current_date, "");
                     let (d, _) = d.upsert_entry(&self.pool, true).await?;
                     entries.push(d);
