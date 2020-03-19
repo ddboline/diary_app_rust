@@ -256,7 +256,6 @@ mod tests {
         writeln!(stdout(), "{:?}", t.path())?;
         let results: Result<Vec<_>, Error> = WalkDir::new(t.path())
             .sort(true)
-            .preload_metadata(true)
             .into_iter()
             .map(|entry| {
                 let entry = entry?;
@@ -286,7 +285,6 @@ mod tests {
         writeln!(stdout(), "{:?}", results)?;
         let results: Result<Vec<_>, Error> = WalkDir::new(t.path())
             .sort(true)
-            .preload_metadata(true)
             .into_iter()
             .map(|entry| {
                 let entry = entry?;
