@@ -259,7 +259,7 @@ mod tests {
             .into_iter()
             .map(|entry| {
                 let entry = entry?;
-                let ftype = entry.file_type?;
+                let ftype = entry.file_type;
                 if ftype.is_dir() {
                     Ok(None)
                 } else {
@@ -288,7 +288,7 @@ mod tests {
             .into_iter()
             .map(|entry| {
                 let entry = entry?;
-                let ftype = entry.file_type?;
+                let ftype = entry.file_type;
                 if ftype.is_dir() {
                     Ok(None)
                 } else {
