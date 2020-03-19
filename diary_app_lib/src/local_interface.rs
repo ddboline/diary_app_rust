@@ -84,7 +84,6 @@ impl LocalInterface {
 
         let futures = WalkDir::new(&self.config.diary_path)
             .sort(true)
-            .preload_metadata(true)
             .into_iter()
             .map(|entry| async move {
                 let entry = entry?;
@@ -166,14 +165,11 @@ impl LocalInterface {
         let mut stdout = stdout();
         let existing_map = DiaryEntries::get_modified_map(&self.pool).await?;
         let mut entries = Vec::new();
-        for entry in WalkDir::new(&self.config.diary_path)
-            .sort(true)
-            .preload_metadata(true)
-        {
+        for entry in WalkDir::new(&self.config.diary_path).sort(true) {
             let entry = entry?;
             let filename = entry.file_name.to_string_lossy();
             let entry = if let Ok(date) = NaiveDate::parse_from_str(&filename, "%Y-%m-%d.txt") {
-                if let Some(metadata) = entry.metadata.transpose()? {
+                if let Some(metadata) = entry.metadata().ok() {
                     let filepath = Path::new(&self.config.diary_path).join(filename.as_ref());
                     let modified: DateTime<Utc> = metadata.modified()?.into();
                     let should_modify = match existing_map.get(&date) {
