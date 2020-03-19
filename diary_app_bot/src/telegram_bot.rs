@@ -106,11 +106,10 @@ async fn bot_handler(dapp_interface: DiaryAppInterface) -> Result<(), Error> {
                 debug!("{:?}", message);
                 if TELEGRAM_USERIDS.read().await.contains(&message.from.id) {
                     FAILURE_COUNT.check()?;
-                    let first_word = data.split_whitespace().nth(0);
+                    let first_word = data.split_whitespace().next();
                     match first_word
                         .map(str::to_lowercase)
-                        .as_ref()
-                        .map(String::as_str)
+                        .as_deref()
                     {
                         Some(":search") | Some(":s") => {
                             let search_text = data

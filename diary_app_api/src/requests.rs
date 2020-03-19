@@ -109,7 +109,7 @@ impl HandleRequest for DiaryAppActor {
                         conflicts
                     ));
                 }
-                let date = diary_dates.into_iter().nth(0).ok_or_else(|| {
+                let date = diary_dates.into_iter().next().ok_or_else(|| {
                     format_err!("Something has gone horribly wrong {:?}", conflicts)
                 })?;
 
@@ -169,7 +169,7 @@ impl HandleRequest for DiaryAppActor {
                         conflicts
                     ));
                 }
-                let date = diary_dates.into_iter().nth(0).ok_or_else(|| {
+                let date = diary_dates.into_iter().next().ok_or_else(|| {
                     format_err!("Something has gone horribly wrong {:?}", conflicts)
                 })?;
 

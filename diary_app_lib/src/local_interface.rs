@@ -169,7 +169,7 @@ impl LocalInterface {
             let entry = entry?;
             let filename = entry.file_name.to_string_lossy();
             let entry = if let Ok(date) = NaiveDate::parse_from_str(&filename, "%Y-%m-%d.txt") {
-                if let Some(metadata) = entry.metadata().ok() {
+                if let Ok(metadata) = entry.metadata() {
                     let filepath = Path::new(&self.config.diary_path).join(filename.as_ref());
                     let modified: DateTime<Utc> = metadata.modified()?.into();
                     let should_modify = match existing_map.get(&date) {
