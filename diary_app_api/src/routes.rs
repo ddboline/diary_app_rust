@@ -21,11 +21,11 @@ fn form_http_response(body: String) -> Result<HttpResponse, Error> {
         .body(body))
 }
 
-fn to_json<T>(js: &T) -> Result<HttpResponse, Error>
+fn to_json<T>(js: T) -> Result<HttpResponse, Error>
 where
     T: Serialize,
 {
-    Ok(HttpResponse::Ok().json2(js))
+    Ok(HttpResponse::Ok().json(js))
 }
 
 async fn _search(
@@ -39,7 +39,7 @@ async fn _search(
 
     if is_api {
         let body = hashmap! {"text" => body.join("\n")};
-        to_json(&body)
+        to_json(body)
     } else {
         let body = format!(
             r#"<textarea autofocus readonly="readonly"
@@ -81,14 +81,14 @@ pub async fn insert(
 
     let body = state.db.handle(req).await?;
     let body = hashmap! {"datetime" => body.join("\n")};
-    to_json(&body)
+    to_json(body)
 }
 
 pub async fn _sync(state: Data<AppState>, is_api: bool) -> Result<HttpResponse, Error> {
     let body = state.db.handle(DiaryAppRequests::Sync).await?;
     if is_api {
         let body = hashmap! {"response" => body.join("\n")};
-        to_json(&body)
+        to_json(body)
     } else {
         let body = format!(
             r#"<textarea autofocus readonly="readonly" name="message" id="diary_editor_form" rows=50 cols=100>{}</textarea>"#,
@@ -124,7 +124,7 @@ pub async fn replace(
     };
     let body = state.db.handle(req).await?;
     let body = hashmap! {"entry" => body.join("\n")};
-    to_json(&body)
+    to_json(body)
 }
 
 fn _list_string(conflicts: &HashSet<String>, body: Vec<String>, query: ListOptions) -> String {
@@ -187,7 +187,7 @@ async fn _list(
 
     if is_api {
         let body = hashmap! {"list" => body };
-        to_json(&body)
+        to_json(body)
     } else {
         let conflicts: Vec<String> = state
             .db
@@ -401,5 +401,9 @@ pub async fn commit_conflict(
 
     let body = state.db.handle(req).await?;
     let body = hashmap! {"entry" => body.join("\n")};
-    to_json(&body)
+    to_json(body)
+}
+
+pub async fn user(user: LoggedUser) -> Result<HttpResponse, Error> {
+    to_json(user)
 }

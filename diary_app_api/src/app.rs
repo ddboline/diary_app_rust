@@ -11,7 +11,7 @@ use super::{
     routes::{
         commit_conflict, diary_frontpage, display, edit, insert, list, list_api, list_conflicts,
         remove_conflict, replace, search, search_api, show_conflict, sync, sync_api,
-        update_conflict,
+        update_conflict, user,
     },
 };
 
@@ -86,6 +86,7 @@ pub async fn run_app() {
             .service(web::resource("/api/remove_conflict").route(web::get().to(remove_conflict)))
             .service(web::resource("/api/update_conflict").route(web::get().to(update_conflict)))
             .service(web::resource("/api/commit_conflict").route(web::get().to(commit_conflict)))
+            .service(web::resource("/api/user").route(web::get().to(user)))
     })
     .bind(&format!("127.0.0.1:{}", port))
     .unwrap_or_else(|_| panic!("Failed to bind to port {}", port))
