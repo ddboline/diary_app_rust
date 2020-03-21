@@ -129,8 +129,7 @@ impl LocalInterface {
                                 let filepath =
                                     format!("{}/{}.txt", self.config.diary_path, current_date);
                                 let mut f = File::create(&filepath).await?;
-                                f.write_all(existing_entry.diary_text.as_bytes())
-                                    .await?;
+                                f.write_all(existing_entry.diary_text.as_bytes()).await?;
                             }
                             entries.push(existing_entry);
                         }
@@ -147,8 +146,7 @@ impl LocalInterface {
                 if let Ok(existing_entry) =
                     DiaryEntries::get_by_date(current_date, &self.pool).await
                 {
-                    f.write_all(existing_entry.diary_text.as_bytes())
-                        .await?;
+                    f.write_all(existing_entry.diary_text.as_bytes()).await?;
                     entries.push(existing_entry)
                 } else {
                     f.write_all(b"\n").await?;

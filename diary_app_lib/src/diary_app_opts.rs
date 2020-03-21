@@ -47,8 +47,9 @@ impl FromStr for DiaryAppCommands {
 #[derive(StructOpt, Debug, Clone)]
 pub struct DiaryAppOpts {
     #[structopt(parse(try_from_str))]
-    /// Available commands are "(s)earch", "(i)nsert", "sync", "serialize, "clear", "clear_cache",
-    /// "list", "list_conflicts", "show", "show_conflict", "remove", "remove_conflict"
+    /// Available commands are "(s)earch", "(i)nsert", "sync", "serialize,
+    /// "clear", "clear_cache", "list", "list_conflicts", "show",
+    /// "show_conflict", "remove", "remove_conflict"
     pub command: DiaryAppCommands,
     #[structopt(
         short = "t",

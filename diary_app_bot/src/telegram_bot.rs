@@ -8,8 +8,10 @@ use std::{
 };
 use telegram_bot::{types::refs::UserId, Api, CanReplySendMessage, MessageKind, UpdateKind};
 use tokio::{
-    sync::mpsc::{channel, Receiver},
-    sync::RwLock,
+    sync::{
+        mpsc::{channel, Receiver},
+        RwLock,
+    },
     task::spawn,
     time::{delay_for, timeout, Duration},
 };
@@ -107,10 +109,7 @@ async fn bot_handler(dapp_interface: DiaryAppInterface) -> Result<(), Error> {
                 if TELEGRAM_USERIDS.read().await.contains(&message.from.id) {
                     FAILURE_COUNT.check()?;
                     let first_word = data.split_whitespace().next();
-                    match first_word
-                        .map(str::to_lowercase)
-                        .as_deref()
-                    {
+                    match first_word.map(str::to_lowercase).as_deref() {
                         Some(":search") | Some(":s") => {
                             let search_text = data
                                 .trim_start_matches(first_word.unwrap())
@@ -137,10 +136,12 @@ async fn bot_handler(dapp_interface: DiaryAppInterface) -> Result<(), Error> {
                         Some(":help") | Some(":h") => {
                             let help_text = format!(
                                 "{}\n{}\n{}\n{}",
-                                ":s, :search => search for text, get text for given date, or for `today`",
+                                ":s, :search => search for text, get text for given date, or for \
+                                 `today`",
                                 ":n, :next => get the next page of search results",
                                 ":sync => sync with local and s3",
-                                ":i, :insert => insert text (also the action if no other command is specified"
+                                ":i, :insert => insert text (also the action if no other command \
+                                 is specified"
                             );
                             api.send(message.text_reply(help_text)).await?;
                         }
