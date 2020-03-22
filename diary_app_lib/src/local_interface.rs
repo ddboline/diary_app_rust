@@ -194,16 +194,11 @@ impl LocalInterface {
             let entry = if entry.diary_text.trim().is_empty() {
                 entry
             } else {
-                stdout
-                    .write_all(
-                        format!(
-                            "import local date {} lines {}\n",
-                            entry.diary_date,
-                            entry.diary_text.match_indices('\n').count()
-                        )
-                        .as_bytes(),
-                    )
-                    .await?;
+                debug!(
+                    "import local date {} lines {}\n",
+                    entry.diary_date,
+                    entry.diary_text.match_indices('\n').count()
+                );
                 entry.upsert_entry(&self.pool, true).await?.0
             };
             entries.push(entry)
