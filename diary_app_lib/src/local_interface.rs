@@ -160,7 +160,6 @@ impl LocalInterface {
     }
 
     pub async fn import_from_local(&self) -> Result<Vec<DiaryEntries>, Error> {
-        let mut stdout = stdout();
         let existing_map = DiaryEntries::get_modified_map(&self.pool).await?;
         let mut entries = Vec::new();
         for entry in WalkDir::new(&self.config.diary_path).sort(true) {
