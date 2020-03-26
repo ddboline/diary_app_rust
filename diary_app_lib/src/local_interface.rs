@@ -6,7 +6,7 @@ use log::debug;
 use std::{collections::BTreeMap, fs::metadata, path::Path, sync::Arc, time::SystemTime};
 use tokio::{
     fs::{read_to_string, remove_file, File},
-    io::{stdout, AsyncWriteExt},
+    io::AsyncWriteExt,
 };
 
 use crate::{config::Config, models::DiaryEntries, pgpool::PgPool};
@@ -91,9 +91,7 @@ impl LocalInterface {
                 if let Ok(date) = NaiveDate::parse_from_str(&filename, "%Y-%m-%d.txt") {
                     if date <= previous_date {
                         let filepath = format!("{}/{}", self.config.diary_path, filename);
-                        stdout()
-                            .write_all(format!("{}\n", filepath).as_bytes())
-                            .await?;
+                        debug!("{}\n", filepath);
                         remove_file(&filepath).await?;
                     } else {
                         let filepath = format!("{}/{}", self.config.diary_path, filename);
@@ -210,8 +208,8 @@ impl LocalInterface {
 mod tests {
     use anyhow::Error;
     use jwalk::WalkDir;
-    use std::io::{stdout, Write};
     use tempdir::TempDir;
+    use log::debug;
 
     use crate::{
         config::{Config, ConfigInner},
@@ -244,8 +242,8 @@ mod tests {
         let results = li.export_year_to_local().await?;
         assert!(results.contains(&"2013 296".to_string()));
         let nentries = results.len();
-        writeln!(stdout(), "{:?}", results)?;
-        writeln!(stdout(), "{:?}", t.path())?;
+        debug!("{:?}", results);
+        debug!("{:?}", t.path());
         let results: Result<Vec<_>, Error> = WalkDir::new(t.path())
             .sort(true)
             .into_iter()
@@ -274,7 +272,7 @@ mod tests {
         let li = get_li(&t)?;
         let results = li.cleanup_local().await?;
         let number_results = results.len();
-        writeln!(stdout(), "{:?}", results)?;
+        debug!("{:?}", results);
         let results: Result<Vec<_>, Error> = WalkDir::new(t.path())
             .sort(true)
             .into_iter()
@@ -291,7 +289,7 @@ mod tests {
             .filter_map(|x| x.transpose())
             .collect();
         let results = results?;
-        writeln!(stdout(), "{:?}", results)?;
+        debug!("{:?}", results);
         assert_eq!(results.len(), number_results);
         Ok(())
     }

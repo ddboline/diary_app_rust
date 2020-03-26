@@ -126,7 +126,7 @@ impl S3Instance {
 mod tests {
     use crate::s3_instance::S3Instance;
     use anyhow::Error;
-    use std::io::{stdout, Write};
+    use log::debug;
 
     #[tokio::test]
     #[ignore]
@@ -141,7 +141,7 @@ mod tests {
             .unwrap_or_else(|| "".to_string());
 
         let key_list = s3_instance.get_list_of_keys(&bucket, None).await?;
-        writeln!(stdout().lock(), "{} {}", bucket, key_list.len())?;
+        debug!("{} {}", bucket, key_list.len());
         assert!(key_list.len() > 0);
         Ok(())
     }

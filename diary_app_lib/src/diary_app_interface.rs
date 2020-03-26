@@ -10,7 +10,7 @@ use std::{
 };
 use tokio::{
     fs::OpenOptions,
-    io::{stdout, AsyncWriteExt},
+    io::AsyncWriteExt,
     task::{spawn, spawn_blocking},
 };
 use url::Url;
@@ -22,6 +22,7 @@ use crate::{
     pgpool::PgPool,
     s3_interface::S3Interface,
     ssh_instance::SSHInstance,
+    stdout_channel::StdoutChannel,
 };
 
 #[derive(Clone)]
@@ -30,6 +31,7 @@ pub struct DiaryAppInterface {
     pub pool: PgPool,
     pub local: LocalInterface,
     pub s3: S3Interface,
+    pub stdout: StdoutChannel,
 }
 
 impl DiaryAppInterface {
@@ -39,6 +41,7 @@ impl DiaryAppInterface {
             s3: S3Interface::new(config.clone(), pool.clone()),
             pool,
             config,
+            stdout: StdoutChannel::new(),
         }
     }
 
@@ -321,16 +324,12 @@ impl DiaryAppInterface {
                 {
                     current_entry.diary_text =
                         format!("{}\n\n{}", &current_entry.diary_text, entry_string);
-                    stdout()
-                        .write_all(format!("update {}", diary_file).as_bytes())
-                        .await?;
+                    self.stdout.send(format!("update {}", diary_file))?;
                     let (current_entry, _) = current_entry.update_entry(&self.pool, true).await?;
                     Some(current_entry)
                 } else {
                     let new_entry = DiaryEntries::new(entry_date, &entry_string);
-                    stdout()
-                        .write_all(format!("upsert {}", diary_file).as_bytes())
-                        .await?;
+                    self.stdout.send(format!("upsert {}", diary_file))?;
                     let (new_entry, _) = new_entry.upsert_entry(&self.pool, true).await?;
                     Some(new_entry)
                 };
@@ -407,7 +406,7 @@ impl DiaryAppInterface {
 mod tests {
     use anyhow::Error;
     use chrono::NaiveDate;
-    use std::io::{stdout, Write};
+    use log::debug;
 
     use crate::{
         config::Config,
@@ -484,7 +483,7 @@ mod tests {
 
         let test_text = "Test text";
         let result = dap.cache_text(test_text.into()).await?;
-        writeln!(stdout(), "{}", result.diary_datetime)?;
+        debug!("{}", result.diary_datetime);
         let results = DiaryCache::get_cache_entries(&dap.pool)
             .await
             .unwrap_or_else(|_| Vec::new());

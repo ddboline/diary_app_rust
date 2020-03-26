@@ -7,7 +7,6 @@ use rusoto_s3::Object;
 use std::{
     collections::HashMap,
     convert::{TryFrom, TryInto},
-    io::{stdout, Write},
     sync::Arc,
 };
 use tokio::sync::RwLock;
@@ -217,12 +216,11 @@ impl S3Interface {
                         if entry.diary_text.trim().is_empty() {
                             return Ok(None);
                         }
-                        writeln!(
-                            stdout(),
+                        debug!(
                             "import s3 date {} lines {}",
                             entry.diary_date,
                             entry.diary_text.match_indices('\n').count()
-                        )?;
+                        );
                         let (entry, _) = entry.upsert_entry(&self.pool, insert_new).await?;
                         return Ok(Some(entry));
                     }

@@ -21,6 +21,7 @@ pub mod s3_instance;
 pub mod s3_interface;
 pub mod schema;
 pub mod ssh_instance;
+pub mod stdout_channel;
 
 use anyhow::Error;
 use rand::{
