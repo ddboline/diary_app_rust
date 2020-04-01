@@ -64,8 +64,7 @@ impl DiaryAppOpts {
         let pool = PgPool::new(&config.database_url);
         let dap = DiaryAppInterface::new(config, pool);
 
-        let stdout = dap.stdout.clone();
-        let stdout = stdout.spawn_stdout_task();
+        let task = dap.stdout.spawn_stdout_task();
 
         match opts.command {
             DiaryAppCommands::Search => {
@@ -162,6 +161,6 @@ impl DiaryAppOpts {
             }
         }
         dap.stdout.close().await;
-        stdout.await?
+        task.await?
     }
 }
