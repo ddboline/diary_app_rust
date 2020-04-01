@@ -1,11 +1,15 @@
 use anyhow::Error;
 use std::sync::Arc;
-use tokio::io::{stdout, AsyncWriteExt};
-use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
-use tokio::sync::Mutex;
-use tokio::task::{spawn, JoinHandle};
+use tokio::{
+    io::{stdout, AsyncWriteExt},
+    sync::{
+        mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender},
+        Mutex,
+    },
+    task::{spawn, JoinHandle},
+};
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct StdoutChannel {
     receiver: Arc<Mutex<UnboundedReceiver<String>>>,
     sender: Arc<UnboundedSender<String>>,
@@ -31,6 +35,10 @@ impl StdoutChannel {
 
     pub async fn recv(&self) -> Option<String> {
         self.receiver.lock().await.recv().await
+    }
+
+    pub async fn close(&self) {
+        self.receiver.lock().await.close()
     }
 
     async fn stdout_task(&self) -> Result<(), Error> {

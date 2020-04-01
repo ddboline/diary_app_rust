@@ -208,8 +208,8 @@ impl LocalInterface {
 mod tests {
     use anyhow::Error;
     use jwalk::WalkDir;
-    use tempdir::TempDir;
     use log::debug;
+    use tempdir::TempDir;
 
     use crate::{
         config::{Config, ConfigInner},

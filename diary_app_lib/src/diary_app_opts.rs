@@ -65,7 +65,7 @@ impl DiaryAppOpts {
         let dap = DiaryAppInterface::new(config, pool);
 
         let stdout = dap.stdout.clone();
-        stdout.spawn_stdout_task();
+        let stdout = stdout.spawn_stdout_task();
 
         match opts.command {
             DiaryAppCommands::Search => {
@@ -161,6 +161,7 @@ impl DiaryAppOpts {
                 }
             }
         }
-        Ok(())
+        dap.stdout.close().await;
+        stdout.await?
     }
 }
