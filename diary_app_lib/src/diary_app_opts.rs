@@ -160,7 +160,7 @@ impl DiaryAppOpts {
                 }
             }
         }
-        dap.stdout.close().await;
+        dap.stdout.close().await?;
         task.await?
     }
 }
