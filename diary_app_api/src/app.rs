@@ -31,7 +31,7 @@ pub struct AppState {
 }
 
 pub async fn run_app() {
-    async fn _update_db(pool: PgPool) {
+    async fn update_db(pool: PgPool) {
         let mut i = interval(time::Duration::from_secs(60));
         loop {
             i.tick().await;
@@ -39,7 +39,7 @@ pub async fn run_app() {
         }
     }
 
-    async fn _hourly_sync(dapp: DiaryAppActor) {
+    async fn hourly_sync(dapp: DiaryAppActor) {
         let mut i = interval(time::Duration::from_secs(3600));
         loop {
             i.tick().await;
@@ -54,8 +54,8 @@ pub async fn run_app() {
 
     let dapp = DiaryAppActor(DiaryAppInterface::new(config, pool));
 
-    actix_rt::spawn(_update_db(dapp.pool.clone()));
-    actix_rt::spawn(_hourly_sync(dapp.clone()));
+    actix_rt::spawn(update_db(dapp.pool.clone()));
+    actix_rt::spawn(hourly_sync(dapp.clone()));
 
     let port = dapp.config.port;
 
