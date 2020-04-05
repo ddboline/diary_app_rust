@@ -91,6 +91,7 @@ impl SSHInstance {
                 let stdout = stdout();
                 let mut line = String::new();
                 loop {
+                    line.clear();
                     match reader.read_line(&mut line) {
                         Ok(0) => break,
                         Ok(_) => {
