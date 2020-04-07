@@ -147,7 +147,7 @@ impl LocalInterface {
                     f.write_all(existing_entry.diary_text.as_bytes()).await?;
                     entries.push(existing_entry)
                 } else {
-                    f.write_all(b"\n").await?;
+                    f.write_all(b"").await?;
                     let d = DiaryEntries::new(current_date, "");
                     let (d, _) = d.upsert_entry(&self.pool, true).await?;
                     entries.push(d);
