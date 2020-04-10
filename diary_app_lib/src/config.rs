@@ -2,18 +2,20 @@ use anyhow::{format_err, Error};
 use std::{env::var, ops::Deref, path::Path, sync::Arc};
 use url::Url;
 
+use crate::stack_string::StackString;
+
 #[derive(Default, Debug)]
 pub struct ConfigInner {
-    pub database_url: String,
-    pub diary_bucket: String,
-    pub diary_path: String,
-    pub aws_region_name: String,
-    pub telegram_bot_token: String,
+    pub database_url: StackString,
+    pub diary_bucket: StackString,
+    pub diary_path: StackString,
+    pub aws_region_name: StackString,
+    pub telegram_bot_token: StackString,
     pub ssh_url: Option<Url>,
     pub port: u32,
-    pub domain: String,
+    pub domain: StackString,
     pub n_db_workers: usize,
-    pub secret_key: String,
+    pub secret_key: StackString,
 }
 
 #[derive(Default, Debug, Clone)]
@@ -39,13 +41,14 @@ macro_rules! set_config_parse_default {
 macro_rules! set_config_must {
     ($s:ident, $id:ident) => {
         $s.$id = var(&stringify!($id).to_uppercase())
+            .map(Into::into)
             .map_err(|e| format_err!("{} must be set: {}", stringify!($id).to_uppercase(), e))?;
     };
 }
 
 macro_rules! set_config_default {
     ($s:ident, $id:ident, $d:expr) => {
-        $s.$id = var(&stringify!($id).to_uppercase()).unwrap_or_else(|_| $d);
+        $s.$id = var(&stringify!($id).to_uppercase()).map_or_else(|_| $d, Into::into);
     };
 }
 
@@ -84,7 +87,7 @@ impl Config {
         let mut conf = ConfigInner::default();
 
         set_config_must!(conf, database_url);
-        set_config_default!(conf, diary_bucket, "diary_bucket".to_string());
+        set_config_default!(conf, diary_bucket, "diary_bucket".into());
         set_config_default!(
             conf,
             diary_path,
@@ -92,15 +95,16 @@ impl Config {
                 .join("Dropbox")
                 .join("epistle")
                 .to_string_lossy()
+                .to_string()
                 .into()
         );
-        set_config_default!(conf, aws_region_name, "us-east-1".to_string());
-        set_config_default!(conf, telegram_bot_token, "".to_string());
+        set_config_default!(conf, aws_region_name, "us-east-1".into());
+        set_config_default!(conf, telegram_bot_token, "".into());
         set_config_parse!(conf, ssh_url);
         set_config_parse_default!(conf, port, 3042);
-        set_config_default!(conf, domain, "localhost".to_string());
+        set_config_default!(conf, domain, "localhost".into());
         set_config_parse_default!(conf, n_db_workers, 2);
-        set_config_default!(conf, secret_key, "0123".repeat(8));
+        set_config_default!(conf, secret_key, "0123".repeat(8).into());
 
         Ok(Self(Arc::new(conf)))
     }

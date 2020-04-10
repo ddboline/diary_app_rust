@@ -49,7 +49,7 @@ impl LocalInterface {
             let year_mod_map = year_mod_map.clone();
             async move {
                 let filepath =
-                    Path::new(&self.config.diary_path).join(format!("diary_{}.txt", year));
+                    Path::new(self.config.diary_path.as_str()).join(format!("diary_{}.txt", year));
                 if filepath.exists() {
                     if let Ok(metadata) = filepath.metadata() {
                         if let Ok(modified) = metadata.modified() {
@@ -82,7 +82,7 @@ impl LocalInterface {
         let existing_map = DiaryEntries::get_modified_map(&self.pool).await?;
         let previous_date = (Local::now() - Duration::days(4)).naive_local().date();
 
-        let futures = WalkDir::new(&self.config.diary_path)
+        let futures = WalkDir::new(self.config.diary_path.as_str())
             .sort(true)
             .into_iter()
             .map(|entry| async move {
@@ -160,12 +160,13 @@ impl LocalInterface {
     pub async fn import_from_local(&self) -> Result<Vec<DiaryEntries>, Error> {
         let existing_map = DiaryEntries::get_modified_map(&self.pool).await?;
         let mut entries = Vec::new();
-        for entry in WalkDir::new(&self.config.diary_path).sort(true) {
+        for entry in WalkDir::new(self.config.diary_path.as_str()).sort(true) {
             let entry = entry?;
             let filename = entry.file_name.to_string_lossy();
             let entry = if let Ok(date) = NaiveDate::parse_from_str(&filename, "%Y-%m-%d.txt") {
                 if let Ok(metadata) = entry.metadata() {
-                    let filepath = Path::new(&self.config.diary_path).join(filename.as_ref());
+                    let filepath =
+                        Path::new(self.config.diary_path.as_str()).join(filename.as_ref());
                     let modified: DateTime<Utc> = metadata.modified()?.into();
                     let should_modify = match existing_map.get(&date) {
                         Some(current_modified) => (*current_modified - modified).num_seconds() < -1,
@@ -175,7 +176,7 @@ impl LocalInterface {
                     if metadata.len() > 0 && should_modify {
                         DiaryEntries {
                             diary_date: date,
-                            diary_text: read_to_string(&filepath).await?,
+                            diary_text: read_to_string(&filepath).await?.into(),
                             last_modified: modified,
                         }
                     } else {
@@ -188,13 +189,13 @@ impl LocalInterface {
                 continue;
             };
 
-            let entry = if entry.diary_text.trim().is_empty() {
+            let entry = if entry.diary_text.as_str().trim().is_empty() {
                 entry
             } else {
                 debug!(
                     "import local date {} lines {}\n",
                     entry.diary_date,
-                    entry.diary_text.match_indices('\n').count()
+                    entry.diary_text.as_str().match_indices('\n').count()
                 );
                 entry.upsert_entry(&self.pool, true).await?.0
             };

@@ -8,6 +8,7 @@ use crate::{
     diary_app_interface::DiaryAppInterface,
     models::{DiaryCache, DiaryConflict},
     pgpool::PgPool,
+    stack_string::StackString,
 };
 
 #[derive(Debug, Clone, Copy)]
@@ -53,7 +54,7 @@ pub struct DiaryAppOpts {
         required_if("command", "search"),
         required_if("command", "insert")
     )]
-    pub text: Vec<String>,
+    pub text: Vec<StackString>,
 }
 
 impl DiaryAppOpts {
@@ -61,7 +62,7 @@ impl DiaryAppOpts {
         let opts = Self::from_args();
 
         let config = Config::init_config()?;
-        let pool = PgPool::new(&config.database_url);
+        let pool = PgPool::new(config.database_url.as_str());
         let dap = DiaryAppInterface::new(config, pool);
 
         let task = dap.stdout.spawn_stdout_task();
@@ -69,7 +70,7 @@ impl DiaryAppOpts {
         match opts.command {
             DiaryAppCommands::Search => {
                 let result = dap.search_text(&opts.text.join(" ")).await?;
-                dap.stdout.send(result.join("\n"))?;
+                dap.stdout.send(result.join("\n").into())?;
             }
             DiaryAppCommands::Insert => {
                 dap.cache_text(&opts.text.join(" ")).await?;
@@ -79,12 +80,12 @@ impl DiaryAppOpts {
             }
             DiaryAppCommands::Serialize => {
                 for entry in dap.serialize_cache().await? {
-                    dap.stdout.send(entry)?;
+                    dap.stdout.send(entry.into())?;
                 }
             }
             DiaryAppCommands::ClearCache => {
                 for entry in DiaryCache::get_cache_entries(&dap.pool).await? {
-                    dap.stdout.send(serde_json::to_string(&entry)?)?;
+                    dap.stdout.send(serde_json::to_string(&entry)?.into())?;
                     entry.delete_entry(&dap.pool).await?;
                 }
             }
@@ -96,7 +97,7 @@ impl DiaryAppOpts {
                     let conflicts: BTreeSet<_> = DiaryConflict::get_by_date(date, &dap.pool)
                         .await?
                         .into_iter()
-                        .map(|entry| entry.format("%Y-%m-%dT%H:%M:%S%.fZ").to_string())
+                        .map(|entry| entry.format("%Y-%m-%dT%H:%M:%S%.fZ").to_string().into())
                         .collect();
                     for timestamp in conflicts {
                         dap.stdout.send(timestamp)?;
@@ -110,7 +111,7 @@ impl DiaryAppOpts {
                     let conflicts = DiaryConflict::get_all_dates(&dap.pool).await?;
                     if conflicts.len() > 1 {
                         for date in conflicts {
-                            dap.stdout.send(date.to_string())?;
+                            dap.stdout.send(date.to_string().into())?;
                         }
                     } else {
                         for date in conflicts {
@@ -124,13 +125,13 @@ impl DiaryAppOpts {
                     dap: &DiaryAppInterface,
                     datetime: DateTime<Utc>,
                 ) -> Result<(), Error> {
-                    dap.stdout.send(format!("datetime {}", datetime))?;
+                    dap.stdout.send(format!("datetime {}", datetime).into())?;
                     let conflicts: Vec<_> = DiaryConflict::get_by_datetime(datetime, &dap.pool)
                         .await?
                         .into_iter()
                         .map(|entry| match entry.diff_type.as_ref() {
-                            "rem" => format!("\x1b[91m{}\x1b[0m", entry.diff_text),
-                            "add" => format!("\x1b[92m{}\x1b[0m", entry.diff_text),
+                            "rem" => format!("\x1b[91m{}\x1b[0m", entry.diff_text).into(),
+                            "add" => format!("\x1b[92m{}\x1b[0m", entry.diff_text).into(),
                             _ => entry.diff_text,
                         })
                         .collect();

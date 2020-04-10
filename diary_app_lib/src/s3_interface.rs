@@ -11,7 +11,10 @@ use std::{
 };
 use tokio::sync::RwLock;
 
-use crate::{config::Config, models::DiaryEntries, pgpool::PgPool, s3_instance::S3Instance};
+use crate::{
+    config::Config, models::DiaryEntries, pgpool::PgPool, s3_instance::S3Instance,
+    stack_string::StackString,
+};
 
 const TIME_BUFFER: i64 = 60;
 
@@ -22,7 +25,7 @@ lazy_static! {
 
 #[derive(Debug, Clone)]
 struct KeyMetaData {
-    key: String,
+    key: StackString,
     date: NaiveDate,
     last_modified: DateTime<Utc>,
     size: i64,
@@ -31,12 +34,12 @@ struct KeyMetaData {
 impl TryFrom<Object> for KeyMetaData {
     type Error = Error;
     fn try_from(obj: Object) -> Result<Self, Error> {
-        let key = obj
+        let key: StackString = obj
             .key
             .as_ref()
             .ok_or_else(|| format_err!("No Key"))?
-            .clone();
-        let date = NaiveDate::parse_from_str(&key, "%Y-%m-%d.txt")?;
+            .into();
+        let date = NaiveDate::parse_from_str(key.as_str(), "%Y-%m-%d.txt")?;
         let last_modified = obj
             .last_modified
             .as_ref()
@@ -62,7 +65,7 @@ pub struct S3Interface {
 impl S3Interface {
     pub fn new(config: Config, pool: PgPool) -> Self {
         Self {
-            s3_client: S3Instance::new(&config.aws_region_name),
+            s3_client: S3Instance::new(config.aws_region_name.as_str()),
             pool,
             config,
         }
@@ -73,7 +76,7 @@ impl S3Interface {
             Utc::now(),
             Arc::new(
                 self.s3_client
-                    .get_list_of_keys(&self.config.diary_bucket, None)
+                    .get_list_of_keys(self.config.diary_bucket.as_str(), None)
                     .await?
                     .into_iter()
                     .filter_map(|obj| obj.try_into().ok())
@@ -115,7 +118,7 @@ impl S3Interface {
                                 if let Ok(entry) =
                                     DiaryEntries::get_by_date(diary_date, &self.pool).await
                                 {
-                                    let ln = entry.diary_text.len() as i64;
+                                    let ln = entry.diary_text.as_str().len() as i64;
                                     if *sz != ln {
                                         debug!(
                                             "last_modified {} {} {} {} {}",
@@ -134,19 +137,19 @@ impl S3Interface {
                     };
                     if should_update {
                         if let Ok(entry) = DiaryEntries::get_by_date(diary_date, &self.pool).await {
-                            if entry.diary_text.trim().is_empty() {
+                            if entry.diary_text.as_str().trim().is_empty() {
                                 return Ok(None);
                             }
                             debug!(
                                 "export s3 date {} lines {}",
                                 entry.diary_date,
-                                entry.diary_text.match_indices('\n').count()
+                                entry.diary_text.as_str().match_indices('\n').count()
                             );
                             let key = format!("{}.txt", entry.diary_date);
                             self.s3_client
                                 .upload_from_string(
-                                    &entry.diary_text,
-                                    &self.config.diary_bucket,
+                                    entry.diary_text.as_str(),
+                                    self.config.diary_bucket.as_str(),
                                     &key,
                                 )
                                 .await?;
@@ -205,21 +208,21 @@ impl S3Interface {
                 if obj.size > 0 && should_modify {
                     if let Ok(val) = self
                         .s3_client
-                        .download_to_string(&self.config.diary_bucket, &obj.key)
+                        .download_to_string(self.config.diary_bucket.as_str(), obj.key.as_str())
                         .await
                     {
                         let entry = DiaryEntries {
                             diary_date: obj.date,
-                            diary_text: val,
+                            diary_text: val.into(),
                             last_modified: obj.last_modified,
                         };
-                        if entry.diary_text.trim().is_empty() {
+                        if entry.diary_text.as_str().trim().is_empty() {
                             return Ok(None);
                         }
                         debug!(
                             "import s3 date {} lines {}",
                             entry.diary_date,
-                            entry.diary_text.match_indices('\n').count()
+                            entry.diary_text.as_str().match_indices('\n').count()
                         );
                         let (entry, _) = entry.upsert_entry(&self.pool, insert_new).await?;
                         return Ok(Some(entry));

@@ -13,13 +13,14 @@ use tokio::task::spawn_blocking;
 use crate::{
     pgpool::{PgPool, PgPoolConn},
     schema::{authorized_users, diary_cache, diary_conflict, diary_entries},
+    stack_string::StackString,
 };
 
 #[derive(Queryable, Insertable, Clone, Debug)]
 #[table_name = "diary_entries"]
 pub struct DiaryEntries {
     pub diary_date: NaiveDate,
-    pub diary_text: String,
+    pub diary_text: StackString,
     pub last_modified: DateTime<Utc>,
 }
 
@@ -27,7 +28,7 @@ pub struct DiaryEntries {
 #[table_name = "diary_cache"]
 pub struct DiaryCache {
     pub diary_datetime: DateTime<Utc>,
-    pub diary_text: String,
+    pub diary_text: StackString,
 }
 
 impl PartialEq for DiaryCache {
@@ -40,7 +41,7 @@ impl PartialEq for DiaryCache {
 #[derive(Queryable, Insertable, Clone, Debug)]
 #[table_name = "authorized_users"]
 pub struct AuthorizedUsers {
-    pub email: String,
+    pub email: StackString,
     pub telegram_userid: Option<i64>,
 }
 
@@ -49,8 +50,8 @@ pub struct DiaryConflict {
     pub id: i32,
     pub sync_datetime: DateTime<Utc>,
     pub diary_date: NaiveDate,
-    pub diff_type: String,
-    pub diff_text: String,
+    pub diff_type: StackString,
+    pub diff_text: StackString,
 }
 
 #[derive(Insertable, Clone, Debug, Serialize, Deserialize)]
@@ -58,8 +59,8 @@ pub struct DiaryConflict {
 pub struct DiaryConflictInsert {
     pub sync_datetime: DateTime<Utc>,
     pub diary_date: NaiveDate,
-    pub diff_type: String,
-    pub diff_text: String,
+    pub diff_type: StackString,
+    pub diff_text: StackString,
 }
 
 impl From<DiaryConflict> for DiaryConflictInsert {
@@ -201,26 +202,26 @@ impl DiaryConflict {
                     sync_datetime,
                     diary_date,
                     diff_type: "same".into(),
-                    diff_text: s,
+                    diff_text: s.into(),
                 },
                 Difference::Rem(s) => DiaryConflictInsert {
                     sync_datetime,
                     diary_date,
                     diff_type: "rem".into(),
-                    diff_text: s,
+                    diff_text: s.into(),
                 },
                 Difference::Add(s) => DiaryConflictInsert {
                     sync_datetime,
                     diary_date,
                     diff_type: "add".into(),
-                    diff_text: s,
+                    diff_text: s.into(),
                 },
             })
             .collect();
 
         let n_removed_lines: usize = removed_lines
             .iter()
-            .filter(|x| x.diff_type == "rem")
+            .filter(|x| x.diff_type.as_str() == "rem")
             .count();
 
         if n_removed_lines > 0 {
@@ -393,9 +394,9 @@ impl DiaryEntries {
     fn _get_difference(&self, conn: &PgPoolConn, insert_new: bool) -> Result<Changeset, Error> {
         Self::_get_by_date(self.diary_date, conn).map(|original| {
             if insert_new {
-                Changeset::new(&original.diary_text, &self.diary_text, "\n")
+                Changeset::new(original.diary_text.as_str(), self.diary_text.as_str(), "\n")
             } else {
-                Changeset::new(&self.diary_text, &original.diary_text, "\n")
+                Changeset::new(self.diary_text.as_str(), original.diary_text.as_str(), "\n")
             }
         })
     }

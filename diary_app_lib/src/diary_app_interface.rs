@@ -323,13 +323,13 @@ impl DiaryAppInterface {
                     DiaryEntries::get_by_date(entry_date, &self.pool).await
                 {
                     current_entry.diary_text =
-                        format!("{}\n\n{}", &current_entry.diary_text, entry_string);
-                    self.stdout.send(format!("update {}", diary_file))?;
+                        format!("{}\n\n{}", &current_entry.diary_text, entry_string).into();
+                    self.stdout.send(format!("update {}", diary_file).into())?;
                     let (current_entry, _) = current_entry.update_entry(&self.pool, true).await?;
                     Some(current_entry)
                 } else {
                     let new_entry = DiaryEntries::new(entry_date, &entry_string);
-                    self.stdout.send(format!("upsert {}", diary_file))?;
+                    self.stdout.send(format!("upsert {}", diary_file).into())?;
                     let (new_entry, _) = new_entry.upsert_entry(&self.pool, true).await?;
                     Some(new_entry)
                 };

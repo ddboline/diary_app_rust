@@ -9,14 +9,16 @@ use std::{
 use subprocess::Exec;
 use url::Url;
 
+use crate::stack_string::StackString;
+
 lazy_static! {
-    static ref LOCK_CACHE: RwLock<HashMap<String, Mutex<()>>> = RwLock::new(HashMap::new());
+    static ref LOCK_CACHE: RwLock<HashMap<StackString, Mutex<()>>> = RwLock::new(HashMap::new());
 }
 
 #[derive(Debug, Clone)]
 pub struct SSHInstance {
-    pub user: String,
-    pub host: String,
+    pub user: StackString,
+    pub host: StackString,
     pub port: u16,
 }
 

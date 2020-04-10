@@ -4,13 +4,16 @@ use chrono::{DateTime, NaiveDate, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
 
-use diary_app_lib::models::{DiaryConflict, DiaryEntries};
+use diary_app_lib::{
+    models::{DiaryConflict, DiaryEntries},
+    stack_string::StackString,
+};
 
 use super::app::DiaryAppActor;
 
 #[derive(Serialize, Deserialize)]
 pub struct SearchOptions {
-    pub text: Option<String>,
+    pub text: Option<StackString>,
     pub date: Option<NaiveDate>,
 }
 
@@ -24,15 +27,15 @@ pub struct ListOptions {
 
 pub enum DiaryAppRequests {
     Search(SearchOptions),
-    Insert(String),
+    Insert(StackString),
     Sync,
-    Replace { date: NaiveDate, text: String },
+    Replace { date: NaiveDate, text: StackString },
     List(ListOptions),
     Display(NaiveDate),
     ListConflicts(Option<NaiveDate>),
     ShowConflict(DateTime<Utc>),
     RemoveConflict(DateTime<Utc>),
-    UpdateConflict { id: i32, diff_text: String },
+    UpdateConflict { id: i32, diff_text: StackString },
     CommitConflict(DateTime<Utc>),
 }
 
@@ -47,18 +50,18 @@ impl HandleRequest for DiaryAppActor {
         match req {
             DiaryAppRequests::Search(opts) => {
                 let body = if let Some(text) = opts.text {
-                    let results: Vec<_> = self.search_text(&text).await?;
+                    let results: Vec<_> = self.search_text(text.as_str()).await?;
                     results
                 } else if let Some(date) = opts.date {
                     let entry = DiaryEntries::get_by_date(date, &self.pool).await?;
-                    vec![entry.diary_text]
+                    vec![entry.diary_text.into()]
                 } else {
                     vec!["".to_string()]
                 };
                 Ok(body)
             }
             DiaryAppRequests::Insert(text) => {
-                let cache = self.cache_text(&text).await?;
+                let cache = self.cache_text(text.as_str()).await?;
                 Ok(vec![format!("{}", cache.diary_datetime)])
             }
             DiaryAppRequests::Sync => {
@@ -66,7 +69,7 @@ impl HandleRequest for DiaryAppActor {
                 Ok(output)
             }
             DiaryAppRequests::Replace { date, text } => {
-                let (entry, _) = self.replace_text(date, &text).await?;
+                let (entry, _) = self.replace_text(date, text.as_str()).await?;
                 let body = format!("{}\n{}", entry.diary_date, entry.diary_text);
                 Ok(vec![body])
             }
@@ -81,7 +84,7 @@ impl HandleRequest for DiaryAppActor {
             }
             DiaryAppRequests::Display(date) => {
                 let entry = DiaryEntries::get_by_date(date, &self.pool).await?;
-                Ok(vec![entry.diary_text])
+                Ok(vec![entry.diary_text.into()])
             }
             DiaryAppRequests::ListConflicts(None) => {
                 let conflicts: BTreeSet<_> = DiaryConflict::get_all_dates(&self.pool)
@@ -116,7 +119,7 @@ impl HandleRequest for DiaryAppActor {
                 let conflicts: Vec<_> = conflicts
                     .into_iter()
                     .map(|entry| {
-                        let nlines = entry.diff_text.split('\n').count() + 1;
+                        let nlines = entry.diff_text.as_str().split('\n').count() + 1;
                         match entry.diff_type.as_ref() {
                             "rem" => format!(
                                 r#"<textarea style="color:Red;" cols=100 rows={}
@@ -176,8 +179,8 @@ impl HandleRequest for DiaryAppActor {
                 let additions: Vec<String> = conflicts
                     .into_iter()
                     .filter_map(|entry| {
-                        if entry.diff_type == "add" || entry.diff_type == "same" {
-                            Some(entry.diff_text)
+                        if entry.diff_type.as_str() == "add" || entry.diff_type.as_str() == "same" {
+                            Some(entry.diff_text.into())
                         } else {
                             None
                         }

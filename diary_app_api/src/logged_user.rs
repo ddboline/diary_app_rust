@@ -11,7 +11,9 @@ pub async fn fill_from_db(pool: &PgPool) -> Result<(), Error> {
         AuthorizedUsers::get_authorized_users(&pool)
             .await?
             .into_iter()
-            .map(|user| LoggedUser { email: user.email })
+            .map(|user| LoggedUser {
+                email: user.email.into(),
+            })
             .collect()
     } else {
         AUTHORIZED_USERS.get_users()

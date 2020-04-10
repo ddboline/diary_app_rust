@@ -3,11 +3,13 @@ use diesel::{pg::PgConnection, r2d2::ConnectionManager};
 use r2d2::{Pool, PooledConnection};
 use std::{fmt, sync::Arc};
 
+use crate::stack_string::StackString;
+
 pub type PgPoolConn = PooledConnection<ConnectionManager<PgConnection>>;
 
 #[derive(Clone)]
 pub struct PgPool {
-    pgurl: Arc<String>,
+    pgurl: Arc<StackString>,
     pool: Pool<ConnectionManager<PgConnection>>,
 }
 

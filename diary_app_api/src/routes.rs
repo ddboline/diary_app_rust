@@ -8,6 +8,8 @@ use maplit::hashmap;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 
+use diary_app_lib::stack_string::StackString;
+
 use super::{
     app::AppState,
     errors::ServiceError as Error,
@@ -69,7 +71,7 @@ pub async fn search(
 
 #[derive(Serialize, Deserialize)]
 pub struct InsertData {
-    pub text: String,
+    pub text: StackString,
 }
 
 pub async fn insert(
@@ -109,7 +111,7 @@ pub async fn sync_api(_: LoggedUser, state: Data<AppState>) -> Result<HttpRespon
 #[derive(Serialize, Deserialize)]
 pub struct ReplaceData {
     pub date: NaiveDate,
-    pub text: String,
+    pub text: StackString,
 }
 
 pub async fn replace(
@@ -367,7 +369,7 @@ pub async fn remove_conflict(
 #[derive(Serialize, Deserialize)]
 pub struct ConflictUpdateData {
     pub id: i32,
-    pub diff_type: String,
+    pub diff_type: StackString,
 }
 
 pub async fn update_conflict(
