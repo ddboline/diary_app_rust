@@ -489,7 +489,7 @@ mod tests {
             .unwrap_or_else(|_| Vec::new());
         let results2 = dap.serialize_cache().await?;
         let result = result.delete_entry(&dap.pool).await?;
-        assert_eq!(result.diary_text, "Test text");
+        assert_eq!(result.diary_text.as_str(), "Test text");
         assert_eq!(results.len(), 1);
         assert_eq!(results[0], result);
         assert!(results2[0].contains("Test text"));
@@ -513,7 +513,7 @@ mod tests {
         assert_eq!(result.diary_date, test_date);
         assert!(conflict.is_none());
         assert_eq!(result2.diary_date, test_date);
-        assert_eq!(result2.diary_text, test_text2);
+        assert_eq!(result2.diary_text.as_str(), test_text2);
         assert!(conflict2.is_some());
         let conflict2 = conflict2.unwrap();
         let result3 = DiaryConflict::get_by_datetime(conflict2, &dap.pool).await?;
