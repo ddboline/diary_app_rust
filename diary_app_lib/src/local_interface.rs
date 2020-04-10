@@ -225,13 +225,13 @@ mod tests {
     fn get_li(tempdir: &TempDir) -> Result<LocalInterface, Error> {
         let config = Config::init_config()?.get_inner()?;
         let inner = ConfigInner {
-            diary_path: tempdir.path().to_string_lossy().to_string(),
+            diary_path: tempdir.path().to_string_lossy().to_string().into(),
             ssh_url: None,
             ..config
         };
         let config = Config::from_inner(inner);
 
-        let pool = PgPool::new(&config.database_url);
+        let pool = PgPool::new(config.database_url.as_str());
         Ok(LocalInterface::new(config, pool))
     }
 
