@@ -71,7 +71,7 @@ pub async fn search(
 
 #[derive(Serialize, Deserialize)]
 pub struct InsertData {
-    pub text: StackString,
+    pub text: String,
 }
 
 pub async fn insert(
@@ -79,7 +79,7 @@ pub async fn insert(
     _: LoggedUser,
     state: Data<AppState>,
 ) -> Result<HttpResponse, Error> {
-    let req = DiaryAppRequests::Insert(data.into_inner().text);
+    let req = DiaryAppRequests::Insert(data.into_inner().text.into());
 
     let body = state.db.handle(req).await?;
     let body = hashmap! {"datetime" => body.join("\n")};
@@ -111,7 +111,7 @@ pub async fn sync_api(_: LoggedUser, state: Data<AppState>) -> Result<HttpRespon
 #[derive(Serialize, Deserialize)]
 pub struct ReplaceData {
     pub date: NaiveDate,
-    pub text: StackString,
+    pub text: String,
 }
 
 pub async fn replace(
@@ -122,7 +122,7 @@ pub async fn replace(
     let data = data.into_inner();
     let req = DiaryAppRequests::Replace {
         date: data.date,
-        text: data.text,
+        text: data.text.into(),
     };
     let body = state.db.handle(req).await?;
     let body = hashmap! {"entry" => body.join("\n")};
