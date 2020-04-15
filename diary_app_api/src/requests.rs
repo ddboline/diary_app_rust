@@ -50,7 +50,7 @@ impl HandleRequest for DiaryAppActor {
         match req {
             DiaryAppRequests::Search(opts) => {
                 let body = if let Some(text) = opts.text {
-                    let results: Vec<_> = self.search_text(text.as_str()).await?;
+                    let results: Vec<_> = self.search_text(&text).await?;
                     results
                 } else if let Some(date) = opts.date {
                     let entry = DiaryEntries::get_by_date(date, &self.pool).await?;
@@ -61,7 +61,7 @@ impl HandleRequest for DiaryAppActor {
                 Ok(body)
             }
             DiaryAppRequests::Insert(text) => {
-                let cache = self.cache_text(text.as_str()).await?;
+                let cache = self.cache_text(&text).await?;
                 Ok(vec![format!("{}", cache.diary_datetime)])
             }
             DiaryAppRequests::Sync => {
@@ -69,7 +69,7 @@ impl HandleRequest for DiaryAppActor {
                 Ok(output)
             }
             DiaryAppRequests::Replace { date, text } => {
-                let (entry, _) = self.replace_text(date, text.as_str()).await?;
+                let (entry, _) = self.replace_text(date, &text).await?;
                 let body = format!("{}\n{}", entry.diary_date, entry.diary_text);
                 Ok(vec![body])
             }
@@ -119,7 +119,7 @@ impl HandleRequest for DiaryAppActor {
                 let conflicts: Vec<_> = conflicts
                     .into_iter()
                     .map(|entry| {
-                        let nlines = entry.diff_text.as_str().split('\n').count() + 1;
+                        let nlines = entry.diff_text.split('\n').count() + 1;
                         match entry.diff_type.as_ref() {
                             "rem" => format!(
                                 r#"<textarea style="color:Red;" cols=100 rows={}
@@ -179,7 +179,7 @@ impl HandleRequest for DiaryAppActor {
                 let additions: Vec<String> = conflicts
                     .into_iter()
                     .filter_map(|entry| {
-                        if entry.diff_type.as_str() == "add" || entry.diff_type.as_str() == "same" {
+                        if &entry.diff_type == "add" || &entry.diff_type == "same" {
                             Some(entry.diff_text.into())
                         } else {
                             None

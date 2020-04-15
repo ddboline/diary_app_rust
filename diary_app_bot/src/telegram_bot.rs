@@ -235,7 +235,7 @@ async fn fill_telegram_user_ids(pool: PgPool) -> Result<(), Error> {
 
 pub async fn run_bot() -> Result<(), Error> {
     let config = Config::init_config().unwrap();
-    let pool = PgPool::new(config.database_url.as_str());
+    let pool = PgPool::new(&config.database_url);
     let dapp = DiaryAppInterface::new(config, pool);
 
     let pool_ = dapp.pool.clone();

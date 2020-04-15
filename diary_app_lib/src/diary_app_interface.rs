@@ -417,7 +417,7 @@ mod tests {
 
     fn get_dap() -> Result<DiaryAppInterface, Error> {
         let config = Config::init_config()?;
-        let pool = PgPool::new(config.database_url.as_str());
+        let pool = PgPool::new(&config.database_url);
         Ok(DiaryAppInterface::new(config, pool))
     }
 

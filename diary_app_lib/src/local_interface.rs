@@ -189,13 +189,13 @@ impl LocalInterface {
                 continue;
             };
 
-            let entry = if entry.diary_text.as_str().trim().is_empty() {
+            let entry = if entry.diary_text.trim().is_empty() {
                 entry
             } else {
                 debug!(
                     "import local date {} lines {}\n",
                     entry.diary_date,
-                    entry.diary_text.as_str().match_indices('\n').count()
+                    entry.diary_text.matches('\n').count()
                 );
                 entry.upsert_entry(&self.pool, true).await?.0
             };
@@ -231,7 +231,7 @@ mod tests {
         };
         let config = Config::from_inner(inner);
 
-        let pool = PgPool::new(config.database_url.as_str());
+        let pool = PgPool::new(&config.database_url);
         Ok(LocalInterface::new(config, pool))
     }
 

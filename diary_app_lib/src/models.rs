@@ -221,7 +221,7 @@ impl DiaryConflict {
 
         let n_removed_lines: usize = removed_lines
             .iter()
-            .filter(|x| x.diff_type.as_str() == "rem")
+            .filter(|x| &x.diff_type == "rem")
             .count();
 
         if n_removed_lines > 0 {
@@ -394,9 +394,9 @@ impl DiaryEntries {
     fn _get_difference(&self, conn: &PgPoolConn, insert_new: bool) -> Result<Changeset, Error> {
         Self::_get_by_date(self.diary_date, conn).map(|original| {
             if insert_new {
-                Changeset::new(original.diary_text.as_str(), self.diary_text.as_str(), "\n")
+                Changeset::new(&original.diary_text, &self.diary_text, "\n")
             } else {
-                Changeset::new(self.diary_text.as_str(), original.diary_text.as_str(), "\n")
+                Changeset::new(&self.diary_text, &original.diary_text, "\n")
             }
         })
     }

@@ -50,7 +50,7 @@ pub async fn run_app() {
     TRIGGER_DB_UPDATE.set();
 
     let config = Config::init_config().expect("Failed to load config");
-    let pool = PgPool::new(config.database_url.as_str());
+    let pool = PgPool::new(&config.database_url);
 
     let dapp = DiaryAppActor(DiaryAppInterface::new(config, pool));
 

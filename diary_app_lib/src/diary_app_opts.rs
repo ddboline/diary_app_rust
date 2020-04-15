@@ -62,7 +62,7 @@ impl DiaryAppOpts {
         let opts = Self::from_args();
 
         let config = Config::init_config()?;
-        let pool = PgPool::new(config.database_url.as_str());
+        let pool = PgPool::new(&config.database_url);
         let dap = DiaryAppInterface::new(config, pool);
 
         let task = dap.stdout.spawn_stdout_task();
@@ -129,7 +129,7 @@ impl DiaryAppOpts {
                     let conflicts: Vec<_> = DiaryConflict::get_by_datetime(datetime, &dap.pool)
                         .await?
                         .into_iter()
-                        .map(|entry| match entry.diff_type.as_ref() {
+                        .map(|entry| match entry.diff_type.as_str() {
                             "rem" => format!("\x1b[91m{}\x1b[0m", entry.diff_text).into(),
                             "add" => format!("\x1b[92m{}\x1b[0m", entry.diff_text).into(),
                             _ => entry.diff_text,
