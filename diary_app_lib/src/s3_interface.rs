@@ -113,19 +113,19 @@ impl S3Interface {
                 let s3_key_map = s3_key_map.clone();
                 async move {
                     let should_update = match s3_key_map.get(&diary_date) {
-                        Some((lm, sz)) => {
+                        Some((lm, s3_size)) => {
                             if (last_modified - *lm).num_seconds() > -TIME_BUFFER {
                                 if let Ok(entry) =
                                     DiaryEntries::get_by_date(diary_date, &self.pool).await
                                 {
-                                    let ln = entry.diary_text.len() as i64;
-                                    if *sz != ln {
+                                    let db_size = entry.diary_text.len() as i64;
+                                    if *s3_size != db_size {
                                         debug!(
                                             "last_modified {} {} {} {} {}",
-                                            diary_date, *lm, last_modified, sz, ln
+                                            diary_date, *lm, last_modified, s3_size, db_size
                                         );
                                     }
-                                    *sz != ln
+                                    *s3_size < db_size
                                 } else {
                                     false
                                 }
@@ -184,18 +184,18 @@ impl S3Interface {
                         if (*current_modified - obj.last_modified).num_seconds() < TIME_BUFFER {
                             if let Ok(entry) = DiaryEntries::get_by_date(obj.date, &self.pool).await
                             {
-                                let ln = entry.diary_text.len() as i64;
-                                if obj.size != ln {
+                                let db_size = entry.diary_text.len() as i64;
+                                if obj.size != db_size {
                                     debug!(
                                         "last_modified {} {} {} {} {}",
                                         obj.date,
                                         *current_modified,
                                         obj.last_modified,
                                         obj.size,
-                                        ln
+                                        db_size
                                     );
                                 }
-                                obj.size != ln
+                                obj.size > db_size
                             } else {
                                 false
                             }

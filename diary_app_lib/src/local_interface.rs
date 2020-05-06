@@ -148,9 +148,9 @@ impl LocalInterface {
                     entries.push(existing_entry)
                 } else {
                     f.write_all(b"").await?;
-                    let d = DiaryEntries::new(current_date, "");
-                    let (d, _) = d.upsert_entry(&self.pool, true).await?;
-                    entries.push(d);
+                    let new_entry = DiaryEntries::new(current_date, "");
+                    let (new_entry, _) = new_entry.upsert_entry(&self.pool, true).await?;
+                    entries.push(new_entry);
                 }
             }
         }
