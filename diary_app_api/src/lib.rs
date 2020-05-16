@@ -5,6 +5,7 @@
 #![allow(clippy::cast_sign_loss)]
 #![allow(clippy::cast_possible_truncation)]
 #![allow(clippy::missing_errors_doc)]
+#![allow(clippy::used_underscore_binding)]
 
 pub mod app;
 pub mod errors;
