@@ -24,7 +24,10 @@ impl PgPool {
         let manager = ConnectionManager::new(pgurl);
         Self {
             pgurl: Arc::new(pgurl.into()),
-            pool: Pool::new(manager).expect("Failed to open DB connection"),
+            pool: Pool::builder()
+                .min_idle(Some(2))
+                .build(manager)
+                .expect("Failed to open DB connection"),
         }
     }
 
