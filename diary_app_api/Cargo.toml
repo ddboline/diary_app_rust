@@ -10,7 +10,7 @@ edition = "2018"
 actix-web = "2.0"
 actix = "0.9"
 actix-identity = "0.2"
-actix-rt = "1.0"
+actix-rt = "1.1"
 diary_app_lib = {path = "../diary_app_lib"}
 chrono = "0.4"
 futures = "0.3"
