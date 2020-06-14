@@ -323,12 +323,14 @@ impl DiaryAppInterface {
                 {
                     current_entry.diary_text =
                         format!("{}\n\n{}", &current_entry.diary_text, entry_string).into();
-                    self.stdout.send(format!("update {}", diary_file.to_string_lossy()).into())?;
+                    self.stdout
+                        .send(format!("update {}", diary_file.to_string_lossy()).into())?;
                     let (current_entry, _) = current_entry.update_entry(&self.pool, true).await?;
                     Some(current_entry)
                 } else {
                     let new_entry = DiaryEntries::new(entry_date, &entry_string);
-                    self.stdout.send(format!("upsert {}", diary_file.to_string_lossy()).into())?;
+                    self.stdout
+                        .send(format!("upsert {}", diary_file.to_string_lossy()).into())?;
                     let (new_entry, _) = new_entry.upsert_entry(&self.pool, true).await?;
                     Some(new_entry)
                 };
@@ -368,7 +370,12 @@ impl DiaryAppInterface {
     }
 
     pub async fn sync_ssh(&self) -> Result<Vec<DiaryCache>, Error> {
-        let ssh_url = match self.config.ssh_url.as_ref().and_then(|s| s.parse::<Url>().ok()) {
+        let ssh_url = match self
+            .config
+            .ssh_url
+            .as_ref()
+            .and_then(|s| s.parse::<Url>().ok())
+        {
             Some(ssh_url) => Arc::new(ssh_url),
             None => return Ok(Vec::new()),
         };

@@ -48,8 +48,7 @@ impl LocalInterface {
         let futures = year_map.into_iter().map(|(year, date_list)| {
             let year_mod_map = year_mod_map.clone();
             async move {
-                let filepath =
-                    self.config.diary_path.join(format!("diary_{}.txt", year));
+                let filepath = self.config.diary_path.join(format!("diary_{}.txt", year));
                 if filepath.exists() {
                     if let Ok(metadata) = filepath.metadata() {
                         if let Ok(modified) = metadata.modified() {
@@ -123,7 +122,8 @@ impl LocalInterface {
                             if existing_size > *file_size {
                                 debug!("file db diff {} {}", file_mod, db_mod);
                                 debug!("file db size {} {}", file_size, db_mod);
-                                let filepath = self.config.diary_path.join(format!("{}.txt", current_date));
+                                let filepath =
+                                    self.config.diary_path.join(format!("{}.txt", current_date));
                                 let mut f = File::create(&filepath).await?;
                                 f.write_all(existing_entry.diary_text.as_bytes()).await?;
                             }

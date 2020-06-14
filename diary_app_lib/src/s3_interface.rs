@@ -72,12 +72,14 @@ impl S3Interface {
     }
 
     async fn fill_cache(&self) -> Result<(), Error> {
+        let list_of_keys = self
+            .s3_client
+            .get_list_of_keys(&self.config.diary_bucket, None)
+            .await?;
         *KEY_CACHE.write().await = (
             Utc::now(),
             Arc::new(
-                self.s3_client
-                    .get_list_of_keys(&self.config.diary_bucket, None)
-                    .await?
+                list_of_keys
                     .into_iter()
                     .filter_map(|obj| obj.try_into().ok())
                     .collect(),

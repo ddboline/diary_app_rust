@@ -79,7 +79,7 @@ pub async fn insert(
     _: LoggedUser,
     state: Data<AppState>,
 ) -> Result<HttpResponse, Error> {
-    let req = DiaryAppRequests::Insert(data.into_inner().text.into());
+    let req = DiaryAppRequests::Insert(data.into_inner().text);
 
     let body = state.db.handle(req).await?;
     let body = hashmap! {"datetime" => body.join("\n")};
@@ -122,7 +122,7 @@ pub async fn replace(
     let data = data.into_inner();
     let req = DiaryAppRequests::Replace {
         date: data.date,
-        text: data.text.into(),
+        text: data.text,
     };
     let body = state.db.handle(req).await?;
     let body = hashmap! {"entry" => body.join("\n")};
