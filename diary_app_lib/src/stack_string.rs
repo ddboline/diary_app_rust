@@ -35,7 +35,7 @@ use std::{
     Ord,
 )]
 #[sql_type = "Text"]
-#[serde(into = "String", from = "&str")]
+#[serde(into = "String", from = "String")]
 pub struct StackString(InlinableString);
 
 impl StackString {

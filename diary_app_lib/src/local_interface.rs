@@ -3,7 +3,7 @@ use chrono::{DateTime, Datelike, Duration, Local, NaiveDate, TimeZone, Utc};
 use futures::future::try_join_all;
 use jwalk::WalkDir;
 use log::debug;
-use std::{collections::BTreeMap, fs::metadata, path::Path, sync::Arc, time::SystemTime};
+use std::{collections::BTreeMap, fs::metadata, sync::Arc, time::SystemTime};
 use tokio::{
     fs::{read_to_string, remove_file, File},
     io::AsyncWriteExt,
@@ -49,7 +49,7 @@ impl LocalInterface {
             let year_mod_map = year_mod_map.clone();
             async move {
                 let filepath =
-                    Path::new(self.config.diary_path.as_str()).join(format!("diary_{}.txt", year));
+                    self.config.diary_path.join(format!("diary_{}.txt", year));
                 if filepath.exists() {
                     if let Ok(metadata) = filepath.metadata() {
                         if let Ok(modified) = metadata.modified() {
@@ -82,19 +82,18 @@ impl LocalInterface {
         let existing_map = DiaryEntries::get_modified_map(&self.pool).await?;
         let previous_date = (Local::now() - Duration::days(4)).naive_local().date();
 
-        let futures = WalkDir::new(self.config.diary_path.as_str())
+        let futures = WalkDir::new(&self.config.diary_path)
             .sort(true)
             .into_iter()
             .map(|entry| async move {
                 let entry = entry?;
                 let filename = entry.file_name.to_string_lossy();
                 if let Ok(date) = NaiveDate::parse_from_str(&filename, "%Y-%m-%d.txt") {
+                    let filepath = self.config.diary_path.join(filename.as_ref());
                     if date <= previous_date {
-                        let filepath = format!("{}/{}", self.config.diary_path, filename);
-                        debug!("{}\n", filepath);
+                        debug!("{:?}\n", filepath);
                         remove_file(&filepath).await?;
                     } else {
-                        let filepath = format!("{}/{}", self.config.diary_path, filename);
                         let metadata = metadata(&filepath)?;
                         let size = metadata.len() as usize;
                         let modified_secs = metadata
@@ -124,8 +123,7 @@ impl LocalInterface {
                             if existing_size > *file_size {
                                 debug!("file db diff {} {}", file_mod, db_mod);
                                 debug!("file db size {} {}", file_size, db_mod);
-                                let filepath =
-                                    format!("{}/{}.txt", self.config.diary_path, current_date);
+                                let filepath = self.config.diary_path.join(format!("{}.txt", current_date));
                                 let mut f = File::create(&filepath).await?;
                                 f.write_all(existing_entry.diary_text.as_bytes()).await?;
                             }
@@ -138,7 +136,7 @@ impl LocalInterface {
                     entries.push(d);
                 }
             } else {
-                let filepath = format!("{}/{}.txt", self.config.diary_path, current_date);
+                let filepath = self.config.diary_path.join(format!("{}.txt", current_date));
                 let mut f = File::create(&filepath).await?;
 
                 if let Ok(existing_entry) =
@@ -160,13 +158,12 @@ impl LocalInterface {
     pub async fn import_from_local(&self) -> Result<Vec<DiaryEntries>, Error> {
         let existing_map = DiaryEntries::get_modified_map(&self.pool).await?;
         let mut entries = Vec::new();
-        for entry in WalkDir::new(self.config.diary_path.as_str()).sort(true) {
+        for entry in WalkDir::new(&self.config.diary_path).sort(true) {
             let entry = entry?;
             let filename = entry.file_name.to_string_lossy();
             let entry = if let Ok(date) = NaiveDate::parse_from_str(&filename, "%Y-%m-%d.txt") {
                 if let Ok(metadata) = entry.metadata() {
-                    let filepath =
-                        Path::new(self.config.diary_path.as_str()).join(filename.as_ref());
+                    let filepath = self.config.diary_path.join(filename.as_ref());
                     let modified: DateTime<Utc> = metadata.modified()?.into();
                     let should_modify = match existing_map.get(&date) {
                         Some(current_modified) => (*current_modified - modified).num_seconds() < -1,

@@ -71,7 +71,7 @@ pub async fn search(
 
 #[derive(Serialize, Deserialize)]
 pub struct InsertData {
-    pub text: String,
+    pub text: StackString,
 }
 
 pub async fn insert(
@@ -111,7 +111,7 @@ pub async fn sync_api(_: LoggedUser, state: Data<AppState>) -> Result<HttpRespon
 #[derive(Serialize, Deserialize)]
 pub struct ReplaceData {
     pub date: NaiveDate,
-    pub text: String,
+    pub text: StackString,
 }
 
 pub async fn replace(

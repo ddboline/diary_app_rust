@@ -42,3 +42,4 @@ dirs = "2.0"
 tokio = {version="0.2", features=["full"]}
 inlinable_string = "0.1"
 derive_more = "0.99"
+envy = "0.4"

@@ -5,7 +5,6 @@ use log::debug;
 use regex::Regex;
 use std::{
     collections::{HashMap, HashSet},
-    path::Path,
     sync::Arc,
 };
 use tokio::{
@@ -311,10 +310,10 @@ impl DiaryAppInterface {
                 .collect();
             let entry_string = entry_string.join("\n\n");
 
-            let diary_file = format!("{}/{}.txt", self.config.diary_path, entry_date);
+            let diary_file = self.config.diary_path.join(format!("{}.txt", entry_date));
 
             async move {
-                let result = if Path::new(&diary_file).exists() {
+                let result = if diary_file.exists() {
                     let mut f = OpenOptions::new().append(true).open(&diary_file).await?;
                     f.write_all(format!("\n\n{}\n\n", entry_string).as_bytes())
                         .await?;
@@ -324,12 +323,12 @@ impl DiaryAppInterface {
                 {
                     current_entry.diary_text =
                         format!("{}\n\n{}", &current_entry.diary_text, entry_string).into();
-                    self.stdout.send(format!("update {}", diary_file).into())?;
+                    self.stdout.send(format!("update {}", diary_file.to_string_lossy()).into())?;
                     let (current_entry, _) = current_entry.update_entry(&self.pool, true).await?;
                     Some(current_entry)
                 } else {
                     let new_entry = DiaryEntries::new(entry_date, &entry_string);
-                    self.stdout.send(format!("upsert {}", diary_file).into())?;
+                    self.stdout.send(format!("upsert {}", diary_file.to_string_lossy()).into())?;
                     let (new_entry, _) = new_entry.upsert_entry(&self.pool, true).await?;
                     Some(new_entry)
                 };
@@ -369,8 +368,8 @@ impl DiaryAppInterface {
     }
 
     pub async fn sync_ssh(&self) -> Result<Vec<DiaryCache>, Error> {
-        let ssh_url = match &self.config.ssh_url {
-            Some(ssh_url) => Arc::new(ssh_url.clone()),
+        let ssh_url = match self.config.ssh_url.as_ref().and_then(|s| s.parse::<Url>().ok()) {
+            Some(ssh_url) => Arc::new(ssh_url),
             None => return Ok(Vec::new()),
         };
 
