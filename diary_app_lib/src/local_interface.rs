@@ -122,8 +122,11 @@ impl LocalInterface {
                             if existing_size > *file_size {
                                 debug!("file db diff {} {}", file_mod, db_mod);
                                 debug!("file db size {} {}", file_size, db_mod);
-                                let filepath =
-                                    self.config.diary_path.join(format!("{}.txt", current_date));
+                                let filepath = self
+                                    .config
+                                    .diary_path
+                                    .join(current_date.to_string())
+                                    .with_extension("txt");
                                 let mut f = File::create(&filepath).await?;
                                 f.write_all(existing_entry.diary_text.as_bytes()).await?;
                             }
@@ -136,7 +139,11 @@ impl LocalInterface {
                     entries.push(d);
                 }
             } else {
-                let filepath = self.config.diary_path.join(format!("{}.txt", current_date));
+                let filepath = self
+                    .config
+                    .diary_path
+                    .join(current_date.to_string())
+                    .with_extension("txt");
                 let mut f = File::create(&filepath).await?;
 
                 if let Ok(existing_entry) =

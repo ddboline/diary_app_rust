@@ -1,7 +1,9 @@
-use anyhow::Error;
+use anyhow::{format_err, Error};
 use chrono::{DateTime, Datelike, Local, NaiveDate, Utc};
 use futures::future::try_join_all;
+use jwalk::WalkDir;
 use log::debug;
+use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use regex::Regex;
 use std::{
     collections::{HashMap, HashSet},
@@ -406,6 +408,58 @@ impl DiaryAppInterface {
         }
         Ok(inserted_entries)
     }
+
+    fn get_file_date_len_map(&self) -> Result<HashMap<NaiveDate, usize>, Error> {
+        let home_dir = dirs::home_dir().ok_or_else(|| format_err!("No HOME directory"))?;
+        let backup_directory = home_dir
+            .join("Dropbox")
+            .join("backup")
+            .join("epistle_backup")
+            .join("backup");
+        if !backup_directory.exists() {
+            return Err(format_err!("{:?} doesn't exist", backup_directory));
+        }
+        let files: Result<Vec<_>, Error> = WalkDir::new(backup_directory)
+            .into_iter()
+            .map(|entry| {
+                let entry = entry?;
+                let metadata = entry.metadata()?;
+                Ok((entry.file_name, metadata.len() as usize))
+            })
+            .collect();
+        let results: HashMap<_, _> = files?
+            .into_par_iter()
+            .filter_map(|(filename, backup_size)| {
+                NaiveDate::parse_from_str(&filename.to_string_lossy(), "%Y-%m-%d.txt")
+                    .ok()
+                    .map(|date| (date, backup_size))
+            })
+            .collect();
+        Ok(results)
+    }
+
+    pub async fn validate_backup(&self) -> Result<Vec<(NaiveDate, usize, usize)>, Error> {
+        let tmp = self.clone();
+        let file_date_len_map = spawn_blocking(move || tmp.get_file_date_len_map()).await?;
+        let file_date_len_map = Arc::new(file_date_len_map?);
+        println!("len file_date_len_map {}", file_date_len_map.len());
+
+        let futures = file_date_len_map.iter().map(|(date, backup_len)| {
+            let pool = self.pool.clone();
+            async move {
+                let entry = DiaryEntries::get_by_date(*date, &pool).await?;
+                let diary_len = entry.diary_text.len();
+                if diary_len != *backup_len {
+                    Ok(Some((*date, *backup_len, diary_len)))
+                } else {
+                    Ok(None)
+                }
+            }
+        });
+        let results: Result<Vec<_>, Error> = try_join_all(futures).await;
+        let results: Vec<_> = results?.into_iter().filter_map(|x| x).collect();
+        Ok(results)
+    }
 }
 
 #[cfg(test)]
@@ -525,6 +579,21 @@ mod tests {
         let result3 = DiaryConflict::get_by_datetime(conflict2, &dap.pool).await?;
         assert_eq!(result3.len(), 2);
         DiaryConflict::remove_by_datetime(conflict2, &dap.pool).await?;
+        Ok(())
+    }
+
+    #[tokio::test]
+    #[ignore]
+    async fn test_validate_backup() -> Result<(), Error> {
+        let dap = get_dap()?;
+        let results = dap.validate_backup().await?;
+        for (date, backup_len, diary_len) in results.iter() {
+            println!(
+                "date {} backup_len {} diary_len {}",
+                date, backup_len, diary_len
+            );
+        }
+        assert!(results.is_empty());
         Ok(())
     }
 }
