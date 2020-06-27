@@ -409,7 +409,7 @@ impl DiaryAppInterface {
         Ok(inserted_entries)
     }
 
-    fn get_file_date_len_map(&self) -> Result<HashMap<NaiveDate, usize>, Error> {
+    fn get_file_date_len_map() -> Result<HashMap<NaiveDate, usize>, Error> {
         let home_dir = dirs::home_dir().ok_or_else(|| format_err!("No HOME directory"))?;
         let backup_directory = home_dir
             .join("Dropbox")
@@ -439,8 +439,7 @@ impl DiaryAppInterface {
     }
 
     pub async fn validate_backup(&self) -> Result<Vec<(NaiveDate, usize, usize)>, Error> {
-        let tmp = self.clone();
-        let file_date_len_map = spawn_blocking(move || tmp.get_file_date_len_map()).await?;
+        let file_date_len_map = spawn_blocking(move || Self::get_file_date_len_map()).await?;
         let file_date_len_map = Arc::new(file_date_len_map?);
         println!("len file_date_len_map {}", file_date_len_map.len());
 
@@ -449,10 +448,10 @@ impl DiaryAppInterface {
             async move {
                 let entry = DiaryEntries::get_by_date(*date, &pool).await?;
                 let diary_len = entry.diary_text.len();
-                if diary_len != *backup_len {
-                    Ok(Some((*date, *backup_len, diary_len)))
-                } else {
+                if diary_len == *backup_len {
                     Ok(None)
+                } else {
+                    Ok(Some((*date, *backup_len, diary_len)))
                 }
             }
         });
