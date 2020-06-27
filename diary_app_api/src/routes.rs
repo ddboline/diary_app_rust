@@ -303,6 +303,18 @@ pub async fn list_conflicts(
     let req = DiaryAppRequests::ListConflicts(diary_date);
 
     let body = state.db.handle(req).await?;
+
+    let mut buttons = Vec::new();
+    if let Some(date) = diary_date {
+        if !body.is_empty() {
+            buttons.push(format!(
+                r#"<button type="submit" onclick="cleanConflicts('{}')">Clean</button>"#,
+                date
+            ))
+        }
+    }
+    buttons.push(r#"<button type="submit" onclick="switchToList()">List</button>"#.to_string());
+
     let text: Vec<_> = body
         .into_iter()
         .map(|t| {
@@ -322,8 +334,8 @@ pub async fn list_conflicts(
             )
         })
         .collect();
-    let button = r#"<button type="submit" onclick="switchToList()">List</button>"#;
-    let body = format!("{}\n<br>\n{}", text.join("\n"), button);
+
+    let body = format!("{}\n<br>\n{}", text.join("\n"), buttons.join("<br>"));
     form_http_response(body)
 }
 
@@ -359,11 +371,18 @@ pub async fn remove_conflict(
     _: LoggedUser,
     state: Data<AppState>,
 ) -> Result<HttpResponse, Error> {
-    let datetime = query.into_inner().datetime.unwrap_or_else(Utc::now);
-    let req = DiaryAppRequests::RemoveConflict(datetime);
-
-    let text = state.db.handle(req).await?;
-    form_http_response(text.join("\n"))
+    let query = query.into_inner();
+    if let Some(datetime) = query.datetime {
+        let req = DiaryAppRequests::RemoveConflict(datetime);
+        let text = state.db.handle(req).await?;
+        form_http_response(text.join("\n"))
+    } else if let Some(date) = query.date {
+        let req = DiaryAppRequests::CleanConflicts(date);
+        let text = state.db.handle(req).await?;
+        form_http_response(text.join("\n"))
+    } else {
+        form_http_response("".to_string())
+    }
 }
 
 #[derive(Serialize, Deserialize)]

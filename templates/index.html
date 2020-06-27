@@ -126,6 +126,15 @@ DISPLAY_TEXT
         let url = '../api/show_conflict?date=' + date + '&datetime=' + datetime;
         updateMainArticle(url, () => listConflicts(date), status=date);
     }
+    function cleanConflicts(date) {
+        let url = '../api/remove_conflict?date=' + date;
+        let xmlhttp = new XMLHttpRequest();
+        xmlhttp.open('GET', url, true);
+        xmlhttp.onload = function see_result() {
+            switchToDate( date )
+        }
+        xmlhttp.send(null);
+    }
     function removeConflict( date, datetime ) {
         let url = '../api/remove_conflict?datetime=' + datetime;
         let xmlhttp = new XMLHttpRequest();

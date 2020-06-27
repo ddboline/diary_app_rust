@@ -1,6 +1,7 @@
 use anyhow::{format_err, Error};
 use async_trait::async_trait;
 use chrono::{DateTime, NaiveDate, Utc};
+use futures::future::try_join_all;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
 
@@ -35,6 +36,7 @@ pub enum DiaryAppRequests {
     ListConflicts(Option<NaiveDate>),
     ShowConflict(DateTime<Utc>),
     RemoveConflict(DateTime<Utc>),
+    CleanConflicts(NaiveDate),
     UpdateConflict { id: i32, diff_text: StackString },
     CommitConflict(DateTime<Utc>),
 }
@@ -152,6 +154,19 @@ impl HandleRequest for DiaryAppActor {
             DiaryAppRequests::RemoveConflict(datetime) => {
                 DiaryConflict::remove_by_datetime(datetime, &self.pool).await?;
                 Ok(vec![format!("remove {}", datetime)])
+            }
+            DiaryAppRequests::CleanConflicts(date) => {
+                let futures = DiaryConflict::get_by_date(date, &self.pool)
+                    .await?
+                    .into_iter()
+                    .map(|datetime| {
+                        let pool = self.pool.clone();
+                        async move {
+                            DiaryConflict::remove_by_datetime(datetime, &pool).await?;
+                            Ok(format!("remove {}", datetime))
+                        }
+                    });
+                try_join_all(futures).await
             }
             DiaryAppRequests::UpdateConflict { id, diff_text } => {
                 let new_diff_type = match diff_text.as_str() {
