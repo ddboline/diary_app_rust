@@ -439,7 +439,7 @@ impl DiaryAppInterface {
     }
 
     pub async fn validate_backup(&self) -> Result<Vec<(NaiveDate, usize, usize)>, Error> {
-        let file_date_len_map = spawn_blocking(move || Self::get_file_date_len_map()).await?;
+        let file_date_len_map = spawn_blocking(Self::get_file_date_len_map).await?;
         let file_date_len_map = Arc::new(file_date_len_map?);
         println!("len file_date_len_map {}", file_date_len_map.len());
 
