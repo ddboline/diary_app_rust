@@ -116,7 +116,7 @@ impl S3Interface {
                 async move {
                     let should_update = match s3_key_map.get(&diary_date) {
                         Some((lm, s3_size)) => {
-                            if (last_modified - *lm).num_seconds() > -TIME_BUFFER {
+                            if (last_modified - *lm).num_seconds() > 0 {
                                 if let Ok(entry) =
                                     DiaryEntries::get_by_date(diary_date, &self.pool).await
                                 {
@@ -132,7 +132,7 @@ impl S3Interface {
                                     false
                                 }
                             } else {
-                                (last_modified - *lm).num_seconds() > TIME_BUFFER
+                                (last_modified - *lm).num_seconds() > 0
                             }
                         }
                         None => true,
@@ -181,9 +181,8 @@ impl S3Interface {
                 let mut insert_new = true;
                 let should_modify = match existing_map.get(&obj.date) {
                     Some(current_modified) => {
-                        insert_new =
-                            (*current_modified - obj.last_modified).num_seconds() < -TIME_BUFFER;
-                        if (*current_modified - obj.last_modified).num_seconds() < TIME_BUFFER {
+                        insert_new = (*current_modified - obj.last_modified).num_seconds() < 0;
+                        if (*current_modified - obj.last_modified).num_seconds() < 0 {
                             if let Ok(entry) = DiaryEntries::get_by_date(obj.date, &self.pool).await
                             {
                                 let db_size = entry.diary_text.len() as i64;
@@ -202,7 +201,7 @@ impl S3Interface {
                                 false
                             }
                         } else {
-                            (*current_modified - obj.last_modified).num_seconds() < -TIME_BUFFER
+                            (*current_modified - obj.last_modified).num_seconds() < 0
                         }
                     }
                     None => true,

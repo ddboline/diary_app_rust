@@ -222,20 +222,20 @@ impl DiaryAppInterface {
     }
 
     pub async fn sync_everything(&self) -> Result<Vec<String>, Error> {
-        let mut output: Vec<_> = self
-            .sync_ssh()
-            .await?
-            .into_iter()
-            .map(|c| format!("ssh cache {}", c.diary_datetime))
-            .collect();
+        let mut output = Vec::new();
+        output.extend(
+            self.sync_ssh()
+                .await?
+                .into_iter()
+                .map(|c| format!("ssh cache {}", c.diary_datetime)),
+        );
 
-        let entries: Vec<_> = self
-            .sync_merge_cache_to_entries()
-            .await?
-            .into_iter()
-            .map(|c| format!("update {}", c.diary_date))
-            .collect();
-        output.extend_from_slice(&entries);
+        output.extend(
+            self.sync_merge_cache_to_entries()
+                .await?
+                .into_iter()
+                .map(|c| format!("update {}", c.diary_date)),
+        );
 
         let local = spawn({
             let local = self.local.clone();
@@ -246,28 +246,24 @@ impl DiaryAppInterface {
             let s3 = self.s3.clone();
             async move { s3.import_from_s3().await }
         });
-        let entries: Vec<_> = local
-            .await??
-            .into_iter()
-            .map(|c| format!("local import {}", c.diary_date))
-            .collect();
-        output.extend_from_slice(&entries);
-        let entries: Vec<_> = s3
-            .await??
-            .into_iter()
-            .map(|c| format!("s3 import {}", c.diary_date))
-            .collect();
-        output.extend_from_slice(&entries);
-
-        let entries: Vec<_> = self
-            .local
-            .cleanup_local()
-            .await?
-            .into_iter()
-            .map(|c| format!("local cleanup {}", c.diary_date))
-            .collect();
-        output.extend_from_slice(&entries);
-
+        output.extend(
+            local
+                .await??
+                .into_iter()
+                .map(|c| format!("local import {}", c.diary_date)),
+        );
+        output.extend(
+            s3.await??
+                .into_iter()
+                .map(|c| format!("s3 import {}", c.diary_date)),
+        );
+        output.extend(
+            self.local
+                .cleanup_local()
+                .await?
+                .into_iter()
+                .map(|c| format!("local cleanup {}", c.diary_date)),
+        );
         let s3 = spawn({
             let s3 = self.s3.clone();
             async move { s3.export_to_s3().await }
@@ -276,14 +272,12 @@ impl DiaryAppInterface {
             let local = self.local.clone();
             async move { local.export_year_to_local().await }
         });
-        let entries = local.await??;
-        output.extend_from_slice(&entries);
-        let entries: Vec<_> = s3
-            .await??
-            .into_iter()
-            .map(|c| format!("s3 export {}", c.diary_date))
-            .collect();
-        output.extend_from_slice(&entries);
+        output.extend_from_slice(&local.await??);
+        output.extend(
+            s3.await??
+                .into_iter()
+                .map(|c| format!("s3 export {}", c.diary_date)),
+        );
 
         Ok(output)
     }
