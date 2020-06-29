@@ -238,4 +238,57 @@ impl S3Interface {
 
         Ok(entries)
     }
+
+    pub async fn validate_s3(&self) -> Result<Vec<(NaiveDate, usize, usize)>, Error> {
+        self.fill_cache().await?;
+        let s3_key_map: HashMap<NaiveDate, usize> = KEY_CACHE
+            .read()
+            .await
+            .1
+            .iter()
+            .map(|obj| (obj.date, obj.size as usize))
+            .collect();
+
+        let futures = s3_key_map.iter().map(|(date, backup_len)| {
+            let pool = self.pool.clone();
+            async move {
+                let entry = DiaryEntries::get_by_date(*date, &pool).await?;
+                let diary_len = entry.diary_text.len();
+                if diary_len == *backup_len {
+                    Ok(None)
+                } else {
+                    Ok(Some((*date, *backup_len, diary_len)))
+                }
+            }
+        });
+        let results: Result<Vec<_>, Error> = try_join_all(futures).await;
+        let results: Vec<_> = results?.into_iter().filter_map(|x| x).collect();
+        Ok(results)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use anyhow::Error;
+
+    use crate::config::Config;
+    use crate::pgpool::PgPool;
+    use crate::s3_interface::S3Interface;
+
+    #[tokio::test]
+    #[ignore]
+    async fn test_validate_s3() -> Result<(), Error> {
+        let config = Config::init_config()?;
+        let pool = PgPool::new(&config.database_url);
+        let s3 = S3Interface::new(config, pool);
+        let results = s3.validate_s3().await?;
+        for (date, backup_len, diary_len) in results.iter() {
+            println!(
+                "date {} backup_len {} diary_len {}",
+                date, backup_len, diary_len
+            );
+        }
+        assert!(results.is_empty());
+        Ok(())
+    }
 }
