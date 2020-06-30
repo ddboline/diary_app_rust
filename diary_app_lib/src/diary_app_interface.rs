@@ -520,11 +520,11 @@ mod tests {
         let dap = get_dap()?;
         let mod_map = DiaryEntries::get_modified_map(&dap.pool).await?;
 
-        let results = DiaryAppInterface::get_matching_dates(&mod_map, Some("2011"), None, None)?;
+        let results = DiaryAppInterface::get_matching_dates(&mod_map, Some(2011), None, None)?;
         assert_eq!(results.len(), 47);
 
         let results =
-            DiaryAppInterface::get_matching_dates(&mod_map, Some("2011"), Some("06"), None)?;
+            DiaryAppInterface::get_matching_dates(&mod_map, Some(2011), Some(6), None)?;
         assert_eq!(results.len(), 6);
         Ok(())
     }
