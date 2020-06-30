@@ -102,9 +102,9 @@ impl DiaryAppInterface {
 
     fn get_matching_dates(
         mod_map: &HashMap<NaiveDate, DateTime<Utc>>,
-        year: Option<&str>,
-        month: Option<&str>,
-        day: Option<&str>,
+        year: Option<i32>,
+        month: Option<u32>,
+        day: Option<u32>,
     ) -> Result<Vec<NaiveDate>, Error> {
         let matching_dates: Vec<_> = mod_map
             .iter()
@@ -113,15 +113,15 @@ impl DiaryAppInterface {
                 if let Some(y) = year {
                     let result = if let Some(m) = month {
                         let result = if let Some(d) = day {
-                            d == format!("{:02}", date.day())
+                            d == date.day()
                         } else {
                             true
                         };
-                        result && (m == format!("{:02}", date.month()))
+                        result && (m == date.month())
                     } else {
                         true
                     };
-                    result && (y == format!("{:04}", date.year()))
+                    result && (y == date.year())
                 } else {
                     false
                 }
@@ -144,20 +144,20 @@ impl DiaryAppInterface {
         }
         if year_month_day_regex.is_match(search_text) {
             for cap in year_month_day_regex.captures_iter(search_text) {
-                let year = cap.name("year").map(|x| x.as_str());
-                let month = cap.name("month").map(|x| x.as_str());
-                let day = cap.name("day").map(|x| x.as_str());
+                let year: Option<i32> = cap.name("year").and_then(|x| x.as_str().parse().ok());
+                let month: Option<u32> = cap.name("month").and_then(|x| x.as_str().parse().ok());
+                let day: Option<u32> = cap.name("day").and_then(|x| x.as_str().parse().ok());
                 dates.extend_from_slice(&Self::get_matching_dates(&mod_map, year, month, day)?);
             }
         } else if year_month_regex.is_match(search_text) {
             for cap in year_month_regex.captures_iter(search_text) {
-                let year = cap.name("year").map(|x| x.as_str());
-                let month = cap.name("month").map(|x| x.as_str());
+                let year: Option<i32> = cap.name("year").and_then(|x| x.as_str().parse().ok());
+                let month: Option<u32> = cap.name("month").and_then(|x| x.as_str().parse().ok());
                 dates.extend_from_slice(&Self::get_matching_dates(&mod_map, year, month, None)?);
             }
         } else if year_regex.is_match(search_text) {
             for cap in year_regex.captures_iter(search_text) {
-                let year = cap.name("year").map(|x| x.as_str());
+                let year: Option<i32> = cap.name("year").and_then(|x| x.as_str().parse().ok());
                 dates.extend_from_slice(&Self::get_matching_dates(&mod_map, year, None, None)?);
             }
         }
