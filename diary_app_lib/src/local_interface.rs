@@ -65,7 +65,7 @@ impl LocalInterface {
                 let mut f = File::create(filepath).await?;
                 for date in &date_list {
                     let entry = DiaryEntries::get_by_date(*date, &self.pool).await?;
-                    f.write_all(format!("{}\n", entry.diary_text).as_bytes())
+                    f.write_all(format!("{}\n\n{}\n\n", date, entry.diary_text).as_bytes())
                         .await?;
                 }
                 Ok(format!("{} {}", year, date_list.len()))
