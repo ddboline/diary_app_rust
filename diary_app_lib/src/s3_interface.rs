@@ -270,9 +270,7 @@ impl S3Interface {
 mod tests {
     use anyhow::Error;
 
-    use crate::config::Config;
-    use crate::pgpool::PgPool;
-    use crate::s3_interface::S3Interface;
+    use crate::{config::Config, pgpool::PgPool, s3_interface::S3Interface};
 
     #[tokio::test]
     #[ignore]

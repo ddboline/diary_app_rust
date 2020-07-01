@@ -523,8 +523,7 @@ mod tests {
         let results = DiaryAppInterface::get_matching_dates(&mod_map, Some(2011), None, None)?;
         assert_eq!(results.len(), 47);
 
-        let results =
-            DiaryAppInterface::get_matching_dates(&mod_map, Some(2011), Some(6), None)?;
+        let results = DiaryAppInterface::get_matching_dates(&mod_map, Some(2011), Some(6), None)?;
         assert_eq!(results.len(), 6);
         Ok(())
     }
