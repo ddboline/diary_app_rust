@@ -73,6 +73,9 @@ footer {
     <input type="text" name="search_text" id="search_text"/>
     <input type="button" name="search_button" value="Search" onclick="searchDiary();"/>
     <button name="diary_status" id="diary_status"> &nbsp; </button>
+</form><form action="javascript:searchDate();">
+    <input type="button" name="search_date_button" value="Date" onclick="searchDate();"/>
+    <input type="date" name="search_date" id="search_date"/>
 </form>
 
 <nav id="navigation" start=0>
@@ -157,6 +160,10 @@ DISPLAY_TEXT
         let text_form = document.getElementById( 'search_text' );
         let url = encodeURI('../api/search?text=' + text_form.value);
         updateMainArticle(url, null, status=text_form.value);
+    }
+    function searchDate() {
+        let text_form = document.getElementById( 'search_date' );
+        switchToDate( text_form.value );
     }
     function syncDiary() {
         updateMainArticle('../api/sync');
