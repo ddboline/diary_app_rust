@@ -70,7 +70,6 @@ async fn main() -> Result<(), Error> {
 
 fn extract_dates(path: &Path) -> Result<HashSet<NaiveDate>, Error> {
     path.read_dir()?
-        .into_iter()
         .map(|entry| {
             if let Some(filename) = entry?.path().file_name() {
                 let filename = filename.to_string_lossy().replace(".txt", "");
@@ -80,6 +79,6 @@ fn extract_dates(path: &Path) -> Result<HashSet<NaiveDate>, Error> {
                 Ok(None)
             }
         })
-        .filter_map(|x| x.transpose())
+        .filter_map(Result::transpose)
         .collect()
 }
