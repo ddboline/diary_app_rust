@@ -17,11 +17,12 @@ use tokio::{
 };
 
 use diary_app_lib::{
-    config::Config, diary_app_interface::DiaryAppInterface, models::AuthorizedUsers, pgpool::PgPool,
+    config::Config, diary_app_interface::DiaryAppInterface, models::AuthorizedUsers,
+    pgpool::PgPool, stack_string::StackString,
 };
 
 type UserIds = RwLock<HashSet<UserId>>;
-type OBuffer = RwLock<Vec<String>>;
+type OBuffer = RwLock<Vec<StackString>>;
 
 lazy_static! {
     static ref TELEGRAM_USERIDS: UserIds = RwLock::new(HashSet::new());
@@ -84,7 +85,7 @@ async fn diary_sync(
         let output = dapp_interface.sync_everything().await?;
         let mut buf = OUTPUT_BUFFER.write().await;
         buf.clear();
-        buf.push(output.join("\n"));
+        buf.push(output.join("\n").into());
     }
     Ok(())
 }
@@ -127,7 +128,7 @@ async fn bot_handler(dapp_interface: DiaryAppInterface) -> Result<(), Error> {
                             }
                             FAILURE_COUNT.check()?;
                             if let Some(entry) = OUTPUT_BUFFER.write().await.pop() {
-                                api.send(message.text_reply(entry)).await?;
+                                api.send(message.text_reply(entry.to_string())).await?;
                             } else {
                                 api.send(message.text_reply("...")).await?;
                             }
@@ -154,7 +155,7 @@ async fn bot_handler(dapp_interface: DiaryAppInterface) -> Result<(), Error> {
                         }
                         Some(":next") | Some(":n") => {
                             if let Some(entry) = OUTPUT_BUFFER.write().await.pop() {
-                                api.send(message.text_reply(entry)).await?;
+                                api.send(message.text_reply(entry.to_string())).await?;
                             } else {
                                 api.send(message.text_reply("...")).await?;
                             }

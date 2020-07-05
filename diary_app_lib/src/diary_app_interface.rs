@@ -23,6 +23,7 @@ use crate::{
     pgpool::PgPool,
     s3_interface::S3Interface,
     ssh_instance::SSHInstance,
+    stack_string::StackString,
     stdout_channel::StdoutChannel,
 };
 
@@ -164,7 +165,7 @@ impl DiaryAppInterface {
         Ok(dates)
     }
 
-    pub async fn search_text(&self, search_text: &str) -> Result<Vec<String>, Error> {
+    pub async fn search_text(&self, search_text: &str) -> Result<Vec<StackString>, Error> {
         let mod_map = DiaryEntries::get_modified_map(&self.pool).await?;
 
         let mut dates = Self::get_dates_from_search_text(&mod_map, search_text)?;
@@ -176,7 +177,7 @@ impl DiaryAppInterface {
             let mut diary_entries: Vec<_> = DiaryEntries::get_by_text(search_text, &self.pool)
                 .await?
                 .into_iter()
-                .map(|entry| format!("{}\n{}", entry.diary_date, entry.diary_text))
+                .map(|entry| format!("{}\n{}", entry.diary_date, entry.diary_text).into())
                 .collect();
             let diary_cache_entries: Vec<_> = DiaryCache::get_by_text(search_text, &self.pool)
                 .await?
@@ -187,6 +188,7 @@ impl DiaryAppInterface {
                         entry.diary_datetime.format("%Y-%m-%dT%H:%M:%SZ"),
                         entry.diary_text
                     )
+                    .into()
                 })
                 .collect();
             diary_entries.extend_from_slice(&diary_cache_entries);
@@ -196,7 +198,7 @@ impl DiaryAppInterface {
             for date in dates {
                 debug!("search date {}", date);
                 let entry = DiaryEntries::get_by_date(date, &self.pool).await?;
-                let entry = format!("{}\n{}", entry.diary_date, entry.diary_text);
+                let entry = format!("{}\n{}", entry.diary_date, entry.diary_text).into();
                 diary_entries.push(entry);
                 let diary_cache_entries: Vec<_> = DiaryCache::get_cache_entries(&self.pool)
                     .await?
@@ -209,7 +211,7 @@ impl DiaryAppInterface {
                             .date()
                             == date
                         {
-                            Some(format!("{}\n{}", entry.diary_datetime, entry.diary_text))
+                            Some(format!("{}\n{}", entry.diary_datetime, entry.diary_text).into())
                         } else {
                             None
                         }
@@ -221,20 +223,20 @@ impl DiaryAppInterface {
         }
     }
 
-    pub async fn sync_everything(&self) -> Result<Vec<String>, Error> {
+    pub async fn sync_everything(&self) -> Result<Vec<StackString>, Error> {
         let mut output = Vec::new();
         output.extend(
             self.sync_ssh()
                 .await?
                 .into_iter()
-                .map(|c| format!("ssh cache {}", c.diary_datetime)),
+                .map(|c| format!("ssh cache {}", c.diary_datetime).into()),
         );
 
         output.extend(
             self.sync_merge_cache_to_entries()
                 .await?
                 .into_iter()
-                .map(|c| format!("update {}", c.diary_date)),
+                .map(|c| format!("update {}", c.diary_date).into()),
         );
 
         let local = spawn({
@@ -250,19 +252,19 @@ impl DiaryAppInterface {
             local
                 .await??
                 .into_iter()
-                .map(|c| format!("local import {}", c.diary_date)),
+                .map(|c| format!("local import {}", c.diary_date).into()),
         );
         output.extend(
             s3.await??
                 .into_iter()
-                .map(|c| format!("s3 import {}", c.diary_date)),
+                .map(|c| format!("s3 import {}", c.diary_date).into()),
         );
         output.extend(
             self.local
                 .cleanup_local()
                 .await?
                 .into_iter()
-                .map(|c| format!("local cleanup {}", c.diary_date)),
+                .map(|c| format!("local cleanup {}", c.diary_date).into()),
         );
         let s3 = spawn({
             let s3 = self.s3.clone();
@@ -276,7 +278,7 @@ impl DiaryAppInterface {
         output.extend(
             s3.await??
                 .into_iter()
-                .map(|c| format!("s3 export {}", c.diary_date)),
+                .map(|c| format!("s3 export {}", c.diary_date).into()),
         );
 
         Ok(output)
@@ -341,11 +343,15 @@ impl DiaryAppInterface {
         Ok(entries)
     }
 
-    pub async fn serialize_cache(&self) -> Result<Vec<String>, Error> {
+    pub async fn serialize_cache(&self) -> Result<Vec<StackString>, Error> {
         DiaryCache::get_cache_entries(&self.pool)
             .await?
             .into_iter()
-            .map(|entry| serde_json::to_string(&entry).map_err(Into::into))
+            .map(|entry| {
+                serde_json::to_string(&entry)
+                    .map(Into::into)
+                    .map_err(Into::into)
+            })
             .collect()
     }
 

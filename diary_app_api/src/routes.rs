@@ -129,7 +129,11 @@ pub async fn replace(
     to_json(body)
 }
 
-fn _list_string(conflicts: &HashSet<String>, body: Vec<String>, query: ListOptions) -> String {
+fn _list_string(
+    conflicts: &HashSet<StackString>,
+    body: Vec<StackString>,
+    query: ListOptions,
+) -> StackString {
     let text: Vec<_> = body
         .into_iter()
         .map(|t| {
@@ -176,7 +180,7 @@ fn _list_string(conflicts: &HashSet<String>, body: Vec<String>, query: ListOptio
             10
         )]
     };
-    format!("{}\n<br>\n{}", text.join("\n"), buttons.join("\n"))
+    format!("{}\n<br>\n{}", text.join("\n"), buttons.join("\n")).into()
 }
 
 async fn _list(
@@ -191,13 +195,14 @@ async fn _list(
         let body = hashmap! {"list" => body };
         to_json(body)
     } else {
-        let conflicts: Vec<String> = state
+        let conflicts: HashSet<_> = state
             .db
             .handle(DiaryAppRequests::ListConflicts(None))
-            .await?;
-        let conflicts: HashSet<String> = conflicts.into_iter().collect();
+            .await?
+            .into_iter()
+            .collect();
         let body = _list_string(&conflicts, body, query);
-        form_http_response(body)
+        form_http_response(body.into())
     }
 }
 

@@ -43,12 +43,14 @@ pub enum DiaryAppRequests {
 
 #[async_trait]
 pub trait HandleRequest {
-    async fn handle(&self, req: DiaryAppRequests) -> Result<Vec<String>, Error>;
+    type Result;
+    async fn handle(&self, req: DiaryAppRequests) -> Self::Result;
 }
 
 #[async_trait]
 impl HandleRequest for DiaryAppActor {
-    async fn handle(&self, req: DiaryAppRequests) -> Result<Vec<String>, Error> {
+    type Result = Result<Vec<StackString>, Error>;
+    async fn handle(&self, req: DiaryAppRequests) -> Self::Result {
         match req {
             DiaryAppRequests::Search(opts) => {
                 let body = if let Some(text) = opts.text {
@@ -58,13 +60,13 @@ impl HandleRequest for DiaryAppActor {
                     let entry = DiaryEntries::get_by_date(date, &self.pool).await?;
                     vec![entry.diary_text.into()]
                 } else {
-                    vec!["".to_string()]
+                    vec!["".into()]
                 };
                 Ok(body)
             }
             DiaryAppRequests::Insert(text) => {
                 let cache = self.cache_text(&text).await?;
-                Ok(vec![format!("{}", cache.diary_datetime)])
+                Ok(vec![format!("{}", cache.diary_datetime).into()])
             }
             DiaryAppRequests::Sync => {
                 let output = self.sync_everything().await?;
@@ -72,7 +74,7 @@ impl HandleRequest for DiaryAppActor {
             }
             DiaryAppRequests::Replace { date, text } => {
                 let (entry, _) = self.replace_text(date, &text).await?;
-                let body = format!("{}\n{}", entry.diary_date, entry.diary_text);
+                let body = format!("{}\n{}", entry.diary_date, entry.diary_text).into();
                 Ok(vec![body])
             }
             DiaryAppRequests::List(opts) => {
@@ -80,19 +82,19 @@ impl HandleRequest for DiaryAppActor {
                     .get_list_of_dates(opts.min_date, opts.max_date, opts.start, opts.limit)
                     .await?
                     .into_iter()
-                    .map(|x| x.to_string())
+                    .map(|x| x.to_string().into())
                     .collect();
                 Ok(dates)
             }
             DiaryAppRequests::Display(date) => {
                 let entry = DiaryEntries::get_by_date(date, &self.pool).await?;
-                Ok(vec![entry.diary_text.into()])
+                Ok(vec![entry.diary_text])
             }
             DiaryAppRequests::ListConflicts(None) => {
                 let conflicts: BTreeSet<_> = DiaryConflict::get_all_dates(&self.pool)
                     .await?
                     .into_iter()
-                    .map(|x| x.to_string())
+                    .map(|x| x.to_string().into())
                     .collect();
                 Ok(conflicts.into_iter().collect())
             }
@@ -100,7 +102,7 @@ impl HandleRequest for DiaryAppActor {
                 let conflicts: BTreeSet<_> = DiaryConflict::get_by_date(date, &self.pool)
                     .await?
                     .into_iter()
-                    .map(|entry| entry.format("%Y-%m-%dT%H:%M:%S%.fZ").to_string())
+                    .map(|entry| entry.format("%Y-%m-%dT%H:%M:%S%.fZ").to_string().into())
                     .collect();
                 Ok(conflicts.into_iter().collect())
             }
@@ -133,7 +135,7 @@ impl HandleRequest for DiaryAppActor {
                                 entry.id,
                                 date,
                                 datetime.format("%Y-%m-%dT%H:%M:%S%.fZ"),
-                            ),
+                            ).into(),
                             "add" => format!(
                                 r#"<textarea style="color:Blue;" cols=100 rows={}
                                    >{}</textarea>
@@ -144,8 +146,8 @@ impl HandleRequest for DiaryAppActor {
                                 entry.id,
                                 date,
                                 datetime.format("%Y-%m-%dT%H:%M:%S%.fZ"),
-                            ),
-                            _ => format!("<textarea cols=100 rows={}>{}</textarea><br>", nlines, entry.diff_text),
+                            ).into(),
+                            _ => format!("<textarea cols=100 rows={}>{}</textarea><br>", nlines, entry.diff_text).into(),
                         }
                     })
                     .collect();
@@ -153,7 +155,7 @@ impl HandleRequest for DiaryAppActor {
             }
             DiaryAppRequests::RemoveConflict(datetime) => {
                 DiaryConflict::remove_by_datetime(datetime, &self.pool).await?;
-                Ok(vec![format!("remove {}", datetime)])
+                Ok(vec![format!("remove {}", datetime).into()])
             }
             DiaryAppRequests::CleanConflicts(date) => {
                 let futures = DiaryConflict::get_by_date(date, &self.pool)
@@ -163,7 +165,7 @@ impl HandleRequest for DiaryAppActor {
                         let pool = self.pool.clone();
                         async move {
                             DiaryConflict::remove_by_datetime(datetime, &pool).await?;
-                            Ok(format!("remove {}", datetime))
+                            Ok(format!("remove {}", datetime).into())
                         }
                     });
                 try_join_all(futures).await
@@ -203,7 +205,7 @@ impl HandleRequest for DiaryAppActor {
                     .collect();
                 let additions = additions.join("\n");
                 let (entry, _) = self.replace_text(date, &additions).await?;
-                let body = format!("{}\n{}", entry.diary_date, entry.diary_text);
+                let body = format!("{}\n{}", entry.diary_date, entry.diary_text).into();
                 Ok(vec![body])
             }
         }

@@ -9,7 +9,7 @@ use tokio::{
     io::AsyncWriteExt,
 };
 
-use crate::{config::Config, models::DiaryEntries, pgpool::PgPool};
+use crate::{config::Config, models::DiaryEntries, pgpool::PgPool, stack_string::StackString};
 
 #[derive(Clone, Debug)]
 pub struct LocalInterface {
@@ -22,7 +22,7 @@ impl LocalInterface {
         Self { pool, config }
     }
 
-    pub async fn export_year_to_local(&self) -> Result<Vec<String>, Error> {
+    pub async fn export_year_to_local(&self) -> Result<Vec<StackString>, Error> {
         let mod_map = DiaryEntries::get_modified_map(&self.pool).await?;
         let year_mod_map: BTreeMap<i32, DateTime<Utc>> =
             mod_map.iter().fold(BTreeMap::new(), |mut acc, (k, v)| {
@@ -55,7 +55,7 @@ impl LocalInterface {
                             let modified: DateTime<Utc> = modified.into();
                             if let Some(maxmod) = year_mod_map.get(&year) {
                                 if modified >= *maxmod {
-                                    return Ok(format!("{} 0", year));
+                                    return Ok(format!("{} 0", year).into());
                                 }
                             }
                         }
@@ -68,7 +68,7 @@ impl LocalInterface {
                     f.write_all(format!("{}\n\n{}\n\n", date, entry.diary_text).as_bytes())
                         .await?;
                 }
-                Ok(format!("{} {}", year, date_list.len()))
+                Ok(format!("{} {}", year, date_list.len()).into())
             }
         });
         let results: Result<Vec<_>, Error> = try_join_all(futures).await;
@@ -245,7 +245,7 @@ mod tests {
         let t = get_tempdir()?;
         let li = get_li(&t)?;
         let results = li.export_year_to_local().await?;
-        assert!(results.contains(&"2013 296".to_string()));
+        assert!(results.contains(&"2013 296".into()));
         let nentries = results.len();
         debug!("{:?}", results);
         debug!("{:?}", t.path());
