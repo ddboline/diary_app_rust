@@ -53,8 +53,31 @@ impl<'de> Deserialize<'de> for StackString {
     where
         D: Deserializer<'de>,
     {
-        let s = String::deserialize(deserializer)?;
-        Ok(s.into())
+        use ::serde::de::{Error, Visitor};
+
+        struct SmartVisitor;
+
+        impl<'a> Visitor<'a> for SmartVisitor {
+            type Value = StackString;
+
+            fn expecting(&self, formatter: &mut Formatter) -> fmt::Result {
+                formatter.write_str("a string")
+            }
+
+            fn visit_str<E: Error>(self, v: &str) -> Result<Self::Value, E> {
+                Ok(v.into())
+            }
+
+            fn visit_borrowed_str<E: Error>(self, v: &'a str) -> Result<Self::Value, E> {
+                Ok(v.into())
+            }
+
+            fn visit_string<E: Error>(self, v: String) -> Result<Self::Value, E> {
+                Ok(v.into())
+            }
+        }
+
+        deserializer.deserialize_str(SmartVisitor)
     }
 }
 
