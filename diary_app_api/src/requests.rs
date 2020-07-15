@@ -3,12 +3,10 @@ use async_trait::async_trait;
 use chrono::{DateTime, NaiveDate, Utc};
 use futures::future::try_join_all;
 use serde::{Deserialize, Serialize};
+use stack_string::StackString;
 use std::collections::BTreeSet;
 
-use diary_app_lib::{
-    models::{DiaryConflict, DiaryEntries},
-    stack_string::StackString,
-};
+use diary_app_lib::models::{DiaryConflict, DiaryEntries};
 
 use super::app::DiaryAppActor;
 

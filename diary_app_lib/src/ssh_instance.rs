@@ -9,7 +9,7 @@ use std::{
 use subprocess::Exec;
 use url::Url;
 
-use crate::stack_string::StackString;
+use stack_string::StackString;
 
 lazy_static! {
     static ref LOCK_CACHE: RwLock<HashMap<StackString, Mutex<()>>> = RwLock::new(HashMap::new());

@@ -2,6 +2,7 @@ use anyhow::{format_err, Error};
 use futures::{future::join, StreamExt};
 use lazy_static::lazy_static;
 use log::debug;
+use stack_string::StackString;
 use std::{
     collections::HashSet,
     sync::atomic::{AtomicUsize, Ordering},
@@ -17,8 +18,7 @@ use tokio::{
 };
 
 use diary_app_lib::{
-    config::Config, diary_app_interface::DiaryAppInterface, models::AuthorizedUsers,
-    pgpool::PgPool, stack_string::StackString,
+    config::Config, diary_app_interface::DiaryAppInterface, models::AuthorizedUsers, pgpool::PgPool,
 };
 
 type UserIds = RwLock<HashSet<UserId>>;

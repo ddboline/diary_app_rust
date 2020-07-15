@@ -5,6 +5,7 @@ use jwalk::WalkDir;
 use log::debug;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use regex::Regex;
+use stack_string::StackString;
 use std::{
     collections::{HashMap, HashSet},
     sync::Arc,
@@ -23,7 +24,6 @@ use crate::{
     pgpool::PgPool,
     s3_interface::S3Interface,
     ssh_instance::SSHInstance,
-    stack_string::StackString,
     stdout_channel::StdoutChannel,
 };
 

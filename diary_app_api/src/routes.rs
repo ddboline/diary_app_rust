@@ -6,9 +6,8 @@ use actix_web::{
 use chrono::{DateTime, Local, NaiveDate, Utc};
 use maplit::hashmap;
 use serde::{Deserialize, Serialize};
+use stack_string::StackString;
 use std::collections::HashSet;
-
-use diary_app_lib::stack_string::StackString;
 
 use super::{
     app::AppState,

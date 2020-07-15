@@ -1,4 +1,5 @@
 use anyhow::Error;
+use stack_string::StackString;
 use std::sync::Arc;
 use tokio::{
     io::{stdout, AsyncWriteExt},
@@ -8,8 +9,6 @@ use tokio::{
     },
     task::{spawn, JoinHandle},
 };
-
-use crate::stack_string::StackString;
 
 #[derive(Clone, Debug)]
 pub struct StdoutChannel {

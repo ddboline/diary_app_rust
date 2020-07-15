@@ -7,13 +7,13 @@ use diesel::{
 use difference::{Changeset, Difference};
 use log::debug;
 use serde::{Deserialize, Serialize};
+use stack_string::StackString;
 use std::collections::HashMap;
 use tokio::task::spawn_blocking;
 
 use crate::{
     pgpool::{PgPool, PgPoolConn},
     schema::{authorized_users, diary_cache, diary_conflict, diary_entries},
-    stack_string::StackString,
 };
 
 #[derive(Queryable, Insertable, Clone, Debug)]

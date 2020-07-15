@@ -1,5 +1,6 @@
 use anyhow::{format_err, Error};
 use chrono::{DateTime, NaiveDate, Utc};
+use stack_string::StackString;
 use std::{collections::BTreeSet, str::FromStr};
 use structopt::StructOpt;
 
@@ -8,7 +9,6 @@ use crate::{
     diary_app_interface::DiaryAppInterface,
     models::{DiaryCache, DiaryConflict},
     pgpool::PgPool,
-    stack_string::StackString,
 };
 
 #[derive(Debug, Clone, Copy)]

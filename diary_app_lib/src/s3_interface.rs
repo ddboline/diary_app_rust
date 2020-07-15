@@ -4,6 +4,7 @@ use futures::future::try_join_all;
 use lazy_static::lazy_static;
 use log::debug;
 use rusoto_s3::Object;
+use stack_string::StackString;
 use std::{
     collections::HashMap,
     convert::{TryFrom, TryInto},
@@ -11,10 +12,7 @@ use std::{
 };
 use tokio::sync::RwLock;
 
-use crate::{
-    config::Config, models::DiaryEntries, pgpool::PgPool, s3_instance::S3Instance,
-    stack_string::StackString,
-};
+use crate::{config::Config, models::DiaryEntries, pgpool::PgPool, s3_instance::S3Instance};
 
 const TIME_BUFFER: i64 = 60;
 

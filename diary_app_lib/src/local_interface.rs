@@ -3,13 +3,14 @@ use chrono::{DateTime, Datelike, Duration, Local, NaiveDate, TimeZone, Utc};
 use futures::future::try_join_all;
 use jwalk::WalkDir;
 use log::debug;
+use stack_string::StackString;
 use std::{collections::BTreeMap, fs::metadata, sync::Arc, time::SystemTime};
 use tokio::{
     fs::{read_to_string, remove_file, File},
     io::AsyncWriteExt,
 };
 
-use crate::{config::Config, models::DiaryEntries, pgpool::PgPool, stack_string::StackString};
+use crate::{config::Config, models::DiaryEntries, pgpool::PgPool};
 
 #[derive(Clone, Debug)]
 pub struct LocalInterface {
