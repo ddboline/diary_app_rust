@@ -80,7 +80,7 @@ impl DiaryAppOpts {
             }
             DiaryAppCommands::Serialize => {
                 for entry in dap.serialize_cache().await? {
-                    dap.stdout.send(entry.into())?;
+                    dap.stdout.send(entry)?;
                 }
             }
             DiaryAppCommands::ClearCache => {

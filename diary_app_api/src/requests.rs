@@ -56,7 +56,7 @@ impl HandleRequest for DiaryAppActor {
                     results
                 } else if let Some(date) = opts.date {
                     let entry = DiaryEntries::get_by_date(date, &self.pool).await?;
-                    vec![entry.diary_text.into()]
+                    vec![entry.diary_text]
                 } else {
                     vec!["".into()]
                 };
