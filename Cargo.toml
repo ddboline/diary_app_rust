@@ -1,6 +1,6 @@
 [package]
 name = "diary_app_rust"
-version = "0.5.11"
+version = "0.5.12"
 authors = ["Daniel Boline <ddboline@gmail.com>"]
 edition = "2018"
 
@@ -13,7 +13,7 @@ diary_app_bot = {path="diary_app_bot"}
 env_logger = "0.7"
 actix-rt = "1.1"
 tokio = {version="0.2", features=["full"]}
-dirs = "2.0"
+dirs = "3.0"
 anyhow = "1.0"
 chrono = "0.4"
 
