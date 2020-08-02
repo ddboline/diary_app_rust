@@ -79,11 +79,11 @@ footer {
 </form>
 
 <nav id="navigation" start=0>
-{{LIST_TEXT}}
+{{{LIST_TEXT}}}
 </nav>
 
 <article id="main_article">
-{{DISPLAY_TEXT}}
+{{{DISPLAY_TEXT}}}
 </article>
 
 <script language="JavaScript" type="text/javascript">
