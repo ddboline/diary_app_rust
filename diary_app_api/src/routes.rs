@@ -4,6 +4,8 @@ use actix_web::{
     HttpResponse,
 };
 use chrono::{DateTime, Local, NaiveDate, Utc};
+use handlebars::Handlebars;
+use lazy_static::lazy_static;
 use maplit::hashmap;
 use serde::{Deserialize, Serialize};
 use stack_string::StackString;
@@ -15,6 +17,15 @@ use super::{
     logged_user::LoggedUser,
     requests::{DiaryAppRequests, HandleRequest, ListOptions, SearchOptions},
 };
+
+lazy_static! {
+    static ref HANDLEBARS: Handlebars<'static> = {
+        let mut h = Handlebars::new();
+        h.register_template_string("id", include_str!("../../templates/index.html.hbr"))
+            .expect("Failed to parse template");
+        h
+    };
+}
 
 fn form_http_response(body: String) -> Result<HttpResponse, Error> {
     Ok(HttpResponse::build(StatusCode::OK)
@@ -286,9 +297,11 @@ pub async fn diary_frontpage(_: LoggedUser, state: Data<AppState>) -> Result<Htt
         .into_iter()
         .collect();
     let body = _list_string(&conflicts, body, query);
-    let body = include_str!("../../templates/index.html")
-        .replace("LIST_TEXT", &body)
-        .replace("DISPLAY_TEXT", "");
+    let params = hashmap! {
+        "LIST_TEXT" => body.as_str(),
+        "DISPLAY_TEXT" => "",
+    };
+    let body = HANDLEBARS.render("id", &params)?;
     form_http_response(body)
 }
 
