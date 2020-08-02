@@ -99,7 +99,7 @@ impl SSHInstance {
                         Ok(_) => {
                             writeln!(stdout.lock(), "ssh://{}{}", user_host, line)?;
                         }
-                        _ => {}
+                        Err(_) => {}
                     }
                 }
                 Ok(())
