@@ -194,7 +194,7 @@ impl S3Interface {
                                         db_size
                                     );
                                 }
-                                obj.size > db_size
+                                obj.size != db_size
                             } else {
                                 false
                             }
