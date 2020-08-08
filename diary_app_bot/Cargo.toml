@@ -9,14 +9,11 @@ edition = "2018"
 [dependencies]
 diary_app_lib = {path="../diary_app_lib"}
 log = "0.4"
-env_logger = "0.7"
 futures = "0.3"
 crossbeam-channel = "0.4"
 parking_lot = "0.11"
 crossbeam-utils = "0.7"
 lazy_static = "1.4"
-actix-rt = "1.1"
-actix-threadpool = "0.3"
 anyhow = "1.0"
 thiserror = "1.0"
 tokio = {version="0.2", features=["full"]}
