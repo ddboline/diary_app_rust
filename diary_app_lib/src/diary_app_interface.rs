@@ -11,7 +11,7 @@ use std::{
     sync::Arc,
 };
 use tokio::{
-    fs::OpenOptions,
+    fs::{remove_file, OpenOptions},
     io::AsyncWriteExt,
     task::{spawn, spawn_blocking},
 };
@@ -281,6 +281,8 @@ impl DiaryAppInterface {
                 .map(|c| format!("s3 export {}", c.diary_date).into()),
         );
 
+        self.cleanup_backup().await?;
+
         Ok(output)
     }
 
@@ -409,9 +411,10 @@ impl DiaryAppInterface {
         Ok(inserted_entries)
     }
 
-    fn get_file_date_len_map() -> Result<HashMap<NaiveDate, usize>, Error> {
-        let home_dir = dirs::home_dir().ok_or_else(|| format_err!("No HOME directory"))?;
-        let backup_directory = home_dir
+    fn get_file_date_len_map(&self) -> Result<HashMap<NaiveDate, usize>, Error> {
+        let backup_directory = self
+            .config
+            .home_dir
             .join("Dropbox")
             .join("backup")
             .join("epistle_backup")
@@ -439,7 +442,10 @@ impl DiaryAppInterface {
     }
 
     pub async fn validate_backup(&self) -> Result<Vec<(NaiveDate, usize, usize)>, Error> {
-        let file_date_len_map = spawn_blocking(Self::get_file_date_len_map).await?;
+        let file_date_len_map = {
+            let dap = self.clone();
+            spawn_blocking(move || dap.get_file_date_len_map()).await?
+        };
         let file_date_len_map = Arc::new(file_date_len_map?);
         println!("len file_date_len_map {}", file_date_len_map.len());
 
@@ -458,6 +464,37 @@ impl DiaryAppInterface {
         let results: Result<Vec<_>, Error> = try_join_all(futures).await;
         let results: Vec<_> = results?.into_iter().filter_map(|x| x).collect();
         Ok(results)
+    }
+
+    pub async fn cleanup_backup(&self) -> Result<(), Error> {
+        let results = self.validate_backup().await?;
+        for (date, backup_len, diary_len) in results.iter() {
+            if diary_len > backup_len {
+                let backup_file = self
+                    .config
+                    .home_dir
+                    .join("Dropbox")
+                    .join("backup")
+                    .join("epistle_backup")
+                    .join("backup")
+                    .join(&format!("{}.txt", date));
+                if backup_file.exists() {
+                    remove_file(&backup_file).await?;
+                }
+                if let Some(entry) = self.s3.download_entry(*date).await? {
+                    if entry.diary_text.len() == *diary_len {
+                        continue;
+                    }
+                }
+                if self.s3.upload_entry(*date).await?.is_some() {
+                    println!(
+                        "date {} backup_len {} diary_len {}",
+                        date, backup_len, diary_len
+                    );
+                }
+            }
+        }
+        Ok(())
     }
 }
 
