@@ -28,16 +28,21 @@ pub struct ConfigInner {
     pub n_db_workers: usize,
     #[serde(default = "default_secret_key")]
     pub secret_key: StackString,
+    #[serde(default = "default_home_dir")]
+    pub home_dir: PathBuf,
 }
 
 #[derive(Default, Debug, Clone)]
 pub struct Config(Arc<ConfigInner>);
 
+fn default_home_dir() -> PathBuf {
+    dirs::home_dir().expect("Cannot determine home directory")
+}
 fn default_diary_bucket() -> StackString {
     "diary_bucket".into()
 }
 fn default_diary_path() -> PathBuf {
-    let home_dir = dirs::home_dir().expect("Cannot determine home directory");
+    let home_dir = default_home_dir();
     home_dir.join("Dropbox").join("epistle")
 }
 fn default_port() -> u32 {
