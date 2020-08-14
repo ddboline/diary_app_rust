@@ -467,19 +467,24 @@ impl DiaryAppInterface {
     }
 
     pub async fn cleanup_backup(&self) -> Result<(), Error> {
+        let backup_directory = self
+            .config
+            .home_dir
+            .join("Dropbox")
+            .join("backup")
+            .join("epistle_backup")
+            .join("backup");
+        if !backup_directory.exists() {
+            return Ok(());
+        }
         let results = self.validate_backup().await?;
         for (date, backup_len, diary_len) in results.iter() {
             if diary_len > backup_len {
-                let backup_file = self
-                    .config
-                    .home_dir
-                    .join("Dropbox")
-                    .join("backup")
-                    .join("epistle_backup")
-                    .join("backup")
-                    .join(&format!("{}.txt", date));
+                let backup_file = backup_directory.join(&format!("{}.txt", date));
                 if backup_file.exists() {
                     remove_file(&backup_file).await?;
+                } else {
+                    continue;
                 }
                 if let Some(entry) = self.s3.download_entry(*date).await? {
                     if entry.diary_text.len() == *diary_len {
