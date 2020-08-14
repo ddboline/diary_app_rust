@@ -136,25 +136,7 @@ impl S3Interface {
                         None => true,
                     };
                     if should_update {
-                        if let Ok(entry) = DiaryEntries::get_by_date(diary_date, &self.pool).await {
-                            if entry.diary_text.trim().is_empty() {
-                                return Ok(None);
-                            }
-                            debug!(
-                                "export s3 date {} lines {}",
-                                entry.diary_date,
-                                entry.diary_text.matches('\n').count()
-                            );
-                            let key = format!("{}.txt", entry.diary_date);
-                            self.s3_client
-                                .upload_from_string(
-                                    &entry.diary_text,
-                                    &self.config.diary_bucket,
-                                    &key,
-                                )
-                                .await?;
-                            return Ok(Some(entry));
-                        }
+                        return self.upload_entry(diary_date).await;
                     }
                     Ok(None)
                 }
@@ -163,6 +145,40 @@ impl S3Interface {
         let results: Vec<_> = results?.into_iter().filter_map(|x| x).collect();
 
         Ok(results)
+    }
+
+    pub async fn upload_entry(&self, date: NaiveDate) -> Result<Option<DiaryEntries>, Error> {
+        let entry = DiaryEntries::get_by_date(date, &self.pool).await?;
+        if entry.diary_text.trim().is_empty() {
+            return Ok(None);
+        }
+        debug!(
+            "export s3 date {} lines {}",
+            entry.diary_date,
+            entry.diary_text.matches('\n').count()
+        );
+        let key = format!("{}.txt", entry.diary_date);
+        self.s3_client
+            .upload_from_string(&entry.diary_text, &self.config.diary_bucket, &key)
+            .await?;
+        Ok(Some(entry))
+    }
+
+    pub async fn download_entry(&self, date: NaiveDate) -> Result<Option<DiaryEntries>, Error> {
+        let key = format!("{}.txt", date);
+        let (text, last_modified) = self
+            .s3_client
+            .download_to_string(&self.config.diary_bucket, &key)
+            .await?;
+        if text.trim().is_empty() {
+            return Ok(None);
+        }
+        let entry = DiaryEntries {
+            diary_date: date,
+            diary_text: text.into(),
+            last_modified,
+        };
+        Ok(Some(entry))
     }
 
     pub async fn import_from_s3(&self) -> Result<Vec<DiaryEntries>, Error> {
@@ -205,19 +221,7 @@ impl S3Interface {
                     None => true,
                 };
                 if obj.size > 0 && should_modify {
-                    if let Ok(val) = self
-                        .s3_client
-                        .download_to_string(&self.config.diary_bucket, &obj.key)
-                        .await
-                    {
-                        let entry = DiaryEntries {
-                            diary_date: obj.date,
-                            diary_text: val.into(),
-                            last_modified: obj.last_modified,
-                        };
-                        if entry.diary_text.trim().is_empty() {
-                            return Ok(None);
-                        }
+                    if let Some(entry) = self.download_entry(obj.date).await? {
                         debug!(
                             "import s3 date {} lines {}",
                             entry.diary_date,
