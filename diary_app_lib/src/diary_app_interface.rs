@@ -466,7 +466,7 @@ impl DiaryAppInterface {
         Ok(results)
     }
 
-    pub async fn cleanup_backup(&self) -> Result<(), Error> {
+    pub async fn cleanup_backup(&self) -> Result<Vec<StackString>, Error> {
         let backup_directory = self
             .config
             .home_dir
@@ -475,31 +475,41 @@ impl DiaryAppInterface {
             .join("epistle_backup")
             .join("backup");
         if !backup_directory.exists() {
-            return Ok(());
+            return Ok(Vec::new());
         }
         let results = self.validate_backup().await?;
-        for (date, backup_len, diary_len) in results.iter() {
-            if diary_len > backup_len {
-                let backup_file = backup_directory.join(&format!("{}.txt", date));
-                if backup_file.exists() {
-                    remove_file(&backup_file).await?;
-                } else {
-                    continue;
-                }
-                if let Some(entry) = self.s3.download_entry(*date).await? {
-                    if entry.diary_text.len() == *diary_len {
-                        continue;
+
+        let futures = results.into_iter().map(|(date, backup_len, diary_len)| {
+            let backup_directory = &backup_directory;
+            async move {
+                if diary_len > backup_len {
+                    let backup_file = backup_directory.join(&format!("{}.txt", date));
+                    if backup_file.exists() {
+                        remove_file(&backup_file).await?;
+                    } else {
+                        return Ok(None);
+                    }
+                    if let Some(entry) = self.s3.download_entry(date).await? {
+                        if entry.diary_text.len() == diary_len {
+                            return Ok(None);
+                        }
+                    }
+                    if self.s3.upload_entry(date).await?.is_some() {
+                        return Ok(Some(
+                            format!(
+                                "date {} backup_len {} diary_len {}",
+                                date, backup_len, diary_len
+                            )
+                            .into(),
+                        ));
                     }
                 }
-                if self.s3.upload_entry(*date).await?.is_some() {
-                    println!(
-                        "date {} backup_len {} diary_len {}",
-                        date, backup_len, diary_len
-                    );
-                }
+                Ok(None)
             }
-        }
-        Ok(())
+        });
+        let results: Result<Vec<_>, Error> = try_join_all(futures).await;
+        let output: Vec<_> = results?.into_iter().filter_map(|x| x).collect();
+        Ok(output)
     }
 }
 
