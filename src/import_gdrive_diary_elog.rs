@@ -1,12 +1,8 @@
 use anyhow::{format_err, Error};
 use chrono::NaiveDate;
-use std::collections::HashSet;
-use std::fs::read_to_string;
-use std::path::Path;
+use std::{collections::HashSet, fs::read_to_string, path::Path};
 
-use diary_app_lib::config::Config;
-use diary_app_lib::models::DiaryEntries;
-use diary_app_lib::pgpool::PgPool;
+use diary_app_lib::{config::Config, models::DiaryEntries, pgpool::PgPool};
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
