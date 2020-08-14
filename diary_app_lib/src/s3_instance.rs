@@ -1,4 +1,5 @@
 use anyhow::{format_err, Error};
+use chrono::{DateTime, Utc};
 use futures::stream::{StreamExt, TryStreamExt};
 use rusoto_core::Region;
 use rusoto_s3::{Bucket, GetObjectRequest, Object, PutObjectRequest, S3Client, S3};
@@ -83,7 +84,7 @@ impl S3Instance {
         &self,
         bucket_name: &str,
         key_name: &str,
-    ) -> Result<String, Error> {
+    ) -> Result<(String, DateTime<Utc>), Error> {
         exponential_retry(|| {
             let source = GetObjectRequest {
                 bucket: bucket_name.into(),
@@ -96,7 +97,12 @@ impl S3Instance {
 
                 let mut buf = String::new();
                 body.into_async_read().read_to_string(&mut buf).await?;
-                Ok(buf)
+                let last_modified = resp
+                    .last_modified
+                    .as_ref()
+                    .and_then(|lm| DateTime::parse_from_rfc3339(&lm).ok())
+                    .map_or_else(Utc::now, |d| d.with_timezone(&Utc));
+                Ok((buf, last_modified))
             }
         })
         .await
