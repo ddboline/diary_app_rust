@@ -70,23 +70,32 @@ pub async fn run_app() {
                     .max_age_time(Duration::days(1))
                     .secure(false), // this can only be true if you have https
             ))
-            .service(web::resource("/api/search").route(web::get().to(search)))
-            .service(web::resource("/api/search_api").route(web::get().to(search_api)))
-            .service(web::resource("/api/insert").route(web::post().to(insert)))
-            .service(web::resource("/api/sync").route(web::get().to(sync)))
-            .service(web::resource("/api/sync_api").route(web::get().to(sync_api)))
-            .service(web::resource("/api/replace").route(web::post().to(replace)))
-            .service(web::resource("/api/list").route(web::get().to(list)))
-            .service(web::resource("/api/list_api").route(web::get().to(list_api)))
-            .service(web::resource("/api/edit").route(web::get().to(edit)))
-            .service(web::resource("/api/display").route(web::get().to(display)))
-            .service(web::resource("/api/index.html").route(web::get().to(diary_frontpage)))
-            .service(web::resource("/api/list_conflicts").route(web::get().to(list_conflicts)))
-            .service(web::resource("/api/show_conflict").route(web::get().to(show_conflict)))
-            .service(web::resource("/api/remove_conflict").route(web::get().to(remove_conflict)))
-            .service(web::resource("/api/update_conflict").route(web::get().to(update_conflict)))
-            .service(web::resource("/api/commit_conflict").route(web::get().to(commit_conflict)))
-            .service(web::resource("/api/user").route(web::get().to(user)))
+            .service(
+                web::scope("/api")
+                    .service(web::resource("/search").route(web::get().to(search)))
+                    .service(web::resource("/search_api").route(web::get().to(search_api)))
+                    .service(web::resource("/insert").route(web::post().to(insert)))
+                    .service(web::resource("/sync").route(web::get().to(sync)))
+                    .service(web::resource("/sync_api").route(web::get().to(sync_api)))
+                    .service(web::resource("/replace").route(web::post().to(replace)))
+                    .service(web::resource("/list").route(web::get().to(list)))
+                    .service(web::resource("/list_api").route(web::get().to(list_api)))
+                    .service(web::resource("/edit").route(web::get().to(edit)))
+                    .service(web::resource("/display").route(web::get().to(display)))
+                    .service(web::resource("/index.html").route(web::get().to(diary_frontpage)))
+                    .service(web::resource("/list_conflicts").route(web::get().to(list_conflicts)))
+                    .service(web::resource("/show_conflict").route(web::get().to(show_conflict)))
+                    .service(
+                        web::resource("/remove_conflict").route(web::get().to(remove_conflict)),
+                    )
+                    .service(
+                        web::resource("/update_conflict").route(web::get().to(update_conflict)),
+                    )
+                    .service(
+                        web::resource("/commit_conflict").route(web::get().to(commit_conflict)),
+                    )
+                    .service(web::resource("/user").route(web::get().to(user))),
+            )
     })
     .bind(&format!("127.0.0.1:{}", port))
     .unwrap_or_else(|_| panic!("Failed to bind to port {}", port))
