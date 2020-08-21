@@ -18,6 +18,8 @@ use super::{
     requests::{DiaryAppRequests, HandleRequest, ListOptions, SearchOptions},
 };
 
+pub type HttpResult = Result<HttpResponse, Error>;
+
 lazy_static! {
     static ref HANDLEBARS: Handlebars<'static> = {
         let mut h = Handlebars::new();
@@ -27,13 +29,13 @@ lazy_static! {
     };
 }
 
-fn form_http_response(body: String) -> Result<HttpResponse, Error> {
+fn form_http_response(body: String) -> HttpResult {
     Ok(HttpResponse::build(StatusCode::OK)
         .content_type("text/html; charset=utf-8")
         .body(body))
 }
 
-fn to_json<T>(js: T) -> Result<HttpResponse, Error>
+fn to_json<T>(js: T) -> HttpResult
 where
     T: Serialize,
 {
@@ -44,7 +46,7 @@ async fn _search(
     query: SearchOptions,
     state: Data<AppState>,
     is_api: bool,
-) -> Result<HttpResponse, Error> {
+) -> HttpResult {
     let req = DiaryAppRequests::Search(query);
 
     let body = state.db.handle(req).await?;
@@ -67,7 +69,7 @@ pub async fn search_api(
     query: Query<SearchOptions>,
     _: LoggedUser,
     state: Data<AppState>,
-) -> Result<HttpResponse, Error> {
+) -> HttpResult {
     _search(query.into_inner(), state, true).await
 }
 
@@ -75,7 +77,7 @@ pub async fn search(
     query: Query<SearchOptions>,
     _: LoggedUser,
     state: Data<AppState>,
-) -> Result<HttpResponse, Error> {
+) -> HttpResult {
     _search(query.into_inner(), state, false).await
 }
 
@@ -88,7 +90,7 @@ pub async fn insert(
     data: Json<InsertData>,
     _: LoggedUser,
     state: Data<AppState>,
-) -> Result<HttpResponse, Error> {
+) -> HttpResult {
     let req = DiaryAppRequests::Insert(data.into_inner().text);
 
     let body = state.db.handle(req).await?;
@@ -96,7 +98,7 @@ pub async fn insert(
     to_json(body)
 }
 
-pub async fn _sync(state: Data<AppState>, is_api: bool) -> Result<HttpResponse, Error> {
+pub async fn _sync(state: Data<AppState>, is_api: bool) -> HttpResult {
     let body = state.db.handle(DiaryAppRequests::Sync).await?;
     if is_api {
         let body = hashmap! {"response" => body.join("\n")};
@@ -110,11 +112,11 @@ pub async fn _sync(state: Data<AppState>, is_api: bool) -> Result<HttpResponse, 
     }
 }
 
-pub async fn sync(_: LoggedUser, state: Data<AppState>) -> Result<HttpResponse, Error> {
+pub async fn sync(_: LoggedUser, state: Data<AppState>) -> HttpResult {
     _sync(state, false).await
 }
 
-pub async fn sync_api(_: LoggedUser, state: Data<AppState>) -> Result<HttpResponse, Error> {
+pub async fn sync_api(_: LoggedUser, state: Data<AppState>) -> HttpResult {
     _sync(state, true).await
 }
 
@@ -128,7 +130,7 @@ pub async fn replace(
     data: Json<ReplaceData>,
     _: LoggedUser,
     state: Data<AppState>,
-) -> Result<HttpResponse, Error> {
+) -> HttpResult {
     let data = data.into_inner();
     let req = DiaryAppRequests::Replace {
         date: data.date,
@@ -197,7 +199,7 @@ async fn _list(
     query: ListOptions,
     state: Data<AppState>,
     is_api: bool,
-) -> Result<HttpResponse, Error> {
+) -> HttpResult {
     let req = DiaryAppRequests::List(query);
     let body = state.db.handle(req).await?;
 
@@ -220,7 +222,7 @@ pub async fn list(
     query: Query<ListOptions>,
     _: LoggedUser,
     state: Data<AppState>,
-) -> Result<HttpResponse, Error> {
+) -> HttpResult {
     _list(query.into_inner(), state, false).await
 }
 
@@ -228,7 +230,7 @@ pub async fn list_api(
     query: Query<ListOptions>,
     _: LoggedUser,
     state: Data<AppState>,
-) -> Result<HttpResponse, Error> {
+) -> HttpResult {
     _list(query.into_inner(), state, true).await
 }
 
@@ -241,7 +243,7 @@ pub async fn edit(
     query: Query<EditData>,
     _: LoggedUser,
     state: Data<AppState>,
-) -> Result<HttpResponse, Error> {
+) -> HttpResult {
     let query = query.into_inner();
     let diary_date = query.date;
     let req = DiaryAppRequests::Display(diary_date);
@@ -266,7 +268,7 @@ pub async fn display(
     query: Query<EditData>,
     _: LoggedUser,
     state: Data<AppState>,
-) -> Result<HttpResponse, Error> {
+) -> HttpResult {
     let query = query.into_inner();
     let diary_date = query.date;
     let req = DiaryAppRequests::Display(diary_date);
@@ -282,7 +284,7 @@ pub async fn display(
     form_http_response(body)
 }
 
-pub async fn diary_frontpage(_: LoggedUser, state: Data<AppState>) -> Result<HttpResponse, Error> {
+pub async fn diary_frontpage(_: LoggedUser, state: Data<AppState>) -> HttpResult {
     let query = ListOptions {
         limit: Some(10),
         ..ListOptions::default()
@@ -315,7 +317,7 @@ pub async fn list_conflicts(
     query: Query<ConflictData>,
     _: LoggedUser,
     state: Data<AppState>,
-) -> Result<HttpResponse, Error> {
+) -> HttpResult {
     let diary_date = query.into_inner().date;
     let req = DiaryAppRequests::ListConflicts(diary_date);
 
@@ -360,7 +362,7 @@ pub async fn show_conflict(
     query: Query<ConflictData>,
     _: LoggedUser,
     state: Data<AppState>,
-) -> Result<HttpResponse, Error> {
+) -> HttpResult {
     let query = query.into_inner();
     let datetime = query.datetime.unwrap_or_else(Utc::now);
     let diary_date = query
@@ -387,7 +389,7 @@ pub async fn remove_conflict(
     query: Query<ConflictData>,
     _: LoggedUser,
     state: Data<AppState>,
-) -> Result<HttpResponse, Error> {
+) -> HttpResult {
     let query = query.into_inner();
     if let Some(datetime) = query.datetime {
         let req = DiaryAppRequests::RemoveConflict(datetime);
@@ -412,7 +414,7 @@ pub async fn update_conflict(
     query: Query<ConflictUpdateData>,
     _: LoggedUser,
     state: Data<AppState>,
-) -> Result<HttpResponse, Error> {
+) -> HttpResult {
     let query = query.into_inner();
     let req = DiaryAppRequests::UpdateConflict {
         id: query.id,
@@ -433,7 +435,7 @@ pub async fn commit_conflict(
     query: Query<CommitConflictData>,
     _: LoggedUser,
     state: Data<AppState>,
-) -> Result<HttpResponse, Error> {
+) -> HttpResult {
     let query = query.into_inner();
     let req = DiaryAppRequests::CommitConflict(query.datetime);
 
@@ -442,6 +444,6 @@ pub async fn commit_conflict(
     to_json(body)
 }
 
-pub async fn user(user: LoggedUser) -> Result<HttpResponse, Error> {
+pub async fn user(user: LoggedUser) -> HttpResult {
     to_json(user)
 }
