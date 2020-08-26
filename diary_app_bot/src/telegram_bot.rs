@@ -21,6 +21,8 @@ use diary_app_lib::{
     config::Config, diary_app_interface::DiaryAppInterface, models::AuthorizedUsers, pgpool::PgPool,
 };
 
+use crate::failure_count::FailureCount;
+
 type UserIds = RwLock<HashSet<UserId>>;
 type OBuffer = RwLock<Vec<StackString>>;
 
@@ -28,53 +30,6 @@ lazy_static! {
     static ref TELEGRAM_USERIDS: UserIds = RwLock::new(HashSet::new());
     static ref OUTPUT_BUFFER: OBuffer = RwLock::new(Vec::new());
     static ref FAILURE_COUNT: FailureCount = FailureCount::new(5);
-}
-
-struct FailureCount {
-    max_count: usize,
-    counter: AtomicUsize,
-}
-
-impl FailureCount {
-    fn new(max_count: usize) -> Self {
-        Self {
-            max_count,
-            counter: AtomicUsize::new(0),
-        }
-    }
-
-    fn check(&self) -> Result<(), Error> {
-        if self.counter.load(Ordering::SeqCst) > self.max_count {
-            Err(format_err!(
-                "Failed after retrying {} times",
-                self.max_count
-            ))
-        } else {
-            Ok(())
-        }
-    }
-
-    fn reset(&self) -> Result<(), Error> {
-        if self.counter.swap(0, Ordering::SeqCst) > self.max_count {
-            Err(format_err!(
-                "Failed after retrying {} times",
-                self.max_count
-            ))
-        } else {
-            Ok(())
-        }
-    }
-
-    fn increment(&self) -> Result<(), Error> {
-        if self.counter.fetch_add(1, Ordering::SeqCst) > self.max_count {
-            Err(format_err!(
-                "Failed after retrying {} times",
-                self.max_count
-            ))
-        } else {
-            Ok(())
-        }
-    }
 }
 
 async fn diary_sync(
