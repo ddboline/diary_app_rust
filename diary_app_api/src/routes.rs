@@ -42,11 +42,7 @@ where
     Ok(HttpResponse::Ok().json(js))
 }
 
-async fn _search(
-    query: SearchOptions,
-    state: Data<AppState>,
-    is_api: bool,
-) -> HttpResult {
+async fn _search(query: SearchOptions, state: Data<AppState>, is_api: bool) -> HttpResult {
     let req = DiaryAppRequests::Search(query);
 
     let body = state.db.handle(req).await?;
@@ -86,11 +82,7 @@ pub struct InsertData {
     pub text: StackString,
 }
 
-pub async fn insert(
-    data: Json<InsertData>,
-    _: LoggedUser,
-    state: Data<AppState>,
-) -> HttpResult {
+pub async fn insert(data: Json<InsertData>, _: LoggedUser, state: Data<AppState>) -> HttpResult {
     let req = DiaryAppRequests::Insert(data.into_inner().text);
 
     let body = state.db.handle(req).await?;
@@ -126,11 +118,7 @@ pub struct ReplaceData {
     pub text: StackString,
 }
 
-pub async fn replace(
-    data: Json<ReplaceData>,
-    _: LoggedUser,
-    state: Data<AppState>,
-) -> HttpResult {
+pub async fn replace(data: Json<ReplaceData>, _: LoggedUser, state: Data<AppState>) -> HttpResult {
     let data = data.into_inner();
     let req = DiaryAppRequests::Replace {
         date: data.date,
@@ -195,11 +183,7 @@ fn _list_string(
     format!("{}\n<br>\n{}", text.join("\n"), buttons.join("\n")).into()
 }
 
-async fn _list(
-    query: ListOptions,
-    state: Data<AppState>,
-    is_api: bool,
-) -> HttpResult {
+async fn _list(query: ListOptions, state: Data<AppState>, is_api: bool) -> HttpResult {
     let req = DiaryAppRequests::List(query);
     let body = state.db.handle(req).await?;
 
@@ -218,11 +202,7 @@ async fn _list(
     }
 }
 
-pub async fn list(
-    query: Query<ListOptions>,
-    _: LoggedUser,
-    state: Data<AppState>,
-) -> HttpResult {
+pub async fn list(query: Query<ListOptions>, _: LoggedUser, state: Data<AppState>) -> HttpResult {
     _list(query.into_inner(), state, false).await
 }
 
@@ -239,11 +219,7 @@ pub struct EditData {
     pub date: NaiveDate,
 }
 
-pub async fn edit(
-    query: Query<EditData>,
-    _: LoggedUser,
-    state: Data<AppState>,
-) -> HttpResult {
+pub async fn edit(query: Query<EditData>, _: LoggedUser, state: Data<AppState>) -> HttpResult {
     let query = query.into_inner();
     let diary_date = query.date;
     let req = DiaryAppRequests::Display(diary_date);
@@ -264,11 +240,7 @@ pub async fn edit(
     form_http_response(body)
 }
 
-pub async fn display(
-    query: Query<EditData>,
-    _: LoggedUser,
-    state: Data<AppState>,
-) -> HttpResult {
+pub async fn display(query: Query<EditData>, _: LoggedUser, state: Data<AppState>) -> HttpResult {
     let query = query.into_inner();
     let diary_date = query.date;
     let req = DiaryAppRequests::Display(diary_date);
