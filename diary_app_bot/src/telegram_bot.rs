@@ -1,12 +1,9 @@
-use anyhow::{format_err, Error};
+use anyhow::Error;
 use futures::{future::join, StreamExt};
 use lazy_static::lazy_static;
 use log::debug;
 use stack_string::StackString;
-use std::{
-    collections::HashSet,
-    sync::atomic::{AtomicUsize, Ordering},
-};
+use std::collections::HashSet;
 use telegram_bot::{types::refs::UserId, Api, CanReplySendMessage, MessageKind, UpdateKind};
 use tokio::{
     sync::{
