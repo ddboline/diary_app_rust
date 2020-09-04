@@ -2,12 +2,13 @@ use anyhow::{format_err, Error};
 use lazy_static::lazy_static;
 use log::debug;
 use smallvec::{smallvec, SmallVec};
-use std::collections::HashMap;
-use std::process::Stdio;
-use tokio::io::{stdout, AsyncBufReadExt, AsyncWriteExt, BufReader};
-use tokio::process::Command;
-use tokio::sync::{Mutex, RwLock};
-use tokio::task::spawn;
+use std::{collections::HashMap, process::Stdio};
+use tokio::{
+    io::{stdout, AsyncBufReadExt, AsyncWriteExt, BufReader},
+    process::Command,
+    sync::{Mutex, RwLock},
+    task::spawn,
+};
 use url::Url;
 
 use stack_string::StackString;
