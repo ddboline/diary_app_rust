@@ -357,13 +357,16 @@ impl DiaryAppInterface {
             .collect()
     }
 
-    fn process_ssh(
+    async fn process_ssh(
         ssh_url: &Url,
         cache_set: &HashSet<DateTime<Utc>>,
     ) -> Result<Vec<DiaryCache>, Error> {
-        let ssh_inst = SSHInstance::from_url(ssh_url)?;
+        let ssh_inst = SSHInstance::from_url(ssh_url).await?;
         let mut entries = Vec::new();
-        for line in ssh_inst.run_command_stream_stdout("/usr/bin/diary-app-rust ser")? {
+        for line in ssh_inst
+            .run_command_stream_stdout("/usr/bin/diary-app-rust ser")
+            .await?
+        {
             let item: DiaryCache = serde_json::from_str(&line)?;
             if !cache_set.contains(&item.diary_datetime) {
                 debug!("{:?}", item);
@@ -392,10 +395,7 @@ impl DiaryAppInterface {
             .into_iter()
             .map(|entry| entry.diary_datetime)
             .collect();
-        let entries = {
-            let ssh_url = ssh_url.clone();
-            spawn_blocking(move || Self::process_ssh(&ssh_url, &cache_set)).await?
-        }?;
+        let entries = Self::process_ssh(&ssh_url, &cache_set).await?;
         let futures = entries.into_iter().map(|item| {
             let pool = self.pool.clone();
             async move { item.insert_entry(&pool).await }
@@ -403,10 +403,10 @@ impl DiaryAppInterface {
         let results: Result<Vec<_>, Error> = try_join_all(futures).await;
         let inserted_entries: Vec<_> = results?;
         if !inserted_entries.is_empty() {
-            spawn_blocking(move || {
-                SSHInstance::from_url(&ssh_url)?.run_command_ssh("/usr/bin/diary-app-rust clear")
-            })
-            .await??;
+            SSHInstance::from_url(&ssh_url)
+                .await?
+                .run_command_ssh("/usr/bin/diary-app-rust clear")
+                .await?;
         }
         Ok(inserted_entries)
     }

@@ -1,12 +1,13 @@
 use anyhow::{format_err, Error};
 use lazy_static::lazy_static;
 use log::debug;
-use parking_lot::{Mutex, RwLock};
-use std::{
-    collections::HashMap,
-    io::{stdout, BufRead, BufReader, Write},
-};
-use subprocess::Exec;
+use smallvec::{smallvec, SmallVec};
+use std::collections::HashMap;
+use std::process::Stdio;
+use tokio::io::{stdout, AsyncBufReadExt, AsyncWriteExt, BufReader};
+use tokio::process::Command;
+use tokio::sync::{Mutex, RwLock};
+use tokio::task::spawn;
 use url::Url;
 
 use stack_string::StackString;
@@ -23,8 +24,8 @@ pub struct SSHInstance {
 }
 
 impl SSHInstance {
-    pub fn new(user: &str, host: &str, port: u16) -> Self {
-        LOCK_CACHE.write().insert(host.into(), Mutex::new(()));
+    pub async fn new(user: &str, host: &str, port: u16) -> Self {
+        LOCK_CACHE.write().await.insert(host.into(), Mutex::new(()));
         Self {
             user: user.into(),
             host: host.into(),
@@ -32,11 +33,11 @@ impl SSHInstance {
         }
     }
 
-    pub fn from_url(url: &Url) -> Result<Self, Error> {
+    pub async fn from_url(url: &Url) -> Result<Self, Error> {
         let host = url.host_str().ok_or_else(|| format_err!("Parse error"))?;
         let port = url.port().unwrap_or(22);
         let user = url.username();
-        Ok(Self::new(user, host, port))
+        Ok(Self::new(user, host, port).await)
     }
 
     pub fn get_ssh_str(&self, path: &str) -> Result<String, Error> {
@@ -49,28 +50,36 @@ impl SSHInstance {
         Ok(ssh_str)
     }
 
-    pub fn get_ssh_username_host(&self) -> Result<String, Error> {
+    pub fn get_ssh_username_host(&self) -> Result<SmallVec<[String; 3]>, Error> {
+        let user_host = format!("{}@{}", self.user, self.host);
         let ssh_str = if self.port == 22 {
-            format!("{}@{}", self.user, self.host)
+            smallvec![user_host]
         } else {
-            format!("-p {} {}@{}", self.port, self.user, self.host)
+            smallvec!["-p".to_string(), self.port.to_string(), user_host]
         };
 
         Ok(ssh_str)
     }
 
-    pub fn run_command_stream_stdout(&self, cmd: &str) -> Result<Vec<String>, Error> {
-        if let Some(host_lock) = LOCK_CACHE.read().get(&self.host) {
+    pub async fn run_command_stream_stdout(&self, cmd: &str) -> Result<Vec<String>, Error> {
+        if let Some(host_lock) = LOCK_CACHE.read().await.get(&self.host) {
             let output: Vec<String>;
-            *host_lock.lock() = {
-                debug!("cmd {}", cmd);
+            *host_lock.lock().await = {
+                debug!("run_command_stream_stdout cmd {}", cmd);
                 let user_host = self.get_ssh_username_host()?;
-                let command = format!(r#"ssh {} "{}""#, user_host, cmd);
-                let stream = Exec::shell(command).stream_stdout()?;
-                let reader = BufReader::new(stream);
-
-                let results: Result<Vec<_>, _> = reader.lines().collect();
-                output = results?;
+                let mut args: SmallVec<[&str; 4]> = user_host.iter().map(String::as_str).collect();
+                args.push(cmd);
+                let results = Command::new("ssh").args(&args).output().await?;
+                if results.stdout.is_empty() {
+                    output = Vec::new();
+                } else {
+                    let results: Result<Vec<_>, Error> = results
+                        .stdout
+                        .split(|c| *c == b'\n')
+                        .map(|s| String::from_utf8(s.to_vec()).map_err(Into::into))
+                        .collect();
+                    output = results?;
+                }
             };
             Ok(output)
         } else {
@@ -78,56 +87,60 @@ impl SSHInstance {
         }
     }
 
-    pub fn run_command_print_stdout(&self, cmd: &str) -> Result<(), Error> {
-        LOCK_CACHE
-            .read()
-            .get(&self.host)
-            .ok_or_else(|| format_err!("Failed to acquire lock"))
-            .and_then(|host_lock| {
-                let _ = host_lock.lock();
-                debug!("cmd {}", cmd);
-                let user_host = self.get_ssh_username_host()?;
-                let command = format!(r#"ssh {} "{}""#, user_host, cmd);
-                let stream = Exec::shell(command).stream_stdout()?;
-                let mut reader = BufReader::new(stream);
-                let stdout = stdout();
-                let mut line = String::new();
-                loop {
-                    line.clear();
-                    match reader.read_line(&mut line) {
-                        Ok(0) => break,
-                        Ok(_) => {
-                            writeln!(stdout.lock(), "ssh://{}{}", user_host, line)?;
-                        }
-                        Err(_) => {}
-                    }
-                }
-                Ok(())
-            })
-    }
+    pub async fn run_command_print_stdout(&self, cmd: &str) -> Result<(), Error> {
+        if let Some(host_lock) = LOCK_CACHE.read().await.get(&self.host) {
+            let _ = host_lock.lock();
+            debug!("run_command_print_stdout cmd {}", cmd);
+            let user_host = self.get_ssh_username_host()?;
+            let mut args: SmallVec<[&str; 4]> = user_host.iter().map(String::as_str).collect();
+            args.push(cmd);
+            let mut command = Command::new("ssh")
+                .args(&args)
+                .stdout(Stdio::piped())
+                .spawn()?;
 
-    pub fn run_command_ssh(&self, cmd: &str) -> Result<(), Error> {
-        let user_host = self.get_ssh_username_host()?;
-        let command = format!(r#"ssh {} "{}""#, user_host, cmd);
-        self.run_command(&command)
-    }
+            let stdout_handle = command
+                .stdout
+                .take()
+                .ok_or_else(|| format_err!("No stdout"))?;
+            let mut reader = BufReader::new(stdout_handle);
 
-    pub fn run_command(&self, cmd: &str) -> Result<(), Error> {
-        LOCK_CACHE
-            .read()
-            .get(&self.host)
-            .ok_or_else(|| format_err!("Failed to acquire lock"))
-            .and_then(|host_lock| {
-                let status: bool;
-                *host_lock.lock() = {
-                    debug!("cmd {}", cmd);
-                    status = Exec::shell(cmd).join()?.success();
-                };
-                if status {
-                    Ok(())
+            let ssh_task = spawn(async move { command.await });
+
+            let mut line = String::new();
+            let mut stdout = stdout();
+            while let Ok(bytes) = reader.read_line(&mut line).await {
+                if bytes > 0 {
+                    let user_host = &user_host[user_host.len() - 1];
+                    stdout
+                        .write_all(format!("ssh://{}{}", user_host, line).as_bytes())
+                        .await?;
                 } else {
-                    Err(format_err!("{} failed", cmd))
+                    break;
                 }
-            })
+            }
+            ssh_task.await??;
+        }
+        Ok(())
+    }
+
+    pub async fn run_command_ssh(&self, cmd: &str) -> Result<(), Error> {
+        let user_host = self.get_ssh_username_host()?;
+        let mut args: SmallVec<[&str; 4]> = user_host.iter().map(String::as_str).collect();
+        args.push(cmd);
+        if let Some(host_lock) = LOCK_CACHE.read().await.get(&self.host) {
+            let status: bool;
+            *host_lock.lock().await = {
+                debug!("run_command_ssh cmd {}", cmd);
+                status = Command::new("ssh").args(&args).status().await?.success();
+            };
+            if status {
+                Ok(())
+            } else {
+                Err(format_err!("{} failed", cmd))
+            }
+        } else {
+            Err(format_err!("Failed to acquire lock"))
+        }
     }
 }
