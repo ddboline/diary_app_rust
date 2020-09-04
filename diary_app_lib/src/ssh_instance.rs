@@ -63,25 +63,22 @@ impl SSHInstance {
 
     pub async fn run_command_stream_stdout(&self, cmd: &str) -> Result<Vec<String>, Error> {
         if let Some(host_lock) = LOCK_CACHE.read().await.get(&self.host) {
-            let output: Vec<String>;
-            *host_lock.lock().await = {
-                debug!("run_command_stream_stdout cmd {}", cmd);
-                let user_host = self.get_ssh_username_host()?;
-                let mut args: SmallVec<[&str; 4]> = user_host.iter().map(String::as_str).collect();
-                args.push(cmd);
-                let results = Command::new("ssh").args(&args).output().await?;
-                if results.stdout.is_empty() {
-                    output = Vec::new();
-                } else {
-                    let results: Result<Vec<_>, Error> = results
-                        .stdout
-                        .split(|c| *c == b'\n')
-                        .map(|s| String::from_utf8(s.to_vec()).map_err(Into::into))
-                        .collect();
-                    output = results?;
-                }
-            };
-            Ok(output)
+            let _ = host_lock.lock().await;
+            debug!("run_command_stream_stdout cmd {}", cmd);
+            let user_host = self.get_ssh_username_host()?;
+            let mut args: SmallVec<[&str; 4]> = user_host.iter().map(String::as_str).collect();
+            args.push(cmd);
+            let results = Command::new("ssh").args(&args).output().await?;
+            if results.stdout.is_empty() {
+                Ok(Vec::new())
+            } else {
+                let results: Result<Vec<_>, Error> = results
+                    .stdout
+                    .split(|c| *c == b'\n')
+                    .map(|s| String::from_utf8(s.to_vec()).map_err(Into::into))
+                    .collect();
+                results
+            }
         } else {
             Err(format_err!("Failed to acquire lock"))
         }
@@ -129,12 +126,9 @@ impl SSHInstance {
         let mut args: SmallVec<[&str; 4]> = user_host.iter().map(String::as_str).collect();
         args.push(cmd);
         if let Some(host_lock) = LOCK_CACHE.read().await.get(&self.host) {
-            let status: bool;
-            *host_lock.lock().await = {
-                debug!("run_command_ssh cmd {}", cmd);
-                status = Command::new("ssh").args(&args).status().await?.success();
-            };
-            if status {
+            let _ = host_lock.lock().await;
+            debug!("run_command_ssh cmd {}", cmd);
+            if Command::new("ssh").args(&args).status().await?.success() {
                 Ok(())
             } else {
                 Err(format_err!("{} failed", cmd))
