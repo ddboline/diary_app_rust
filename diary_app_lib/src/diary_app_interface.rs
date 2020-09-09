@@ -324,13 +324,13 @@ impl DiaryAppInterface {
                     current_entry.diary_text =
                         format!("{}\n\n{}", &current_entry.diary_text, entry_string).into();
                     self.stdout
-                        .send(format!("update {}", diary_file.to_string_lossy()).into())?;
+                        .send(format!("update {}", diary_file.to_string_lossy()));
                     let (current_entry, _) = current_entry.update_entry(&self.pool, true).await?;
                     Some(current_entry)
                 } else {
                     let new_entry = DiaryEntries::new(entry_date, &entry_string);
                     self.stdout
-                        .send(format!("upsert {}", diary_file.to_string_lossy()).into())?;
+                        .send(format!("upsert {}", diary_file.to_string_lossy()));
                     let (new_entry, _) = new_entry.upsert_entry(&self.pool, true).await?;
                     Some(new_entry)
                 };
