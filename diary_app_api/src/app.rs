@@ -1,7 +1,6 @@
 use actix_identity::{CookieIdentityPolicy, IdentityService};
 use actix_web::{web, App, HttpServer};
-use chrono::Duration;
-use std::{ops::Deref, time};
+use std::{ops::Deref, time::Duration};
 use tokio::time::interval;
 
 use diary_app_lib::{config::Config, diary_app_interface::DiaryAppInterface, pgpool::PgPool};
@@ -32,7 +31,7 @@ pub struct AppState {
 
 pub async fn run_app() {
     async fn update_db(pool: PgPool) {
-        let mut i = interval(time::Duration::from_secs(60));
+        let mut i = interval(Duration::from_secs(60));
         loop {
             i.tick().await;
             fill_from_db(&pool).await.unwrap_or(());
@@ -40,7 +39,7 @@ pub async fn run_app() {
     }
 
     async fn hourly_sync(dapp: DiaryAppActor) {
-        let mut i = interval(time::Duration::from_secs(3600));
+        let mut i = interval(Duration::from_secs(3600));
         loop {
             i.tick().await;
             dapp.sync_everything().await.map(|_| ()).unwrap_or(());
@@ -67,7 +66,7 @@ pub async fn run_app() {
                     .name("auth")
                     .path("/")
                     .domain(dapp.config.domain.as_str())
-                    .max_age_time(Duration::days(1))
+                    .max_age(24*3600)
                     .secure(false), // this can only be true if you have https
             ))
             .service(
