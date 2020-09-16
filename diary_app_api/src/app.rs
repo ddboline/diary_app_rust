@@ -39,8 +39,8 @@ pub async fn run_app() -> Result<(), Error> {
     async fn update_db(pool: PgPool) {
         let mut i = interval(Duration::from_secs(60));
         loop {
-            i.tick().await;
             fill_from_db(&pool).await.unwrap_or(());
+            i.tick().await;
         }
     }
 
