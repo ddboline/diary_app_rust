@@ -1,6 +1,6 @@
 [package]
 name = "diary_app_api"
-version = "0.5.19"
+version = "0.5.20"
 authors = ["Daniel Boline <ddboline@gmail.com>"]
 edition = "2018"
 
@@ -28,4 +28,4 @@ actix-threadpool = "0.3"
 async-trait = "0.1"
 handlebars = "3.4"
 stack-string = { git = "https://github.com/ddboline/stack-string-rs.git", tag="0.1.6", features=["diesel_types"] }
-rust_auth_server = { git = "https://github.com/ddboline/rust-auth-server.git", tag="0.6.0" }
+auth_server_rust = { git = "https://github.com/ddboline/auth_server_rust.git", tag="0.1.5"}

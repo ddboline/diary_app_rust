@@ -1,18 +1,24 @@
 use actix_identity::{CookieIdentityPolicy, IdentityService};
 use actix_web::{web, App, HttpServer};
+use anyhow::Error;
+use lazy_static::lazy_static;
 use std::{ops::Deref, time::Duration};
 use tokio::time::interval;
 
 use diary_app_lib::{config::Config, diary_app_interface::DiaryAppInterface, pgpool::PgPool};
 
 use super::{
-    logged_user::{fill_from_db, TRIGGER_DB_UPDATE},
+    logged_user::{fill_from_db, get_secrets, SECRET_KEY, TRIGGER_DB_UPDATE},
     routes::{
         commit_conflict, diary_frontpage, display, edit, insert, list, list_api, list_conflicts,
         remove_conflict, replace, search, search_api, show_conflict, sync, sync_api,
         update_conflict, user,
     },
 };
+
+lazy_static! {
+    pub static ref CONFIG: Config = Config::init_config().expect("Failed to init config");
+}
 
 #[derive(Clone)]
 pub struct DiaryAppActor(pub DiaryAppInterface);
@@ -29,12 +35,12 @@ pub struct AppState {
     pub db: DiaryAppActor,
 }
 
-pub async fn run_app() {
+pub async fn run_app() -> Result<(), Error> {
     async fn update_db(pool: PgPool) {
         let mut i = interval(Duration::from_secs(60));
         loop {
-            i.tick().await;
             fill_from_db(&pool).await.unwrap_or(());
+            i.tick().await;
         }
     }
 
@@ -47,11 +53,11 @@ pub async fn run_app() {
     }
 
     TRIGGER_DB_UPDATE.set();
+    get_secrets(&CONFIG.secret_path, &CONFIG.jwt_secret_path).await?;
 
-    let config = Config::init_config().expect("Failed to load config");
-    let pool = PgPool::new(&config.database_url);
+    let pool = PgPool::new(&CONFIG.database_url);
 
-    let dapp = DiaryAppActor(DiaryAppInterface::new(config, pool));
+    let dapp = DiaryAppActor(DiaryAppInterface::new(CONFIG.clone(), pool));
 
     actix_rt::spawn(update_db(dapp.pool.clone()));
     actix_rt::spawn(hourly_sync(dapp.clone()));
@@ -62,7 +68,7 @@ pub async fn run_app() {
         App::new()
             .data(AppState { db: dapp.clone() })
             .wrap(IdentityService::new(
-                CookieIdentityPolicy::new(dapp.config.secret_key.as_bytes())
+                CookieIdentityPolicy::new(&SECRET_KEY.load())
                     .name("auth")
                     .path("/")
                     .domain(dapp.config.domain.as_str())
@@ -100,5 +106,5 @@ pub async fn run_app() {
     .unwrap_or_else(|_| panic!("Failed to bind to port {}", port))
     .run()
     .await
-    .expect("Failed to run app");
+    .map_err(Into::into)
 }
