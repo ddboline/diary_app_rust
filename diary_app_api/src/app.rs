@@ -1,18 +1,30 @@
 use actix_identity::{CookieIdentityPolicy, IdentityService};
 use actix_web::{web, App, HttpServer};
+use anyhow::Error;
+use lazy_static::lazy_static;
 use std::{ops::Deref, time::Duration};
 use tokio::time::interval;
 
 use diary_app_lib::{config::Config, diary_app_interface::DiaryAppInterface, pgpool::PgPool};
 
 use super::{
-    logged_user::{fill_from_db, TRIGGER_DB_UPDATE},
+    logged_user::{fill_from_db, JWT_SECRET, SECRET_KEY, TRIGGER_DB_UPDATE},
     routes::{
         commit_conflict, diary_frontpage, display, edit, insert, list, list_api, list_conflicts,
         remove_conflict, replace, search, search_api, show_conflict, sync, sync_api,
         update_conflict, user,
     },
 };
+
+lazy_static! {
+    pub static ref CONFIG: Config = Config::init_config().expect("Failed to init config");
+}
+
+async fn get_secrets() -> Result<(), Error> {
+    SECRET_KEY.read_from_file(&CONFIG.secret_path).await?;
+    JWT_SECRET.read_from_file(&CONFIG.jwt_secret_path).await?;
+    Ok(())
+}
 
 #[derive(Clone)]
 pub struct DiaryAppActor(pub DiaryAppInterface);
@@ -29,7 +41,7 @@ pub struct AppState {
     pub db: DiaryAppActor,
 }
 
-pub async fn run_app() {
+pub async fn run_app() -> Result<(), Error> {
     async fn update_db(pool: PgPool) {
         let mut i = interval(Duration::from_secs(60));
         loop {
@@ -47,6 +59,7 @@ pub async fn run_app() {
     }
 
     TRIGGER_DB_UPDATE.set();
+    get_secrets().await?;
 
     let config = Config::init_config().expect("Failed to load config");
     let pool = PgPool::new(&config.database_url);
@@ -62,7 +75,7 @@ pub async fn run_app() {
         App::new()
             .data(AppState { db: dapp.clone() })
             .wrap(IdentityService::new(
-                CookieIdentityPolicy::new(dapp.config.secret_key.as_bytes())
+                CookieIdentityPolicy::new(&SECRET_KEY.load())
                     .name("auth")
                     .path("/")
                     .domain(dapp.config.domain.as_str())
@@ -100,5 +113,5 @@ pub async fn run_app() {
     .unwrap_or_else(|_| panic!("Failed to bind to port {}", port))
     .run()
     .await
-    .expect("Failed to run app");
+    .map_err(Into::into)
 }

@@ -26,10 +26,12 @@ pub struct ConfigInner {
     pub domain: StackString,
     #[serde(default = "default_n_db_workers")]
     pub n_db_workers: usize,
-    #[serde(default = "default_secret_key")]
-    pub secret_key: StackString,
     #[serde(default = "default_home_dir")]
     pub home_dir: PathBuf,
+    #[serde(default = "default_secret_path")]
+    pub secret_path: PathBuf,
+    #[serde(default = "default_secret_path")]
+    pub jwt_secret_path: PathBuf,
 }
 
 #[derive(Default, Debug, Clone)]
@@ -48,9 +50,6 @@ fn default_diary_path() -> PathBuf {
 fn default_port() -> u32 {
     3042
 }
-fn default_secret_key() -> StackString {
-    "0123".repeat(8).into()
-}
 fn default_domain() -> StackString {
     "localhost".into()
 }
@@ -59,6 +58,12 @@ fn default_n_db_workers() -> usize {
 }
 fn default_aws_region_name() -> StackString {
     "us-east-1".into()
+}
+fn default_secret_path() -> PathBuf {
+    dirs::config_dir()
+        .unwrap()
+        .join("aws_app_rust")
+        .join("secret.bin")
 }
 
 impl Config {
