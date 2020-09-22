@@ -28,4 +28,4 @@ actix-threadpool = "0.3"
 async-trait = "0.1"
 handlebars = "3.4"
 stack-string = { git = "https://github.com/ddboline/stack-string-rs.git", tag="0.1.6", features=["diesel_types"] }
-auth_server_rust = { git = "https://github.com/ddboline/auth_server_rust.git", tag="0.1.5"}
+auth_server_rust = { git = "https://github.com/ddboline/auth_server_rust.git", tag="0.1.14"}
