@@ -2,6 +2,7 @@ use anyhow::{format_err, Error};
 use async_trait::async_trait;
 use chrono::{DateTime, NaiveDate, Utc};
 use futures::future::try_join_all;
+use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use stack_string::StackString;
 use std::collections::BTreeSet;
@@ -76,7 +77,7 @@ impl HandleRequest for DiaryAppActor {
                 Ok(vec![body])
             }
             DiaryAppRequests::List(opts) => {
-                let dates: Vec<_> = self
+                let dates = self
                     .get_list_of_dates(opts.min_date, opts.max_date, opts.start, opts.limit)
                     .await?
                     .into_iter()
@@ -118,7 +119,7 @@ impl HandleRequest for DiaryAppActor {
                     format_err!("Something has gone horribly wrong {:?}", conflicts)
                 })?;
 
-                let conflicts: Vec<_> = conflicts
+                let conflicts = conflicts
                     .into_iter()
                     .map(|entry| {
                         let nlines = entry.diff_text.split('\n').count() + 1;
@@ -191,17 +192,16 @@ impl HandleRequest for DiaryAppActor {
                     format_err!("Something has gone horribly wrong {:?}", conflicts)
                 })?;
 
-                let additions: Vec<String> = conflicts
+                let additions = conflicts
                     .into_iter()
                     .filter_map(|entry| {
                         if &entry.diff_type == "add" || &entry.diff_type == "same" {
-                            Some(entry.diff_text.into())
+                            Some(entry.diff_text)
                         } else {
                             None
                         }
                     })
-                    .collect();
-                let additions = additions.join("\n");
+                    .join("\n");
                 let (entry, _) = self.replace_text(date, &additions).await?;
                 let body = format!("{}\n{}", entry.diary_date, entry.diary_text).into();
                 Ok(vec![body])

@@ -72,8 +72,8 @@ impl LocalInterface {
                 Ok(format!("{} {}", year, date_list.len()).into())
             }
         });
-        let results: Result<Vec<_>, Error> = try_join_all(futures).await;
-        let output = results?;
+        let output: Result<Vec<_>, Error> = try_join_all(futures).await;
+        let output = output?;
         debug!("{}", output.join("\n"));
         Ok(output)
     }

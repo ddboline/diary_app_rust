@@ -5,6 +5,7 @@ use actix_web::{
 };
 use chrono::{DateTime, Local, NaiveDate, Utc};
 use handlebars::Handlebars;
+use itertools::Itertools;
 use lazy_static::lazy_static;
 use maplit::hashmap;
 use serde::{Deserialize, Serialize};
@@ -129,12 +130,12 @@ pub async fn replace(data: Json<ReplaceData>, _: LoggedUser, state: Data<AppStat
     to_json(body)
 }
 
-fn _list_string(
-    conflicts: &HashSet<StackString>,
-    body: Vec<StackString>,
-    query: ListOptions,
-) -> StackString {
-    let text: Vec<_> = body
+fn _list_string<T, U>(conflicts: &HashSet<StackString>, body: T, query: ListOptions) -> StackString
+where
+    T: IntoIterator<Item = U>,
+    U: AsRef<str>,
+{
+    let text = body
         .into_iter()
         .map(|t| {
             format!(
@@ -145,8 +146,8 @@ fn _list_string(
                         value="{t}"
                         onclick="switchToDate( '{t}' )">{c}
                     <br>"#,
-                t = t,
-                c = if conflicts.contains(&t) {
+                t = t.as_ref(),
+                c = if conflicts.contains(t.as_ref()) {
                     format!(
                         r#"
                             <input type="button"
@@ -155,15 +156,15 @@ fn _list_string(
                                 value="Conflict {t}"
                                 onclick="listConflicts( '{t}' )"
                             >"#,
-                        t = t
+                        t = t.as_ref()
                     )
                 } else {
                     "".to_string()
                 }
             )
         })
-        .collect();
-    let buttons: Vec<_> = if query.start.is_some() {
+        .join("\n");
+    let buttons = if query.start.is_some() {
         vec![
             format!(
                 r#"<button type="submit" onclick="gotoEntries({})">Previous</button>"#,
@@ -174,13 +175,15 @@ fn _list_string(
                 10
             ),
         ]
+        .join("\n")
     } else {
         vec![format!(
             r#"<button type="submit" onclick="gotoEntries({})">Next</button>"#,
             10
         )]
+        .join("\n")
     };
-    format!("{}\n<br>\n{}", text.join("\n"), buttons.join("\n")).into()
+    format!("{}\n<br>\n{}", text, buttons).into()
 }
 
 async fn _list(query: ListOptions, state: Data<AppState>, is_api: bool) -> HttpResult {
@@ -306,7 +309,7 @@ pub async fn list_conflicts(
     }
     buttons.push(r#"<button type="submit" onclick="switchToList()">List</button>"#.to_string());
 
-    let text: Vec<_> = body
+    let text = body
         .into_iter()
         .map(|t| {
             format!(
@@ -324,9 +327,9 @@ pub async fn list_conflicts(
                     .to_string(),
             )
         })
-        .collect();
+        .join("\n");
 
-    let body = format!("{}\n<br>\n{}", text.join("\n"), buttons.join("<br>"));
+    let body = format!("{}\n<br>\n{}", text, buttons.join("<br>"));
     form_http_response(body)
 }
 

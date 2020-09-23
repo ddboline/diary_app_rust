@@ -142,9 +142,7 @@ impl S3Interface {
                 }
             });
         let results: Result<Vec<_>, Error> = try_join_all(futures).await;
-        let results: Vec<_> = results?.into_iter().filter_map(|x| x).collect();
-
-        Ok(results)
+        Ok(results?.into_iter().filter_map(|x| x).collect())
     }
 
     pub async fn upload_entry(&self, date: NaiveDate) -> Result<Option<DiaryEntries>, Error> {
@@ -235,9 +233,7 @@ impl S3Interface {
             }
         });
         let results: Result<Vec<_>, Error> = try_join_all(futures).await;
-        let entries: Vec<_> = results?.into_iter().filter_map(|x| x).collect();
-
-        Ok(entries)
+        Ok(results?.into_iter().filter_map(|x| x).collect())
     }
 
     pub async fn validate_s3(&self) -> Result<Vec<(NaiveDate, usize, usize)>, Error> {
@@ -263,8 +259,7 @@ impl S3Interface {
             }
         });
         let results: Result<Vec<_>, Error> = try_join_all(futures).await;
-        let results: Vec<_> = results?.into_iter().filter_map(|x| x).collect();
-        Ok(results)
+        Ok(results?.into_iter().filter_map(|x| x).collect())
     }
 }
 

@@ -107,7 +107,7 @@ impl DiaryAppInterface {
         month: Option<u32>,
         day: Option<u32>,
     ) -> Result<Vec<NaiveDate>, Error> {
-        let matching_dates: Vec<_> = mod_map
+        let matching_dates = mod_map
             .iter()
             .map(|(d, _)| *d)
             .filter(|date| {
@@ -340,9 +340,8 @@ impl DiaryAppInterface {
                 Ok(result)
             }
         });
-        let results: Result<Vec<_>, Error> = try_join_all(futures).await;
-        let entries: Vec<_> = results?.into_iter().filter_map(|x| x).collect();
-        Ok(entries)
+        let entries: Result<Vec<_>, Error> = try_join_all(futures).await;
+        Ok(entries?.into_iter().filter_map(|x| x).collect())
     }
 
     pub async fn serialize_cache(&self) -> Result<Vec<StackString>, Error> {
@@ -400,8 +399,8 @@ impl DiaryAppInterface {
             let pool = self.pool.clone();
             async move { item.insert_entry(&pool).await }
         });
-        let results: Result<Vec<_>, Error> = try_join_all(futures).await;
-        let inserted_entries: Vec<_> = results?;
+        let inserted_entries: Result<Vec<_>, Error> = try_join_all(futures).await;
+        let inserted_entries: Vec<_> = inserted_entries?;
         if !inserted_entries.is_empty() {
             SSHInstance::from_url(&ssh_url)
                 .await?
@@ -462,8 +461,7 @@ impl DiaryAppInterface {
             }
         });
         let results: Result<Vec<_>, Error> = try_join_all(futures).await;
-        let results: Vec<_> = results?.into_iter().filter_map(|x| x).collect();
-        Ok(results)
+        Ok(results?.into_iter().filter_map(|x| x).collect())
     }
 
     pub async fn cleanup_backup(&self) -> Result<Vec<StackString>, Error> {
@@ -508,8 +506,7 @@ impl DiaryAppInterface {
             }
         });
         let results: Result<Vec<_>, Error> = try_join_all(futures).await;
-        let output: Vec<_> = results?.into_iter().filter_map(|x| x).collect();
-        Ok(output)
+        Ok(results?.into_iter().filter_map(|x| x).collect())
     }
 }
 

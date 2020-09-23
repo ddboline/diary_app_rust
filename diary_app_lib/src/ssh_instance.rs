@@ -73,12 +73,11 @@ impl SSHInstance {
             if results.stdout.is_empty() {
                 Ok(Vec::new())
             } else {
-                let results: Result<Vec<_>, Error> = results
+                results
                     .stdout
                     .split(|c| *c == b'\n')
                     .map(|s| String::from_utf8(s.to_vec()).map_err(Into::into))
-                    .collect();
-                results
+                    .collect()
             }
         } else {
             Err(format_err!("Failed to acquire lock"))
