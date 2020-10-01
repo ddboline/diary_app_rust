@@ -1,5 +1,5 @@
 use actix_identity::{CookieIdentityPolicy, IdentityService};
-use actix_web::{web, App, HttpServer};
+use actix_web::{web, App, HttpServer, middleware::Compress};
 use anyhow::Error;
 use lazy_static::lazy_static;
 use std::{ops::Deref, time::Duration};
@@ -67,6 +67,7 @@ pub async fn run_app() -> Result<(), Error> {
     HttpServer::new(move || {
         App::new()
             .data(AppState { db: dapp.clone() })
+            .wrap(Compress::default())
             .wrap(IdentityService::new(
                 CookieIdentityPolicy::new(&SECRET_KEY.get())
                     .name("auth")
