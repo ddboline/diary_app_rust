@@ -266,8 +266,11 @@ impl S3Interface {
 #[cfg(test)]
 mod tests {
     use anyhow::Error;
+    use log::debug;
 
-    use crate::{config::Config, pgpool::PgPool, s3_interface::S3Interface};
+    use crate::{
+        config::Config, pgpool::PgPool, s3_instance::S3Instance, s3_interface::S3Interface,
+    };
 
     #[tokio::test]
     #[ignore]
@@ -283,6 +286,19 @@ mod tests {
             );
         }
         assert!(results.is_empty());
+
+        let s3_instance = S3Instance::new("us-east-1").max_keys(100);
+
+        let bucket = s3_instance
+            .get_list_of_buckets()
+            .await?
+            .get(0)
+            .and_then(|b| b.name.clone())
+            .unwrap_or_else(|| "".to_string());
+
+        let key_list = s3_instance.get_list_of_keys(&bucket, None).await?;
+        debug!("{} {}", bucket, key_list.len());
+        assert!(key_list.len() > 0);
         Ok(())
     }
 }

@@ -127,28 +127,3 @@ impl S3Instance {
         .await
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use crate::s3_instance::S3Instance;
-    use anyhow::Error;
-    use log::debug;
-
-    #[tokio::test]
-    #[ignore]
-    async fn test_list_buckets() -> Result<(), Error> {
-        let s3_instance = S3Instance::new("us-east-1").max_keys(100);
-
-        let bucket = s3_instance
-            .get_list_of_buckets()
-            .await?
-            .get(0)
-            .and_then(|b| b.name.clone())
-            .unwrap_or_else(|| "".to_string());
-
-        let key_list = s3_instance.get_list_of_keys(&bucket, None).await?;
-        debug!("{} {}", bucket, key_list.len());
-        assert!(key_list.len() > 0);
-        Ok(())
-    }
-}

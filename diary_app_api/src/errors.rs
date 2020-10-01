@@ -1,4 +1,3 @@
-use actix_threadpool::BlockingError;
 use actix_web::{error::ResponseError, HttpResponse};
 use anyhow::Error as AnyhowError;
 use auth_server_rust::static_files;
@@ -16,8 +15,6 @@ pub enum ServiceError {
     BadRequest(String),
     #[error("Unauthorized")]
     Unauthorized,
-    #[error("blocking error {0}")]
-    BlockingError(String),
     #[error("Anyhow error {0}")]
     AnyhowError(#[from] AnyhowError),
     #[error("Handlebars RenderError {0}")]
@@ -38,11 +35,5 @@ impl ResponseError for ServiceError {
                 HttpResponse::InternalServerError().json("Internal Server Error, Please try later")
             }
         }
-    }
-}
-
-impl<T: Debug> From<BlockingError<T>> for ServiceError {
-    fn from(item: BlockingError<T>) -> Self {
-        Self::BlockingError(format!("{:?}", item))
     }
 }
