@@ -550,7 +550,7 @@ mod tests {
         let results = results.join("\n");
         match &original_text {
             Some(t) => assert!(results.contains(t.diary_text.as_str())),
-            None => assert!(results.contains("text_text")),
+            None => assert!(results.contains("test_text")),
         }
 
         let results = dap.search_text("1952-01-01").await?;
