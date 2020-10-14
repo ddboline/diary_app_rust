@@ -23,7 +23,7 @@ async fn main() -> Result<(), Error> {
         let mut elog_text = String::new();
         let mut elog_length = None;
 
-        if let Ok(entry) = DiaryEntries::get_by_date(*date, &pool).await {
+        if let Some(entry) = DiaryEntries::get_by_date(*date, &pool).await? {
             original_length.replace(entry.diary_text.len());
             original_text = entry.diary_text.to_string();
         }

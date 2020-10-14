@@ -1,4 +1,4 @@
-use anyhow::Error;
+use anyhow::{format_err, Error};
 use chrono::{DateTime, Datelike, Duration, Local, NaiveDate, TimeZone, Utc};
 use futures::future::try_join_all;
 use jwalk::WalkDir;
@@ -65,7 +65,9 @@ impl LocalInterface {
 
                 let mut f = File::create(filepath).await?;
                 for date in &date_list {
-                    let entry = DiaryEntries::get_by_date(*date, &self.pool).await?;
+                    let entry = DiaryEntries::get_by_date(*date, &self.pool)
+                        .await?
+                        .ok_or_else(|| format_err!("Date should exist {}", date))?;
                     f.write_all(format!("{}\n\n{}\n\n", date, entry.diary_text).as_bytes())
                         .await?;
                 }
@@ -116,8 +118,8 @@ impl LocalInterface {
             if let Some((file_mod, file_size)) = dates.get(&current_date) {
                 if let Some(db_mod) = existing_map.get(&current_date) {
                     if file_mod < db_mod {
-                        if let Ok(existing_entry) =
-                            DiaryEntries::get_by_date(current_date, &self.pool).await
+                        if let Some(existing_entry) =
+                            DiaryEntries::get_by_date(current_date, &self.pool).await?
                         {
                             let existing_size = existing_entry.diary_text.len();
                             if existing_size > *file_size {
@@ -147,8 +149,8 @@ impl LocalInterface {
                     .with_extension("txt");
                 let mut f = File::create(&filepath).await?;
 
-                if let Ok(existing_entry) =
-                    DiaryEntries::get_by_date(current_date, &self.pool).await
+                if let Some(existing_entry) =
+                    DiaryEntries::get_by_date(current_date, &self.pool).await?
                 {
                     f.write_all(existing_entry.diary_text.as_bytes()).await?;
                     entries.push(existing_entry)

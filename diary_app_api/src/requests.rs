@@ -56,7 +56,9 @@ impl HandleRequest for DiaryAppActor {
                     let results: Vec<_> = self.search_text(&text).await?;
                     results
                 } else if let Some(date) = opts.date {
-                    let entry = DiaryEntries::get_by_date(date, &self.pool).await?;
+                    let entry = DiaryEntries::get_by_date(date, &self.pool)
+                        .await?
+                        .ok_or_else(|| format_err!("Date should exist {}", date))?;
                     vec![entry.diary_text]
                 } else {
                     vec!["".into()]
@@ -86,7 +88,9 @@ impl HandleRequest for DiaryAppActor {
                 Ok(dates)
             }
             DiaryAppRequests::Display(date) => {
-                let entry = DiaryEntries::get_by_date(date, &self.pool).await?;
+                let entry = DiaryEntries::get_by_date(date, &self.pool)
+                    .await?
+                    .ok_or_else(|| format_err!("Date should exist {}", date))?;
                 Ok(vec![entry.diary_text])
             }
             DiaryAppRequests::ListConflicts(None) => {

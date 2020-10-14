@@ -197,7 +197,9 @@ impl DiaryAppInterface {
             let mut diary_entries = Vec::new();
             for date in dates {
                 debug!("search date {}", date);
-                let entry = DiaryEntries::get_by_date(date, &self.pool).await?;
+                let entry = DiaryEntries::get_by_date(date, &self.pool)
+                    .await?
+                    .ok_or_else(|| format_err!("Date SHOULD exist {}", date))?;
                 let entry = format!("{}\n{}", entry.diary_date, entry.diary_text).into();
                 diary_entries.push(entry);
                 let diary_cache_entries: Vec<_> = DiaryCache::get_cache_entries(&self.pool)
@@ -318,8 +320,8 @@ impl DiaryAppInterface {
                     f.write_all(format!("\n\n{}\n\n", entry_string).as_bytes())
                         .await?;
                     None
-                } else if let Ok(mut current_entry) =
-                    DiaryEntries::get_by_date(entry_date, &self.pool).await
+                } else if let Some(mut current_entry) =
+                    DiaryEntries::get_by_date(entry_date, &self.pool).await?
                 {
                     current_entry.diary_text =
                         format!("{}\n\n{}", &current_entry.diary_text, entry_string).into();
@@ -451,7 +453,9 @@ impl DiaryAppInterface {
         let futures = file_date_len_map.iter().map(|(date, backup_len)| {
             let pool = self.pool.clone();
             async move {
-                let entry = DiaryEntries::get_by_date(*date, &pool).await?;
+                let entry = DiaryEntries::get_by_date(*date, &pool)
+                    .await?
+                    .ok_or_else(|| format_err!("Date should exist {}", date))?;
                 let diary_len = entry.diary_text.len();
                 if diary_len == *backup_len {
                     Ok(None)
@@ -530,15 +534,32 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore]
     async fn test_search_text() -> Result<(), Error> {
         let dap = get_dap()?;
+
+        let test_date: NaiveDate = "2011-05-23".parse()?;
+        let original_text = DiaryEntries::get_by_date(test_date, &dap.pool).await?;
+        if original_text.is_none() {
+            let test_entry = DiaryEntries::new(test_date, "test_text");
+            test_entry.insert_entry(&dap.pool).await?;
+        }
 
         let results = dap.search_text("2011-05-23").await?;
         assert_eq!(results.len(), 1);
         assert!(results[0].starts_with("2011-05-23"));
+        let results = results.join("\n");
+        match &original_text {
+            Some(t) => assert!(results.contains(t.diary_text.as_str())),
+            None => assert!(results.contains("text_text")),
+        }
+
         let results = dap.search_text("1952-01-01").await?;
         assert_eq!(results.len(), 0);
+
+        if original_text.is_none() {
+            let test_entry = DiaryEntries::new(test_date, "test_text");
+            test_entry.delete_entry(&dap.pool).await?;
+        }
         Ok(())
     }
 
@@ -584,7 +605,6 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore]
     async fn test_cache_text() -> Result<(), Error> {
         let dap = get_dap()?;
 
@@ -604,7 +624,6 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore]
     async fn test_replace_text() -> Result<(), Error> {
         let dap = get_dap()?;
         let test_date = NaiveDate::from_ymd(1950, 1, 1);

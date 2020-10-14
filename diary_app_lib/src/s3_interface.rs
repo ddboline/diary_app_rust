@@ -115,8 +115,8 @@ impl S3Interface {
                     let should_update = match s3_key_map.get(&diary_date) {
                         Some((lm, s3_size)) => {
                             if (last_modified - *lm).num_seconds() > 0 {
-                                if let Ok(entry) =
-                                    DiaryEntries::get_by_date(diary_date, &self.pool).await
+                                if let Some(entry) =
+                                    DiaryEntries::get_by_date(diary_date, &self.pool).await?
                                 {
                                     let db_size = entry.diary_text.len() as i64;
                                     if *s3_size != db_size {
@@ -146,7 +146,10 @@ impl S3Interface {
     }
 
     pub async fn upload_entry(&self, date: NaiveDate) -> Result<Option<DiaryEntries>, Error> {
-        let entry = DiaryEntries::get_by_date(date, &self.pool).await?;
+        let entry = match DiaryEntries::get_by_date(date, &self.pool).await? {
+            Some(e) => e,
+            None => return Ok(None),
+        };
         if entry.diary_text.trim().is_empty() {
             return Ok(None);
         }
@@ -195,7 +198,8 @@ impl S3Interface {
                     Some(current_modified) => {
                         insert_new = (*current_modified - obj.last_modified).num_seconds() < 0;
                         if (*current_modified - obj.last_modified).num_seconds() < 0 {
-                            if let Ok(entry) = DiaryEntries::get_by_date(obj.date, &self.pool).await
+                            if let Some(entry) =
+                                DiaryEntries::get_by_date(obj.date, &self.pool).await?
                             {
                                 let db_size = entry.diary_text.len() as i64;
                                 if obj.size != db_size {
@@ -249,7 +253,9 @@ impl S3Interface {
         let futures = s3_key_map.iter().map(|(date, backup_len)| {
             let pool = self.pool.clone();
             async move {
-                let entry = DiaryEntries::get_by_date(*date, &pool).await?;
+                let entry = DiaryEntries::get_by_date(*date, &pool)
+                    .await?
+                    .ok_or_else(|| format_err!("Date should exist {}", date))?;
                 let diary_len = entry.diary_text.len();
                 if diary_len == *backup_len {
                     Ok(None)

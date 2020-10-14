@@ -1,9 +1,8 @@
 use anyhow::{format_err, Error};
 use chrono::{DateTime, NaiveDate, Utc};
 use diesel::{
-    Connection, ExpressionMethods, Insertable, QueryDsl, Queryable, RunQueryDsl,
+    Connection, ExpressionMethods, Insertable, OptionalExtension, QueryDsl, Queryable, RunQueryDsl,
     TextExpressionMethods,
-    OptionalExtension,
 };
 use difference::{Changeset, Difference};
 use log::debug;
@@ -277,7 +276,9 @@ impl DiaryEntries {
             diary_date, diary_entries, diary_text, last_modified,
         };
 
-        let changeset = self._get_difference(conn, insert_new)?.ok_or_else(|| format_err!("No entry found, should be insert"))?;
+        let changeset = self
+            ._get_difference(conn, insert_new)?
+            .ok_or_else(|| format_err!("No entry found, should be insert"))?;
 
         let conflict_opt = if changeset.distance > 0 {
             DiaryConflict::insert_from_changeset(self.diary_date, changeset, conn)?
@@ -393,15 +394,20 @@ impl DiaryEntries {
         spawn_blocking(move || Self::get_by_text_sync(&search_text, &pool)).await?
     }
 
-    fn _get_difference(&self, conn: &PgPoolConn, insert_new: bool) -> Result<Option<Changeset>, Error> {
+    fn _get_difference(
+        &self,
+        conn: &PgPoolConn,
+        insert_new: bool,
+    ) -> Result<Option<Changeset>, Error> {
         Self::_get_by_date(self.diary_date, conn).map(|opt| {
             opt.map(|original| {
-            if insert_new {
-                Changeset::new(&original.diary_text, &self.diary_text, "\n")
-            } else {
-                Changeset::new(&self.diary_text, &original.diary_text, "\n")
-            }
-        })})
+                if insert_new {
+                    Changeset::new(&original.diary_text, &self.diary_text, "\n")
+                } else {
+                    Changeset::new(&self.diary_text, &original.diary_text, "\n")
+                }
+            })
+        })
     }
 
     fn get_difference_sync(&self, pool: &PgPool) -> Result<Option<Changeset>, Error> {
