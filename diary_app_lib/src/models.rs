@@ -1,8 +1,9 @@
-use anyhow::Error;
+use anyhow::{format_err, Error};
 use chrono::{DateTime, NaiveDate, Utc};
 use diesel::{
     Connection, ExpressionMethods, Insertable, QueryDsl, Queryable, RunQueryDsl,
     TextExpressionMethods,
+    OptionalExtension,
 };
 use difference::{Changeset, Difference};
 use log::debug;
@@ -276,7 +277,7 @@ impl DiaryEntries {
             diary_date, diary_entries, diary_text, last_modified,
         };
 
-        let changeset = self._get_difference(conn, insert_new)?;
+        let changeset = self._get_difference(conn, insert_new)?.ok_or_else(|| format_err!("No entry found, should be insert"))?;
 
         let conflict_opt = if changeset.distance > 0 {
             DiaryConflict::insert_from_changeset(self.diary_date, changeset, conn)?
@@ -323,9 +324,9 @@ impl DiaryEntries {
     ) -> Result<Option<DateTime<Utc>>, Error> {
         let conn = pool.get()?;
 
-        conn.transaction(|| match Self::_get_by_date(self.diary_date, &conn) {
-            Ok(_) => self._update_entry(&conn, insert_new),
-            Err(_) => self._insert_entry(&conn),
+        conn.transaction(|| match Self::_get_by_date(self.diary_date, &conn)? {
+            Some(_) => self._update_entry(&conn, insert_new),
+            None => self._insert_entry(&conn),
         })
     }
 
@@ -356,21 +357,22 @@ impl DiaryEntries {
         spawn_blocking(move || Self::get_modified_map_sync(&pool)).await?
     }
 
-    fn _get_by_date(date: NaiveDate, conn: &PgPoolConn) -> Result<Self, Error> {
+    fn _get_by_date(date: NaiveDate, conn: &PgPoolConn) -> Result<Option<Self>, Error> {
         use crate::schema::diary_entries::dsl::{diary_date, diary_entries};
 
         diary_entries
             .filter(diary_date.eq(date))
             .first(conn)
+            .optional()
             .map_err(Into::into)
     }
 
-    fn get_by_date_sync(date: NaiveDate, pool: &PgPool) -> Result<Self, Error> {
+    fn get_by_date_sync(date: NaiveDate, pool: &PgPool) -> Result<Option<Self>, Error> {
         let conn = pool.get()?;
         Self::_get_by_date(date, &conn)
     }
 
-    pub async fn get_by_date(date: NaiveDate, pool: &PgPool) -> Result<Self, Error> {
+    pub async fn get_by_date(date: NaiveDate, pool: &PgPool) -> Result<Option<Self>, Error> {
         let pool = pool.clone();
         spawn_blocking(move || Self::get_by_date_sync(date, &pool)).await?
     }
@@ -391,22 +393,23 @@ impl DiaryEntries {
         spawn_blocking(move || Self::get_by_text_sync(&search_text, &pool)).await?
     }
 
-    fn _get_difference(&self, conn: &PgPoolConn, insert_new: bool) -> Result<Changeset, Error> {
-        Self::_get_by_date(self.diary_date, conn).map(|original| {
+    fn _get_difference(&self, conn: &PgPoolConn, insert_new: bool) -> Result<Option<Changeset>, Error> {
+        Self::_get_by_date(self.diary_date, conn).map(|opt| {
+            opt.map(|original| {
             if insert_new {
                 Changeset::new(&original.diary_text, &self.diary_text, "\n")
             } else {
                 Changeset::new(&self.diary_text, &original.diary_text, "\n")
             }
-        })
+        })})
     }
 
-    fn get_difference_sync(&self, pool: &PgPool) -> Result<Changeset, Error> {
+    fn get_difference_sync(&self, pool: &PgPool) -> Result<Option<Changeset>, Error> {
         let conn = pool.get()?;
         self._get_difference(&conn, true)
     }
 
-    pub async fn get_difference(self, pool: &PgPool) -> Result<(Self, Changeset), Error> {
+    pub async fn get_difference(self, pool: &PgPool) -> Result<(Self, Option<Changeset>), Error> {
         let pool = pool.clone();
         spawn_blocking(move || self.get_difference_sync(&pool).map(|x| (self, x))).await?
     }
