@@ -11,7 +11,7 @@ jobs:
       postgres:
         image: postgres:12.4-alpine
         env:
-          POSTGRES_DB: aws_app_cache
+          POSTGRES_DB: diary_app_cache
           POSTGRES_PASSWORD: 2UtcMAAvNuBHPqK9
         ports:
           - 5432:5432
@@ -39,7 +39,7 @@ jobs:
         cargo install cargo-tarpaulin && \
         cargo tarpaulin --verbose --all-features --workspace --out Xml
       env:
-        DATABASE_URL: postgresql://user:password@host:1234/test_db
+        DATABASE_URL: postgresql://postgres:2UtcMAAvNuBHPqK9@host:5432/diary_app_cache
 
     - name: Upload to codecov.io
       uses: codecov/codecov-action@v1.0.2
