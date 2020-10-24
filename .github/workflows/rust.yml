@@ -47,6 +47,9 @@ jobs:
         DIARY_DB_BUCKET: diary-db-backup
         DIARY_BUCKET: diary_backup_ddboline
         DIARY_PATH: /tmp/diary
+        AWS_ACCESS_KEY_ID: ${{secrets.AWS_ACCESS_KEY_ID}}
+        AWS_SECRET_ACCESS_KEY: ${{secrets.AWS_SECRET_ACCESS_KEY}}
+        AWS_DEFAULT_REGION: us-east-1
 
     - name: Upload to codecov.io
       uses: codecov/codecov-action@v1.0.2
