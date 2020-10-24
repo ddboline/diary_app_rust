@@ -1,6 +1,7 @@
 use anyhow::Error;
 pub use auth_server_rust::logged_user::{
-    get_secrets, LoggedUser, AUTHORIZED_USERS, JWT_SECRET, SECRET_KEY, TRIGGER_DB_UPDATE,
+    get_random_key, get_secrets, LoggedUser, AUTHORIZED_USERS, JWT_SECRET, KEY_LENGTH, SECRET_KEY,
+    TRIGGER_DB_UPDATE,
 };
 use log::debug;
 use std::env::var;

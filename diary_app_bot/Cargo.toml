@@ -18,4 +18,4 @@ anyhow = "1.0"
 thiserror = "1.0"
 tokio = {version="0.2", features=["full"]}
 telegram-bot = {git = "https://github.com/ddboline/telegram-bot.git", tag="0.7.2-1"}
-stack-string = { git = "https://github.com/ddboline/stack-string-rs.git", tag="0.1.6", features=["diesel_types"] }
+stack-string = { git = "https://github.com/ddboline/stack-string-rs.git", tag="0.1.7", features=["diesel_types"] }

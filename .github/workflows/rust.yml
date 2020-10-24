@@ -22,7 +22,7 @@ jobs:
     - name: Install deps
       run: |
         sudo apt-get update && \
-        sudo apt-get install libpq-dev && \
+        sudo apt-get install libpq-dev postgresql-client-common awscli && \
         rustup update && \
         cargo install diesel_cli
 
@@ -35,11 +35,21 @@ jobs:
     - name: Run tests
       run: |
         diesel database setup && \
+        mkdir -p ${DIARY_PATH} && \
+        aws s3 cp s3://${DIARY_DB_BUCKET}/diary_entries.sql.gz ${DIARY_PATH}/ && \
+        gzip -dc ${DIARY_PATH}/diary_entries.sql.gz | psql ${DATABASE_URL} -c "COPY diary_entries FROM STDIN" && \
+        rm ${DIARY_PATH}/diary_entries.sql.gz && \
         cargo test --verbose --all && \
         cargo install cargo-tarpaulin && \
         cargo tarpaulin --verbose --all-features --workspace --out Xml
       env:
         DATABASE_URL: postgresql://postgres:2UtcMAAvNuBHPqK9@localhost:5432/diary_app_cache
+        DIARY_DB_BUCKET: diary-db-backup
+        DIARY_BUCKET: diary_backup_ddboline
+        DIARY_PATH: /tmp/diary
+        AWS_ACCESS_KEY_ID: ${{secrets.AWS_ACCESS_KEY_ID}}
+        AWS_SECRET_ACCESS_KEY: ${{secrets.AWS_SECRET_ACCESS_KEY}}
+        AWS_DEFAULT_REGION: us-east-1
 
     - name: Upload to codecov.io
       uses: codecov/codecov-action@v1.0.2
