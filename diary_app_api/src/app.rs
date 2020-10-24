@@ -125,9 +125,7 @@ mod tests {
 
     use auth_server_rust::app::{get_random_string, run_test_app};
 
-    use diary_app_lib::config::Config;
-    use diary_app_lib::diary_app_interface::DiaryAppInterface;
-    use diary_app_lib::pgpool::PgPool;
+    use diary_app_lib::{config::Config, diary_app_interface::DiaryAppInterface, pgpool::PgPool};
 
     use crate::{
         app::{run_app, DiaryAppActor},

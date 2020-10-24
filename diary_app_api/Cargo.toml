@@ -27,7 +27,7 @@ async-trait = "0.1"
 handlebars = "3.5"
 itertools = "0.9"
 stack-string = { git = "https://github.com/ddboline/stack-string-rs.git", tag="0.1.7", features=["diesel_types"] }
-auth_server_rust = { git = "https://github.com/ddboline/auth_server_rust.git", tag="0.1.21"}
+auth_server_rust = { git = "https://github.com/ddboline/auth_server_rust.git", tag="0.1.23"}
 
 [dev-dependencies]
 reqwest = {version="0.10", features=["cookies", "json", "rustls-tls", "stream"]}
