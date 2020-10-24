@@ -564,7 +564,6 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore]
     async fn test_get_list_of_dates() -> Result<(), Error> {
         let dap = get_dap()?;
 
@@ -591,7 +590,6 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore]
     async fn test_get_matching_dates() -> Result<(), Error> {
         let dap = get_dap()?;
         let mod_map = DiaryEntries::get_modified_map(&dap.pool).await?;

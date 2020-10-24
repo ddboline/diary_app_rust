@@ -17,7 +17,7 @@ log = "0.4"
 url = "2.1"
 dotenv = "0.15"
 futures = "0.3"
-rayon = "1.4"
+rayon = "1.5"
 jwalk = "0.5"
 structopt = "0.3"
 crossbeam-channel = "0.5"
@@ -38,7 +38,7 @@ envy = "0.4"
 smartstring = "0.2"
 smallvec = "1.4"
 deadqueue = "0.1"
-stack-string = { git = "https://github.com/ddboline/stack-string-rs.git", tag="0.1.6", features=["diesel_types"] }
+stack-string = { git = "https://github.com/ddboline/stack-string-rs.git", tag="0.1.7", features=["diesel_types"] }
 
 [dev-dependencies]
 tempdir = "0.3"
