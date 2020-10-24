@@ -111,21 +111,11 @@ impl DiaryAppInterface {
             .iter()
             .map(|(d, _)| *d)
             .filter(|date| {
-                if let Some(y) = year {
-                    let result = if let Some(m) = month {
-                        let result = if let Some(d) = day {
-                            d == date.day()
-                        } else {
-                            true
-                        };
-                        result && (m == date.month())
-                    } else {
-                        true
-                    };
-                    result && (y == date.year())
-                } else {
-                    false
-                }
+                year.map_or(false, |y| {
+                    month.map_or(true, |m| {
+                        day.map_or(true, |d| d == date.day()) && (m == date.month())
+                    }) && (y == date.year())
+                })
             })
             .collect();
         Ok(matching_dates)
