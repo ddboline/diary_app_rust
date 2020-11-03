@@ -1,6 +1,5 @@
 use actix_web::{error::ResponseError, HttpResponse};
 use anyhow::Error as AnyhowError;
-use auth_server_rust::static_files;
 use handlebars::RenderError;
 use std::fmt::Debug;
 use thiserror::Error;
@@ -29,11 +28,24 @@ impl ResponseError for ServiceError {
             Self::BadRequest(ref message) => HttpResponse::BadRequest().json(message),
             Self::Unauthorized => {
                 TRIGGER_DB_UPDATE.set();
-                static_files::login_html()
+                login_html()
             }
             _ => {
                 HttpResponse::InternalServerError().json("Internal Server Error, Please try later")
             }
         }
     }
+}
+
+fn login_html() -> HttpResponse {
+    HttpResponse::Ok()
+        .content_type("text/html; charset=utf-8")
+        .body("
+            <script>
+                !function() {
+                    let final_url = location.href;
+                    location.replace('/auth/login.html?final_url=' + final_url);
+                }()
+            </script>
+        ")
 }
