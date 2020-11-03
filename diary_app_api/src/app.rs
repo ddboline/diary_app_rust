@@ -123,7 +123,8 @@ mod tests {
     use maplit::hashmap;
     use std::env::{remove_var, set_var};
 
-    use auth_server_rust::app::{get_random_string, run_test_app};
+    use auth_server_http::app::run_test_app;
+    use auth_server_lib::get_random_string;
 
     use diary_app_lib::{config::Config, diary_app_interface::DiaryAppInterface, pgpool::PgPool};
 
