@@ -2,8 +2,8 @@ use actix_identity::Identity;
 use actix_web::{dev::Payload, FromRequest, HttpRequest};
 use anyhow::Error;
 pub use authorized_users::{
-    get_random_key, get_secrets, AuthorizedUser, AUTHORIZED_USERS, JWT_SECRET, KEY_LENGTH,
-    SECRET_KEY, TRIGGER_DB_UPDATE, token::Token,
+    get_random_key, get_secrets, token::Token, AuthorizedUser, AUTHORIZED_USERS, JWT_SECRET,
+    KEY_LENGTH, SECRET_KEY, TRIGGER_DB_UPDATE,
 };
 use futures::{
     executor::block_on,
@@ -12,8 +12,7 @@ use futures::{
 use log::debug;
 use serde::{Deserialize, Serialize};
 use stack_string::StackString;
-use std::env;
-use std::env::var;
+use std::{env, env::var};
 
 use diary_app_lib::{models::AuthorizedUsers, pgpool::PgPool};
 
