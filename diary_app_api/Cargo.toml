@@ -1,6 +1,6 @@
 [package]
 name = "diary_app_api"
-version = "0.5.25"
+version = "0.5.26"
 authors = ["Daniel Boline <ddboline@gmail.com>"]
 edition = "2018"
 
@@ -27,9 +27,9 @@ async-trait = "0.1"
 handlebars = "3.5"
 itertools = "0.9"
 stack-string = { git = "https://github.com/ddboline/stack-string-rs.git", tag="0.1.9", features=["diesel_types"] }
-authorized_users = { git = "https://github.com/ddboline/auth_server_rust.git", tag="0.2.5"}
+authorized_users = { git = "https://github.com/ddboline/auth_server_rust.git", tag="0.2.7"}
 
 [dev-dependencies]
 reqwest = {version="0.10", features=["cookies", "json", "rustls-tls", "stream"]}
-auth_server_http = { git = "https://github.com/ddboline/auth_server_rust.git", tag="0.2.5"}
-auth_server_lib = { git = "https://github.com/ddboline/auth_server_rust.git", tag="0.2.5"}
+auth_server_http = { git = "https://github.com/ddboline/auth_server_rust.git", tag="0.2.7"}
+auth_server_lib = { git = "https://github.com/ddboline/auth_server_rust.git", tag="0.2.7"}

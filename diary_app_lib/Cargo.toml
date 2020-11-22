@@ -1,6 +1,6 @@
 [package]
 name = "diary_app_lib"
-version = "0.5.25"
+version = "0.5.26"
 authors = ["Daniel Boline <ddboline@gmail.com>"]
 edition = "2018"
 
@@ -36,7 +36,7 @@ tokio = {version="0.2", features=["full"]}
 derive_more = "0.99"
 envy = "0.4"
 smartstring = "0.2"
-smallvec = "1.4"
+smallvec = "1.5"
 deadqueue = "0.1"
 stack-string = { git = "https://github.com/ddboline/stack-string-rs.git", tag="0.1.9", features=["diesel_types"] }
 
