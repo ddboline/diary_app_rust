@@ -197,5 +197,5 @@ pub async fn run_bot() -> Result<(), Error> {
     let telegram_handle = telegram_worker(dapp);
 
     let (r0, r1) = join(userid_handle, telegram_handle).await;
-    r0.and_then(|_| r1)
+    r0.and(r1)
 }

@@ -17,8 +17,8 @@ use crate::{config::Config, models::DiaryEntries, pgpool::PgPool, s3_instance::S
 const TIME_BUFFER: i64 = 60;
 
 lazy_static! {
-    static ref KEY_CACHE: RwLock<(DateTime<Utc>, Arc<Vec<KeyMetaData>>)> =
-        RwLock::new((Utc::now(), Arc::new(Vec::new())));
+    static ref KEY_CACHE: RwLock<(DateTime<Utc>, Arc<[KeyMetaData]>)> =
+        RwLock::new((Utc::now(), Arc::new([])));
 }
 
 #[derive(Debug, Clone)]
@@ -76,12 +76,10 @@ impl S3Interface {
             .await?;
         *KEY_CACHE.write().await = (
             Utc::now(),
-            Arc::new(
-                list_of_keys
-                    .into_iter()
-                    .filter_map(|obj| obj.try_into().ok())
-                    .collect(),
-            ),
+            list_of_keys
+                .into_iter()
+                .filter_map(|obj| obj.try_into().ok())
+                .collect(),
         );
         Ok(())
     }
@@ -103,7 +101,7 @@ impl S3Interface {
         let s3_key_map = Arc::new(s3_key_map);
         {
             let mut key_cache = KEY_CACHE.write().await;
-            key_cache.1 = Arc::new(Vec::new());
+            key_cache.1 = Arc::new([]);
         }
 
         let futures = DiaryEntries::get_modified_map(&self.pool)
