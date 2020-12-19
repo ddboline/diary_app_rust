@@ -4,6 +4,9 @@ version = "0.5.26"
 authors = ["Daniel Boline <ddboline@gmail.com>"]
 edition = "2018"
 
+[package.metadata.deb]
+name = "diary-app-rust"
+
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
