@@ -8,7 +8,7 @@ edition = "2018"
 name = "diary-app-rust"
 priority = "optional"
 section = "rust"
-provides = "calendar-app-rust"
+provides = "diary-app-rust"
 extended-description = """\
 Daily journal"""
 
