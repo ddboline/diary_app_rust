@@ -10,6 +10,7 @@ use std::{
     collections::{HashMap, HashSet},
     sync::Arc,
 };
+use stdout_channel::StdoutChannel;
 use tokio::{
     fs::{remove_file, OpenOptions},
     io::AsyncWriteExt,
@@ -24,7 +25,6 @@ use crate::{
     pgpool::PgPool,
     s3_interface::S3Interface,
     ssh_instance::SSHInstance,
-    stdout_channel::StdoutChannel,
 };
 
 #[derive(Clone)]
