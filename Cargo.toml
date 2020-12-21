@@ -1,11 +1,16 @@
 [package]
 name = "diary_app_rust"
-version = "0.5.26"
+version = "0.5.27"
 authors = ["Daniel Boline <ddboline@gmail.com>"]
 edition = "2018"
 
 [package.metadata.deb]
 name = "diary-app-rust"
+priority = "optional"
+section = "rust"
+provides = "calendar-app-rust"
+extended-description = """\
+Daily journal"""
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

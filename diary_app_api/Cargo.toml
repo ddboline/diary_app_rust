@@ -1,6 +1,6 @@
 [package]
 name = "diary_app_api"
-version = "0.5.26"
+version = "0.5.27"
 authors = ["Daniel Boline <ddboline@gmail.com>"]
 edition = "2018"
 
@@ -8,7 +8,7 @@ edition = "2018"
 
 [dependencies]
 diary_app_lib = {path = "../diary_app_lib"}
-actix-web = "3.2"
+actix-web = "3.3"
 actix-identity = "0.3"
 actix-rt = "1.1"
 chrono = "0.4"
@@ -26,10 +26,10 @@ thiserror = "1.0"
 async-trait = "0.1"
 handlebars = "3.5"
 itertools = "0.9"
-stack-string = { git = "https://github.com/ddboline/stack-string-rs.git", tag="0.1.9", features=["diesel_types"] }
-authorized_users = { git = "https://github.com/ddboline/auth_server_rust.git", tag="0.2.7"}
+stack-string = { git = "https://github.com/ddboline/stack-string-rs.git", tag="0.1.10", features=["diesel_types"] }
+authorized_users = { git = "https://github.com/ddboline/auth_server_rust.git", tag="0.2.9"}
 
 [dev-dependencies]
 reqwest = {version="0.10", features=["cookies", "json", "rustls-tls", "stream"]}
-auth_server_http = { git = "https://github.com/ddboline/auth_server_rust.git", tag="0.2.7"}
-auth_server_lib = { git = "https://github.com/ddboline/auth_server_rust.git", tag="0.2.7"}
+auth_server_http = { git = "https://github.com/ddboline/auth_server_rust.git", tag="0.2.9"}
+auth_server_lib = { git = "https://github.com/ddboline/auth_server_rust.git", tag="0.2.9"}
