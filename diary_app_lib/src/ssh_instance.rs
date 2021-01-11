@@ -7,7 +7,6 @@ use tokio::{
     io::{stdout, AsyncBufReadExt, AsyncWriteExt, BufReader},
     process::Command,
     sync::{Mutex, RwLock},
-    task::spawn,
 };
 use url::Url;
 
