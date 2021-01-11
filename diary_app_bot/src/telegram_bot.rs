@@ -11,7 +11,7 @@ use tokio::{
         RwLock,
     },
     task::spawn,
-    time::{delay_for, timeout, Duration},
+    time::{sleep, timeout, Duration},
 };
 
 use diary_app_lib::{
@@ -43,7 +43,7 @@ async fn diary_sync(
 }
 
 async fn bot_handler(dapp_interface: DiaryAppInterface) -> Result<(), Error> {
-    let (mut send, recv) = channel(1);
+    let (send, recv) = channel(1);
     let sync_task = {
         let d = dapp_interface.clone();
         spawn(diary_sync(d, recv))
@@ -182,7 +182,7 @@ async fn fill_telegram_user_ids(pool: PgPool) -> Result<(), Error> {
         } else {
             FAILURE_COUNT.increment()?
         }
-        delay_for(Duration::from_secs(60)).await;
+        sleep(Duration::from_secs(60)).await;
     }
 }
 

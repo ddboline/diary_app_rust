@@ -7,7 +7,6 @@ use tokio::{
     io::{stdout, AsyncBufReadExt, AsyncWriteExt, BufReader},
     process::Command,
     sync::{Mutex, RwLock},
-    task::spawn,
 };
 use url::Url;
 
@@ -102,8 +101,6 @@ impl SSHInstance {
                 .ok_or_else(|| format_err!("No stdout"))?;
             let mut reader = BufReader::new(stdout_handle);
 
-            let ssh_task = spawn(async move { command.await });
-
             let mut line = String::new();
             let mut stdout = stdout();
             while let Ok(bytes) = reader.read_line(&mut line).await {
@@ -116,7 +113,7 @@ impl SSHInstance {
                     break;
                 }
             }
-            ssh_task.await??;
+            command.wait().await?;
         }
         Ok(())
     }

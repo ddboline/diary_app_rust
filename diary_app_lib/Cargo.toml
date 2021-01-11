@@ -1,6 +1,6 @@
 [package]
 name = "diary_app_lib"
-version = "0.5.27"
+version = "0.6.0"
 authors = ["Daniel Boline <ddboline@gmail.com>"]
 edition = "2018"
 
@@ -8,17 +8,17 @@ edition = "2018"
 r2d2 = "0.8"
 diesel = {version="1.4", features=["postgres", "r2d2", "chrono"]}
 chrono = "0.4"
-rusoto_core = {version = "0.45", default_features = false, features=["rustls"]}
-rusoto_s3 = {version = "0.45", default_features = false, features=["rustls"]}
-sts_profile_auth = "0.5"
-s3-ext = "0.1"
+rusoto_core = {version = "0.46", default_features = false, features=["rustls"]}
+rusoto_s3 = {version = "0.46", default_features = false, features=["rustls"]}
+sts_profile_auth = "0.6"
+s3-ext = "0.2"
 rand = "0.8"
 log = "0.4"
 url = "2.2"
 dotenv = "0.15"
 futures = "0.3"
 rayon = "1.5"
-jwalk = "0.5"
+jwalk = "0.6"
 structopt = "0.3"
 crossbeam-channel = "0.5"
 parking_lot = "0.11"
@@ -32,14 +32,14 @@ difference = "2.0"
 anyhow = "1.0"
 thiserror = "1.0"
 dirs = "3.0"
-tokio = {version="0.2", features=["full"]}
+tokio = {version="1.0", features=["full"]}
 derive_more = "0.99"
 envy = "0.4"
 smartstring = "0.2"
-smallvec = "1.5"
-deadqueue = "0.1"
-stack-string = { git = "https://github.com/ddboline/stack-string-rs.git", tag="0.1.10", features=["diesel_types"] }
-stdout-channel = { git = "https://github.com/ddboline/stdout-channel-rs.git", tag="0.1.4" }
+smallvec = "1.6"
+deadqueue = "0.2"
+stack-string = { git = "https://github.com/ddboline/stack-string-rs.git", tag="0.2.0", features=["diesel_types"] }
+stdout-channel = { git = "https://github.com/ddboline/stdout-channel-rs.git", tag="0.3.0" }
 
 [dev-dependencies]
 tempdir = "0.3"
