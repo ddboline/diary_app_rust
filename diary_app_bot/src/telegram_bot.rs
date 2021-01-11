@@ -43,7 +43,7 @@ async fn diary_sync(
 }
 
 async fn bot_handler(dapp_interface: DiaryAppInterface) -> Result<(), Error> {
-    let (mut send, recv) = channel(1);
+    let (send, recv) = channel(1);
     let sync_task = {
         let d = dapp_interface.clone();
         spawn(diary_sync(d, recv))
