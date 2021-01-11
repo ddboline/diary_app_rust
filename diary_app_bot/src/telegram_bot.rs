@@ -11,7 +11,7 @@ use tokio::{
         RwLock,
     },
     task::spawn,
-    time::{delay_for, timeout, Duration},
+    time::{sleep, timeout, Duration},
 };
 
 use diary_app_lib::{
@@ -182,7 +182,7 @@ async fn fill_telegram_user_ids(pool: PgPool) -> Result<(), Error> {
         } else {
             FAILURE_COUNT.increment()?
         }
-        delay_for(Duration::from_secs(60)).await;
+        sleep(Duration::from_secs(60)).await;
     }
 }
 

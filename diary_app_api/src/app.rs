@@ -163,7 +163,7 @@ mod tests {
                 .await
                 .unwrap()
         });
-        actix_rt::time::delay_for(std::time::Duration::from_secs(10)).await;
+        actix_rt::time::sleep(std::time::Duration::from_secs(10)).await;
 
         let client = reqwest::Client::builder().cookie_store(true).build()?;
         let url = format!("http://localhost:{}/api/auth", auth_port);
