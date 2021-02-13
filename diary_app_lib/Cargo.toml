@@ -38,7 +38,7 @@ envy = "0.4"
 smartstring = "0.2"
 smallvec = "1.5"
 deadqueue = "0.1"
-stack-string = { git = "https://github.com/ddboline/stack-string-rs.git", tag="0.1.10", features=["diesel_types"] }
+stack-string = { git = "https://github.com/ddboline/stack-string-rs.git", tag="0.2.0", features=["diesel_types"] }
 stdout-channel = { git = "https://github.com/ddboline/stdout-channel-rs.git", tag="0.1.4" }
 
 [dev-dependencies]
