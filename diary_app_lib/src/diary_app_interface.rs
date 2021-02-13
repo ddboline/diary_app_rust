@@ -636,7 +636,6 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore]
     async fn test_validate_backup() -> Result<(), Error> {
         let dap = get_dap()?;
         let results = dap.validate_backup().await?;
