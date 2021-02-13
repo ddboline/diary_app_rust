@@ -19,8 +19,7 @@ diary_app_lib = {path="diary_app_lib"}
 diary_app_api = {path="diary_app_api"}
 diary_app_bot = {path="diary_app_bot"}
 env_logger = "0.8"
-actix-rt = "1.1"
-tokio = {version="0.2", features=["full"]}
+tokio = {version="1.2", features=["full"]}
 dirs = "3.0"
 anyhow = "1.0"
 chrono = "0.4"

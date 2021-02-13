@@ -1,5 +1,4 @@
 use anyhow::{format_err, Error};
-use async_trait::async_trait;
 use chrono::{DateTime, NaiveDate, Utc};
 use futures::future::try_join_all;
 use itertools::Itertools;
@@ -40,23 +39,15 @@ pub enum DiaryAppRequests {
     CommitConflict(DateTime<Utc>),
 }
 
-#[async_trait]
-pub trait HandleRequest {
-    type Result;
-    async fn handle(&self, req: DiaryAppRequests) -> Self::Result;
-}
-
-#[async_trait]
-impl HandleRequest for DiaryAppActor {
-    type Result = Result<Vec<StackString>, Error>;
-    async fn handle(&self, req: DiaryAppRequests) -> Self::Result {
-        match req {
+impl DiaryAppRequests {
+    pub async fn handle(self, dapp: &DiaryAppActor) -> Result<Vec<StackString>, Error> {
+        match self {
             DiaryAppRequests::Search(opts) => {
                 let body = if let Some(text) = opts.text {
-                    let results: Vec<_> = self.search_text(&text).await?;
+                    let results: Vec<_> = dapp.search_text(&text).await?;
                     results
                 } else if let Some(date) = opts.date {
-                    let entry = DiaryEntries::get_by_date(date, &self.pool)
+                    let entry = DiaryEntries::get_by_date(date, &dapp.pool)
                         .await?
                         .ok_or_else(|| format_err!("Date should exist {}", date))?;
                     vec![entry.diary_text]
@@ -66,20 +57,20 @@ impl HandleRequest for DiaryAppActor {
                 Ok(body)
             }
             DiaryAppRequests::Insert(text) => {
-                let cache = self.cache_text(&text).await?;
+                let cache = dapp.cache_text(&text).await?;
                 Ok(vec![format!("{}", cache.diary_datetime).into()])
             }
             DiaryAppRequests::Sync => {
-                let output = self.sync_everything().await?;
+                let output = dapp.sync_everything().await?;
                 Ok(output)
             }
             DiaryAppRequests::Replace { date, text } => {
-                let (entry, _) = self.replace_text(date, &text).await?;
+                let (entry, _) = dapp.replace_text(date, &text).await?;
                 let body = format!("{}\n{}", entry.diary_date, entry.diary_text).into();
                 Ok(vec![body])
             }
             DiaryAppRequests::List(opts) => {
-                let dates = self
+                let dates = dapp
                     .get_list_of_dates(opts.min_date, opts.max_date, opts.start, opts.limit)
                     .await?
                     .into_iter()
@@ -88,13 +79,13 @@ impl HandleRequest for DiaryAppActor {
                 Ok(dates)
             }
             DiaryAppRequests::Display(date) => {
-                let entry = DiaryEntries::get_by_date(date, &self.pool)
+                let entry = DiaryEntries::get_by_date(date, &dapp.pool)
                     .await?
                     .ok_or_else(|| format_err!("Date should exist {}", date))?;
                 Ok(vec![entry.diary_text])
             }
             DiaryAppRequests::ListConflicts(None) => {
-                let conflicts: BTreeSet<_> = DiaryConflict::get_all_dates(&self.pool)
+                let conflicts: BTreeSet<_> = DiaryConflict::get_all_dates(&dapp.pool)
                     .await?
                     .into_iter()
                     .map(|x| x.to_string().into())
@@ -102,7 +93,7 @@ impl HandleRequest for DiaryAppActor {
                 Ok(conflicts.into_iter().collect())
             }
             DiaryAppRequests::ListConflicts(Some(date)) => {
-                let conflicts: BTreeSet<_> = DiaryConflict::get_by_date(date, &self.pool)
+                let conflicts: BTreeSet<_> = DiaryConflict::get_by_date(date, &dapp.pool)
                     .await?
                     .into_iter()
                     .map(|entry| entry.format("%Y-%m-%dT%H:%M:%S%.fZ").to_string().into())
@@ -110,7 +101,7 @@ impl HandleRequest for DiaryAppActor {
                 Ok(conflicts.into_iter().collect())
             }
             DiaryAppRequests::ShowConflict(datetime) => {
-                let conflicts = DiaryConflict::get_by_datetime(datetime, &self.pool).await?;
+                let conflicts = DiaryConflict::get_by_datetime(datetime, &dapp.pool).await?;
                 let diary_dates: BTreeSet<NaiveDate> =
                     conflicts.iter().map(|entry| entry.diary_date).collect();
                 if diary_dates.len() > 1 {
@@ -157,15 +148,15 @@ impl HandleRequest for DiaryAppActor {
                 Ok(conflicts)
             }
             DiaryAppRequests::RemoveConflict(datetime) => {
-                DiaryConflict::remove_by_datetime(datetime, &self.pool).await?;
+                DiaryConflict::remove_by_datetime(datetime, &dapp.pool).await?;
                 Ok(vec![format!("remove {}", datetime).into()])
             }
             DiaryAppRequests::CleanConflicts(date) => {
-                let futures = DiaryConflict::get_by_date(date, &self.pool)
+                let futures = DiaryConflict::get_by_date(date, &dapp.pool)
                     .await?
                     .into_iter()
                     .map(|datetime| {
-                        let pool = self.pool.clone();
+                        let pool = dapp.pool.clone();
                         async move {
                             DiaryConflict::remove_by_datetime(datetime, &pool).await?;
                             Ok(format!("remove {}", datetime).into())
@@ -179,11 +170,11 @@ impl HandleRequest for DiaryAppActor {
                     "add" => "add",
                     _ => return Err(format_err!("Bad diff type {}", diff_text)),
                 };
-                DiaryConflict::update_by_id(id, new_diff_type, &self.pool).await?;
+                DiaryConflict::update_by_id(id, new_diff_type, &dapp.pool).await?;
                 Ok(Vec::new())
             }
             DiaryAppRequests::CommitConflict(datetime) => {
-                let conflicts = DiaryConflict::get_by_datetime(datetime, &self.pool).await?;
+                let conflicts = DiaryConflict::get_by_datetime(datetime, &dapp.pool).await?;
                 let diary_dates: BTreeSet<NaiveDate> =
                     conflicts.iter().map(|entry| entry.diary_date).collect();
                 if diary_dates.len() > 1 {
@@ -206,7 +197,7 @@ impl HandleRequest for DiaryAppActor {
                         }
                     })
                     .join("\n");
-                let (entry, _) = self.replace_text(date, &additions).await?;
+                let (entry, _) = dapp.replace_text(date, &additions).await?;
                 let body = format!("{}\n{}", entry.diary_date, entry.diary_text).into();
                 Ok(vec![body])
             }
