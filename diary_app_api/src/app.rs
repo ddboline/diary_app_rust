@@ -263,7 +263,6 @@ mod tests {
 
         let auth_port: u32 = 54321;
         tokio::task::spawn(async move {
-            env_logger::init();
             run_test_app(config).await.unwrap()
         });
 
