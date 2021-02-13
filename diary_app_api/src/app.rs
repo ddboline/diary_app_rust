@@ -273,7 +273,10 @@ mod tests {
         let pool = PgPool::new(&config.database_url);
         let dapp = DiaryAppActor(DiaryAppInterface::new(config.clone(), pool));
 
-        tokio::task::spawn(async move { run_app(dapp, test_port).await.unwrap() });
+        tokio::task::spawn(async move {
+            env_logger::init();
+            run_app(dapp, test_port).await.unwrap()
+        });
         tokio::time::sleep(std::time::Duration::from_secs(10)).await;
 
         let client = reqwest::Client::builder().cookie_store(true).build()?;
