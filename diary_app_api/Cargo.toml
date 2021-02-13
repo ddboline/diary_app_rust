@@ -32,3 +32,4 @@ authorized_users = { git = "https://github.com/ddboline/auth_server_rust.git", b
 reqwest = {version="0.11", features=["cookies", "json", "rustls-tls", "stream"]}
 auth_server_http = { git = "https://github.com/ddboline/auth_server_rust.git", branch="replace_actix_with_warp"}
 auth_server_lib = { git = "https://github.com/ddboline/auth_server_rust.git", branch="replace_actix_with_warp"}
+env_logger = "0.8"
