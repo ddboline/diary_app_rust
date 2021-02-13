@@ -5,8 +5,11 @@ pub use authorized_users::{
 use log::debug;
 use serde::{Deserialize, Serialize};
 use stack_string::StackString;
-use std::convert::{TryFrom, TryInto};
-use std::{env::var, str::FromStr};
+use std::{
+    convert::{TryFrom, TryInto},
+    env::var,
+    str::FromStr,
+};
 
 use diary_app_lib::{models::AuthorizedUsers, pgpool::PgPool};
 

@@ -1,6 +1,5 @@
 use anyhow::Error;
-use std::net::SocketAddr;
-use std::{ops::Deref, time::Duration};
+use std::{net::SocketAddr, ops::Deref, time::Duration};
 use tokio::time::interval;
 use warp::Filter;
 

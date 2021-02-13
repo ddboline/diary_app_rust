@@ -3,8 +3,7 @@ use handlebars::RenderError;
 use http::StatusCode;
 use log::error;
 use serde::Serialize;
-use std::convert::Infallible;
-use std::fmt::Debug;
+use std::{convert::Infallible, fmt::Debug};
 use thiserror::Error;
 use warp::{reject::Reject, Rejection, Reply};
 
