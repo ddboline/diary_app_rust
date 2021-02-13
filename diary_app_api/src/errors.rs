@@ -5,7 +5,7 @@ use log::error;
 use serde::Serialize;
 use std::{convert::Infallible, fmt::Debug};
 use thiserror::Error;
-use warp::{reject::Reject, Rejection, Reply};
+use warp::{reject::Reject, Rejection, Reply, reject::MissingCookie};
 
 use crate::logged_user::TRIGGER_DB_UPDATE;
 
@@ -38,6 +38,13 @@ pub async fn error_response(err: Rejection) -> Result<Box<dyn Reply>, Infallible
     if err.is_not_found() {
         code = StatusCode::NOT_FOUND;
         message = "NOT FOUND";
+    } else if let Some(missing_cookie) = err.find::<MissingCookie>() {
+        if missing_cookie.name() == "jwt" {
+            TRIGGER_DB_UPDATE.set();
+            return Ok(Box::new(login_html()));
+        }
+        code = StatusCode::INTERNAL_SERVER_ERROR;
+        message = "Internal Server Error";
     } else if let Some(service_err) = err.find::<ServiceError>() {
         match service_err {
             ServiceError::BadRequest(msg) => {
