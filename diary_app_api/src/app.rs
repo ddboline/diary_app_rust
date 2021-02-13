@@ -62,9 +62,9 @@ pub async fn start_app() -> Result<(), Error> {
 async fn run_app(dapp: DiaryAppActor, port: u32) -> Result<(), Error> {
     TRIGGER_DB_UPDATE.set();
 
-    let app = AppState { db: dapp.clone() };
+    let dapp = AppState { db: dapp.clone() };
 
-    let data = warp::any().map(move || app.clone());
+    let data = warp::any().map(move || dapp.clone());
 
     let search_path = warp::path("search")
         .and(warp::path::end())
@@ -262,9 +262,7 @@ mod tests {
         SECRET_KEY.set(secret_key);
 
         let auth_port: u32 = 54321;
-        tokio::task::spawn(async move {
-            run_test_app(config).await.unwrap()
-        });
+        tokio::task::spawn(async move { run_test_app(config).await.unwrap() });
 
         let test_port: u32 = 12345;
         set_var("PORT", test_port.to_string());
