@@ -277,6 +277,7 @@ mod tests {
     };
 
     #[tokio::test]
+    #[ignore]
     async fn test_validate_s3() -> Result<(), Error> {
         let config = Config::init_config()?;
         let pool = PgPool::new(&config.database_url);
