@@ -261,7 +261,6 @@ mod tests {
         JWT_SECRET.set(secret_key);
         SECRET_KEY.set(secret_key);
 
-        let auth_port: u32 = 54321;
         tokio::task::spawn(async move { run_test_app(config).await.unwrap() });
 
         let test_port: u32 = 12345;
