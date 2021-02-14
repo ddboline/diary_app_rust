@@ -1,25 +1,19 @@
-use actix_identity::{CookieIdentityPolicy, IdentityService};
-use actix_web::{middleware::Compress, web, App, HttpServer};
 use anyhow::Error;
-use lazy_static::lazy_static;
-use stack_string::StackString;
-use std::{ops::Deref, time::Duration};
+use std::{net::SocketAddr, ops::Deref, time::Duration};
 use tokio::time::interval;
+use warp::Filter;
 
 use diary_app_lib::{config::Config, diary_app_interface::DiaryAppInterface, pgpool::PgPool};
 
 use super::{
-    logged_user::{fill_from_db, get_secrets, KEY_LENGTH, SECRET_KEY, TRIGGER_DB_UPDATE},
+    errors::error_response,
+    logged_user::{fill_from_db, get_secrets, TRIGGER_DB_UPDATE},
     routes::{
         commit_conflict, diary_frontpage, display, edit, insert, list, list_api, list_conflicts,
         remove_conflict, replace, search, search_api, show_conflict, sync, sync_api,
         update_conflict, user,
     },
 };
-
-lazy_static! {
-    pub static ref CONFIG: Config = Config::init_config().expect("Failed to init config");
-}
 
 #[derive(Clone)]
 pub struct DiaryAppActor(pub DiaryAppInterface);
@@ -32,6 +26,7 @@ impl Deref for DiaryAppActor {
     }
 }
 
+#[derive(Clone)]
 pub struct AppState {
     pub db: DiaryAppActor,
 }
@@ -53,68 +48,182 @@ pub async fn start_app() -> Result<(), Error> {
         }
     }
 
-    let config = CONFIG.clone();
+    let config = Config::init_config()?;
     get_secrets(&config.secret_path, &config.jwt_secret_path).await?;
     let pool = PgPool::new(&config.database_url);
     let dapp = DiaryAppActor(DiaryAppInterface::new(config.clone(), pool));
 
-    actix_rt::spawn(update_db(dapp.pool.clone()));
-    actix_rt::spawn(hourly_sync(dapp.clone()));
+    tokio::task::spawn(update_db(dapp.pool.clone()));
+    tokio::task::spawn(hourly_sync(dapp.clone()));
 
-    run_app(dapp, config.port, SECRET_KEY.get(), config.domain.clone()).await
+    run_app(dapp, config.port).await
 }
 
-async fn run_app(
-    dapp: DiaryAppActor,
-    port: u32,
-    cookie_secret: [u8; KEY_LENGTH],
-    domain: StackString,
-) -> Result<(), Error> {
+async fn run_app(dapp: DiaryAppActor, port: u32) -> Result<(), Error> {
     TRIGGER_DB_UPDATE.set();
 
-    HttpServer::new(move || {
-        App::new()
-            .data(AppState { db: dapp.clone() })
-            .wrap(Compress::default())
-            .wrap(IdentityService::new(
-                CookieIdentityPolicy::new(&cookie_secret)
-                    .name("auth")
-                    .path("/")
-                    .domain(domain.as_str())
-                    .max_age(24 * 3600)
-                    .secure(false), // this can only be true if you have https
-            ))
-            .service(
-                web::scope("/api")
-                    .service(web::resource("/search").route(web::get().to(search)))
-                    .service(web::resource("/search_api").route(web::get().to(search_api)))
-                    .service(web::resource("/insert").route(web::post().to(insert)))
-                    .service(web::resource("/sync").route(web::get().to(sync)))
-                    .service(web::resource("/sync_api").route(web::get().to(sync_api)))
-                    .service(web::resource("/replace").route(web::post().to(replace)))
-                    .service(web::resource("/list").route(web::get().to(list)))
-                    .service(web::resource("/list_api").route(web::get().to(list_api)))
-                    .service(web::resource("/edit").route(web::get().to(edit)))
-                    .service(web::resource("/display").route(web::get().to(display)))
-                    .service(web::resource("/index.html").route(web::get().to(diary_frontpage)))
-                    .service(web::resource("/list_conflicts").route(web::get().to(list_conflicts)))
-                    .service(web::resource("/show_conflict").route(web::get().to(show_conflict)))
-                    .service(
-                        web::resource("/remove_conflict").route(web::get().to(remove_conflict)),
-                    )
-                    .service(
-                        web::resource("/update_conflict").route(web::get().to(update_conflict)),
-                    )
-                    .service(
-                        web::resource("/commit_conflict").route(web::get().to(commit_conflict)),
-                    )
-                    .service(web::resource("/user").route(web::get().to(user))),
-            )
-    })
-    .bind(&format!("127.0.0.1:{}", port))?
-    .run()
-    .await
-    .map_err(Into::into)
+    let dapp = AppState { db: dapp.clone() };
+
+    let data = warp::any().map(move || dapp.clone());
+
+    let search_path = warp::path("search")
+        .and(warp::path::end())
+        .and(warp::get())
+        .and(warp::query())
+        .and(warp::cookie("jwt"))
+        .and(data.clone())
+        .and_then(search)
+        .boxed();
+    let search_api_path = warp::path("search_api")
+        .and(warp::path::end())
+        .and(warp::get())
+        .and(warp::query())
+        .and(warp::cookie("jwt"))
+        .and(data.clone())
+        .and_then(search_api)
+        .boxed();
+    let insert_path = warp::path("insert")
+        .and(warp::path::end())
+        .and(warp::post())
+        .and(warp::body::json())
+        .and(warp::cookie("jwt"))
+        .and(data.clone())
+        .and_then(insert)
+        .boxed();
+    let sync_path = warp::path("sync")
+        .and(warp::path::end())
+        .and(warp::get())
+        .and(warp::cookie("jwt"))
+        .and(data.clone())
+        .and_then(sync)
+        .boxed();
+    let sync_api_path = warp::path("sync_api")
+        .and(warp::path::end())
+        .and(warp::get())
+        .and(warp::cookie("jwt"))
+        .and(data.clone())
+        .and_then(sync_api)
+        .boxed();
+    let replace_path = warp::path("replace")
+        .and(warp::path::end())
+        .and(warp::post())
+        .and(warp::body::json())
+        .and(warp::cookie("jwt"))
+        .and(data.clone())
+        .and_then(replace)
+        .boxed();
+    let list_path = warp::path("list")
+        .and(warp::path::end())
+        .and(warp::get())
+        .and(warp::query())
+        .and(warp::cookie("jwt"))
+        .and(data.clone())
+        .and_then(list)
+        .boxed();
+    let list_api_path = warp::path("list_api")
+        .and(warp::path::end())
+        .and(warp::get())
+        .and(warp::query())
+        .and(warp::cookie("jwt"))
+        .and(data.clone())
+        .and_then(list_api)
+        .boxed();
+    let edit_path = warp::path("edit")
+        .and(warp::path::end())
+        .and(warp::get())
+        .and(warp::query())
+        .and(warp::cookie("jwt"))
+        .and(data.clone())
+        .and_then(edit)
+        .boxed();
+    let display_path = warp::path("display")
+        .and(warp::path::end())
+        .and(warp::get())
+        .and(warp::query())
+        .and(warp::cookie("jwt"))
+        .and(data.clone())
+        .and_then(display)
+        .boxed();
+    let frontpage_path = warp::path("index.html")
+        .and(warp::path::end())
+        .and(warp::get())
+        .and(warp::cookie("jwt"))
+        .and(data.clone())
+        .and_then(diary_frontpage)
+        .boxed();
+    let list_conflicts_path = warp::path("list_conflicts")
+        .and(warp::path::end())
+        .and(warp::get())
+        .and(warp::query())
+        .and(warp::cookie("jwt"))
+        .and(data.clone())
+        .and_then(list_conflicts)
+        .boxed();
+    let show_conflict_path = warp::path("show_conflict")
+        .and(warp::path::end())
+        .and(warp::get())
+        .and(warp::query())
+        .and(warp::cookie("jwt"))
+        .and(data.clone())
+        .and_then(show_conflict)
+        .boxed();
+    let remove_conflict_path = warp::path("remove_conflict")
+        .and(warp::path::end())
+        .and(warp::get())
+        .and(warp::query())
+        .and(warp::cookie("jwt"))
+        .and(data.clone())
+        .and_then(remove_conflict)
+        .boxed();
+    let update_conflict_path = warp::path("update_conflict")
+        .and(warp::path::end())
+        .and(warp::get())
+        .and(warp::query())
+        .and(warp::cookie("jwt"))
+        .and(data.clone())
+        .and_then(update_conflict)
+        .boxed();
+    let commit_conflict_path = warp::path("commit_conflict")
+        .and(warp::path::end())
+        .and(warp::get())
+        .and(warp::query())
+        .and(warp::cookie("jwt"))
+        .and(data.clone())
+        .and_then(commit_conflict)
+        .boxed();
+    let user_path = warp::path("user")
+        .and(warp::path::end())
+        .and(warp::get())
+        .and(warp::cookie("jwt"))
+        .and_then(user)
+        .boxed();
+
+    let api_path = warp::path("api")
+        .and(
+            search_path
+                .or(search_api_path)
+                .or(insert_path)
+                .or(sync_path)
+                .or(sync_api_path)
+                .or(replace_path)
+                .or(list_path)
+                .or(list_api_path)
+                .or(edit_path)
+                .or(display_path)
+                .or(frontpage_path)
+                .or(list_conflicts_path)
+                .or(show_conflict_path)
+                .or(remove_conflict_path)
+                .or(update_conflict_path)
+                .or(commit_conflict_path)
+                .or(user_path),
+        )
+        .boxed();
+
+    let routes = api_path.recover(error_response);
+    let addr: SocketAddr = format!("127.0.0.1:{}", port).parse()?;
+    warp::serve(routes).bind(addr).await;
+    Ok(())
 }
 
 #[cfg(test)]
@@ -133,16 +242,18 @@ mod tests {
         logged_user::{get_random_key, JWT_SECRET, KEY_LENGTH, SECRET_KEY},
     };
 
-    #[actix_rt::test]
+    #[tokio::test]
     async fn test_run_app() -> Result<(), Error> {
         set_var("TESTENV", "true");
 
         let email = format!("{}@localhost", get_random_string(32));
         let password = get_random_string(32);
 
-        let config = Config::init_config()?;
-        let pool = PgPool::new(&config.database_url);
-        let dapp = DiaryAppActor(DiaryAppInterface::new(config.clone(), pool));
+        let auth_port: u32 = 54321;
+        set_var("PORT", auth_port.to_string());
+        set_var("DOMAIN", "localhost");
+
+        let config = auth_server_lib::config::Config::init_config()?;
 
         let mut secret_key = [0u8; KEY_LENGTH];
         secret_key.copy_from_slice(&get_random_key());
@@ -150,20 +261,19 @@ mod tests {
         JWT_SECRET.set(secret_key);
         SECRET_KEY.set(secret_key);
 
-        let auth_port: u32 = 54321;
-        actix_rt::spawn(async move {
-            run_test_app(auth_port, secret_key, "localhost".into())
-                .await
-                .unwrap()
-        });
+        tokio::task::spawn(async move { run_test_app(config).await.unwrap() });
 
         let test_port: u32 = 12345;
-        actix_rt::spawn(async move {
-            run_app(dapp, test_port, secret_key, "localhost".into())
-                .await
-                .unwrap()
+        set_var("PORT", test_port.to_string());
+        let config = Config::init_config()?;
+        let pool = PgPool::new(&config.database_url);
+        let dapp = DiaryAppActor(DiaryAppInterface::new(config.clone(), pool));
+
+        tokio::task::spawn(async move {
+            env_logger::init();
+            run_app(dapp, test_port).await.unwrap()
         });
-        actix_rt::time::sleep(std::time::Duration::from_secs(10)).await;
+        tokio::time::sleep(std::time::Duration::from_secs(10)).await;
 
         let client = reqwest::Client::builder().cookie_store(true).build()?;
         let url = format!("http://localhost:{}/api/auth", auth_port);

@@ -243,7 +243,6 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore]
     async fn test_export_year_to_local() -> Result<(), Error> {
         let t = get_tempdir()?;
         let li = get_li(&t)?;

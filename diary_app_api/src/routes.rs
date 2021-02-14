@@ -1,8 +1,3 @@
-use actix_web::{
-    http::StatusCode,
-    web::{Data, Json, Query},
-    HttpResponse,
-};
 use chrono::{DateTime, Local, NaiveDate, Utc};
 use handlebars::Handlebars;
 use itertools::Itertools;
@@ -11,15 +6,17 @@ use maplit::hashmap;
 use serde::{Deserialize, Serialize};
 use stack_string::StackString;
 use std::collections::HashSet;
+use warp::{Rejection, Reply};
 
 use super::{
     app::AppState,
     errors::ServiceError as Error,
     logged_user::LoggedUser,
-    requests::{DiaryAppRequests, HandleRequest, ListOptions, SearchOptions},
+    requests::{DiaryAppRequests, ListOptions, SearchOptions},
 };
 
-pub type HttpResult = Result<HttpResponse, Error>;
+pub type WarpResult<T> = Result<T, Rejection>;
+pub type HttpResult<T> = Result<T, Error>;
 
 lazy_static! {
     static ref HANDLEBARS: Handlebars<'static> = {
@@ -30,52 +27,43 @@ lazy_static! {
     };
 }
 
-fn form_http_response(body: String) -> HttpResult {
-    Ok(HttpResponse::build(StatusCode::OK)
-        .content_type("text/html; charset=utf-8")
-        .body(body))
-}
-
-fn to_json<T>(js: T) -> HttpResult
-where
-    T: Serialize,
-{
-    Ok(HttpResponse::Ok().json(js))
-}
-
-async fn _search(query: SearchOptions, state: Data<AppState>, is_api: bool) -> HttpResult {
-    let req = DiaryAppRequests::Search(query);
-
-    let body = state.db.handle(req).await?;
-
-    if is_api {
-        let body = hashmap! {"text" => body.join("\n")};
-        to_json(body)
-    } else {
-        let body = format!(
-            r#"<textarea autofocus readonly="readonly"
-                name="message" id="diary_editor_form"
-                rows=50 cols=100>{}</textarea>"#,
-            body.join("\n")
-        );
-        form_http_response(body)
-    }
-}
-
 pub async fn search_api(
-    query: Query<SearchOptions>,
+    query: SearchOptions,
     _: LoggedUser,
-    state: Data<AppState>,
-) -> HttpResult {
-    _search(query.into_inner(), state, true).await
+    state: AppState,
+) -> WarpResult<impl Reply> {
+    let body = search_api_body(query, state).await?;
+    let body = hashmap! {"text" => body.join("\n")};
+    Ok(warp::reply::json(&body))
+}
+
+async fn search_api_body(query: SearchOptions, state: AppState) -> HttpResult<Vec<StackString>> {
+    DiaryAppRequests::Search(query)
+        .handle(&state.db)
+        .await
+        .map_err(Into::into)
 }
 
 pub async fn search(
-    query: Query<SearchOptions>,
+    query: SearchOptions,
     _: LoggedUser,
-    state: Data<AppState>,
-) -> HttpResult {
-    _search(query.into_inner(), state, false).await
+    state: AppState,
+) -> WarpResult<impl Reply> {
+    let body = search_body(query, state).await?;
+    let body = format!(
+        r#"<textarea autofocus readonly="readonly"
+            name="message" id="diary_editor_form"
+            rows=50 cols=100>{}</textarea>"#,
+        body.join("\n")
+    );
+    Ok(warp::reply::html(body))
+}
+
+async fn search_body(query: SearchOptions, state: AppState) -> HttpResult<Vec<StackString>> {
+    DiaryAppRequests::Search(query)
+        .handle(&state.db)
+        .await
+        .map_err(Into::into)
 }
 
 #[derive(Serialize, Deserialize)]
@@ -83,34 +71,39 @@ pub struct InsertData {
     pub text: StackString,
 }
 
-pub async fn insert(data: Json<InsertData>, _: LoggedUser, state: Data<AppState>) -> HttpResult {
-    let req = DiaryAppRequests::Insert(data.into_inner().text);
-
-    let body = state.db.handle(req).await?;
+pub async fn insert(data: InsertData, _: LoggedUser, state: AppState) -> WarpResult<impl Reply> {
+    let body = insert_body(data, state).await?;
     let body = hashmap! {"datetime" => body.join("\n")};
-    to_json(body)
+    Ok(warp::reply::json(&body))
 }
 
-pub async fn _sync(state: Data<AppState>, is_api: bool) -> HttpResult {
-    let body = state.db.handle(DiaryAppRequests::Sync).await?;
-    if is_api {
-        let body = hashmap! {"response" => body.join("\n")};
-        to_json(body)
-    } else {
-        let body = format!(
-            r#"<textarea autofocus readonly="readonly" name="message" id="diary_editor_form" rows=50 cols=100>{}</textarea>"#,
-            body.join("\n")
-        );
-        form_http_response(body)
-    }
+async fn insert_body(data: InsertData, state: AppState) -> HttpResult<Vec<StackString>> {
+    DiaryAppRequests::Insert(data.text)
+        .handle(&state.db)
+        .await
+        .map_err(Into::into)
 }
 
-pub async fn sync(_: LoggedUser, state: Data<AppState>) -> HttpResult {
-    _sync(state, false).await
+pub async fn sync(_: LoggedUser, state: AppState) -> WarpResult<impl Reply> {
+    let body = sync_body(state).await?;
+    let body = format!(
+        r#"<textarea autofocus readonly="readonly" name="message" id="diary_editor_form" rows=50 cols=100>{}</textarea>"#,
+        body.join("\n")
+    );
+    Ok(warp::reply::html(body))
 }
 
-pub async fn sync_api(_: LoggedUser, state: Data<AppState>) -> HttpResult {
-    _sync(state, true).await
+async fn sync_body(state: AppState) -> HttpResult<Vec<StackString>> {
+    DiaryAppRequests::Sync
+        .handle(&state.db)
+        .await
+        .map_err(Into::into)
+}
+
+pub async fn sync_api(_: LoggedUser, state: AppState) -> WarpResult<impl Reply> {
+    let body = sync_body(state).await?;
+    let body = hashmap! {"response" => body.join("\n")};
+    Ok(warp::reply::json(&body))
 }
 
 #[derive(Serialize, Deserialize)]
@@ -119,18 +112,23 @@ pub struct ReplaceData {
     pub text: StackString,
 }
 
-pub async fn replace(data: Json<ReplaceData>, _: LoggedUser, state: Data<AppState>) -> HttpResult {
-    let data = data.into_inner();
-    let req = DiaryAppRequests::Replace {
-        date: data.date,
-        text: data.text,
-    };
-    let body = state.db.handle(req).await?;
+pub async fn replace(data: ReplaceData, _: LoggedUser, state: AppState) -> WarpResult<impl Reply> {
+    let body = replace_body(data, state).await?;
     let body = hashmap! {"entry" => body.join("\n")};
-    to_json(body)
+    Ok(warp::reply::json(&body))
 }
 
-fn _list_string<T, U>(conflicts: &HashSet<StackString>, body: T, query: ListOptions) -> StackString
+async fn replace_body(data: ReplaceData, state: AppState) -> HttpResult<Vec<StackString>> {
+    DiaryAppRequests::Replace {
+        date: data.date,
+        text: data.text,
+    }
+    .handle(&state.db)
+    .await
+    .map_err(Into::into)
+}
+
+fn _list_string<T, U>(conflicts: &HashSet<StackString>, body: T, query: ListOptions) -> String
 where
     T: IntoIterator<Item = U>,
     U: AsRef<str>,
@@ -183,38 +181,40 @@ where
         )]
         .join("\n")
     };
-    format!("{}\n<br>\n{}", text, buttons).into()
+    format!("{}\n<br>\n{}", text, buttons)
 }
 
-async fn _list(query: ListOptions, state: Data<AppState>, is_api: bool) -> HttpResult {
-    let req = DiaryAppRequests::List(query);
-    let body = state.db.handle(req).await?;
-
-    if is_api {
-        let body = hashmap! {"list" => body };
-        to_json(body)
-    } else {
-        let conflicts: HashSet<_> = state
-            .db
-            .handle(DiaryAppRequests::ListConflicts(None))
-            .await?
-            .into_iter()
-            .collect();
-        let body = _list_string(&conflicts, body, query);
-        form_http_response(body.into())
-    }
+pub async fn list(query: ListOptions, _: LoggedUser, state: AppState) -> WarpResult<impl Reply> {
+    let body = list_body(query, &state).await?;
+    Ok(warp::reply::html(body))
 }
 
-pub async fn list(query: Query<ListOptions>, _: LoggedUser, state: Data<AppState>) -> HttpResult {
-    _list(query.into_inner(), state, false).await
+async fn list_body(query: ListOptions, state: &AppState) -> HttpResult<String> {
+    let body = list_api_body(query, state).await?;
+    let conflicts: HashSet<_> = DiaryAppRequests::ListConflicts(None)
+        .handle(&state.db)
+        .await?
+        .into_iter()
+        .collect();
+    let body = _list_string(&conflicts, body, query);
+    Ok(body)
+}
+
+async fn list_api_body(query: ListOptions, state: &AppState) -> HttpResult<Vec<StackString>> {
+    DiaryAppRequests::List(query)
+        .handle(&state.db)
+        .await
+        .map_err(Into::into)
 }
 
 pub async fn list_api(
-    query: Query<ListOptions>,
+    query: ListOptions,
     _: LoggedUser,
-    state: Data<AppState>,
-) -> HttpResult {
-    _list(query.into_inner(), state, true).await
+    state: AppState,
+) -> WarpResult<impl Reply> {
+    let body = list_api_body(query, &state).await?;
+    let body = hashmap! {"list" => body };
+    Ok(warp::reply::json(&body))
 }
 
 #[derive(Serialize, Deserialize)]
@@ -222,12 +222,16 @@ pub struct EditData {
     pub date: NaiveDate,
 }
 
-pub async fn edit(query: Query<EditData>, _: LoggedUser, state: Data<AppState>) -> HttpResult {
-    let query = query.into_inner();
-    let diary_date = query.date;
-    let req = DiaryAppRequests::Display(diary_date);
+pub async fn edit(query: EditData, _: LoggedUser, state: AppState) -> WarpResult<impl Reply> {
+    let body = edit_body(query, state).await?;
+    Ok(warp::reply::html(body))
+}
 
-    let text = state.db.handle(req).await?;
+async fn edit_body(query: EditData, state: AppState) -> HttpResult<String> {
+    let diary_date = query.date;
+    let text = DiaryAppRequests::Display(diary_date)
+        .handle(&state.db)
+        .await?;
     let body = format!(
         r#"
         <textarea name="message" id="diary_editor_form" rows=50 cols=100
@@ -239,15 +243,19 @@ pub async fn edit(query: Query<EditData>, _: LoggedUser, state: Data<AppState>) 
         text = text.join("\n"),
         date = diary_date,
     );
-
-    form_http_response(body)
+    Ok(body)
 }
 
-pub async fn display(query: Query<EditData>, _: LoggedUser, state: Data<AppState>) -> HttpResult {
-    let query = query.into_inner();
+pub async fn display(query: EditData, _: LoggedUser, state: AppState) -> WarpResult<impl Reply> {
+    let body = display_body(query, state).await?;
+    Ok(warp::reply::html(body))
+}
+
+async fn display_body(query: EditData, state: AppState) -> HttpResult<String> {
     let diary_date = query.date;
-    let req = DiaryAppRequests::Display(diary_date);
-    let text = state.db.handle(req).await?;
+    let text = DiaryAppRequests::Display(diary_date)
+        .handle(&state.db)
+        .await?;
     let body = format!(
         r#"<textarea autofocus readonly="readonly" name="message" id="diary_editor_form" rows=50 cols=100>{text}</textarea><br>{editor}"#,
         text = text.join("\n"),
@@ -256,20 +264,23 @@ pub async fn display(query: Query<EditData>, _: LoggedUser, state: Data<AppState
             diary_date
         ),
     );
-    form_http_response(body)
+    Ok(body)
 }
 
-pub async fn diary_frontpage(_: LoggedUser, state: Data<AppState>) -> HttpResult {
+pub async fn diary_frontpage(_: LoggedUser, state: AppState) -> WarpResult<impl Reply> {
+    let body = diary_frontpage_body(state).await?;
+    Ok(warp::reply::html(body))
+}
+
+async fn diary_frontpage_body(state: AppState) -> HttpResult<String> {
     let query = ListOptions {
         limit: Some(10),
         ..ListOptions::default()
     };
-    let req = DiaryAppRequests::List(query);
-    let body = state.db.handle(req).await?;
+    let body = DiaryAppRequests::List(query).handle(&state.db).await?;
 
-    let conflicts: HashSet<_> = state
-        .db
-        .handle(DiaryAppRequests::ListConflicts(None))
+    let conflicts: HashSet<_> = DiaryAppRequests::ListConflicts(None)
+        .handle(&state.db)
         .await?
         .into_iter()
         .collect();
@@ -279,7 +290,7 @@ pub async fn diary_frontpage(_: LoggedUser, state: Data<AppState>) -> HttpResult
         "DISPLAY_TEXT" => "",
     };
     let body = HANDLEBARS.render("id", &params)?;
-    form_http_response(body)
+    Ok(body)
 }
 
 #[derive(Serialize, Deserialize)]
@@ -289,15 +300,19 @@ pub struct ConflictData {
 }
 
 pub async fn list_conflicts(
-    query: Query<ConflictData>,
+    query: ConflictData,
     _: LoggedUser,
-    state: Data<AppState>,
-) -> HttpResult {
-    let diary_date = query.into_inner().date;
-    let req = DiaryAppRequests::ListConflicts(diary_date);
+    state: AppState,
+) -> WarpResult<impl Reply> {
+    let body = list_conflicts_body(query, state).await?;
+    Ok(warp::reply::html(body))
+}
 
-    let body = state.db.handle(req).await?;
-
+async fn list_conflicts_body(query: ConflictData, state: AppState) -> HttpResult<String> {
+    let diary_date = query.date;
+    let body = DiaryAppRequests::ListConflicts(diary_date)
+        .handle(&state.db)
+        .await?;
     let mut buttons = Vec::new();
     if let Some(date) = diary_date {
         if !body.is_empty() {
@@ -330,22 +345,26 @@ pub async fn list_conflicts(
         .join("\n");
 
     let body = format!("{}\n<br>\n{}", text, buttons.join("<br>"));
-    form_http_response(body)
+    Ok(body)
 }
 
 pub async fn show_conflict(
-    query: Query<ConflictData>,
+    query: ConflictData,
     _: LoggedUser,
-    state: Data<AppState>,
-) -> HttpResult {
-    let query = query.into_inner();
+    state: AppState,
+) -> WarpResult<impl Reply> {
+    let body = show_conflict_body(query, state).await?;
+    Ok(warp::reply::html(body))
+}
+
+async fn show_conflict_body(query: ConflictData, state: AppState) -> HttpResult<String> {
     let datetime = query.datetime.unwrap_or_else(Utc::now);
     let diary_date = query
         .date
         .unwrap_or_else(|| datetime.with_timezone(&Local).naive_local().date());
-    let req = DiaryAppRequests::ShowConflict(datetime);
-
-    let text = state.db.handle(req).await?;
+    let text = DiaryAppRequests::ShowConflict(datetime)
+        .handle(&state.db)
+        .await?;
     let body = format!(
         r#"{t}<br>
             <input type="button" name="display" value="Display" onclick="switchToDisplay('{d}')">
@@ -357,26 +376,33 @@ pub async fn show_conflict(
         d = diary_date,
         dt = datetime.format("%Y-%m-%dT%H:%M:%S%.fZ"),
     );
-    form_http_response(body)
+    Ok(body)
 }
 
 pub async fn remove_conflict(
-    query: Query<ConflictData>,
+    query: ConflictData,
     _: LoggedUser,
-    state: Data<AppState>,
-) -> HttpResult {
-    let query = query.into_inner();
-    if let Some(datetime) = query.datetime {
-        let req = DiaryAppRequests::RemoveConflict(datetime);
-        let text = state.db.handle(req).await?;
-        form_http_response(text.join("\n"))
+    state: AppState,
+) -> WarpResult<impl Reply> {
+    let body = remove_conflict_body(query, state).await?;
+    Ok(warp::reply::html(body))
+}
+
+async fn remove_conflict_body(query: ConflictData, state: AppState) -> HttpResult<String> {
+    let body = if let Some(datetime) = query.datetime {
+        let text = DiaryAppRequests::RemoveConflict(datetime)
+            .handle(&state.db)
+            .await?;
+        text.join("\n")
     } else if let Some(date) = query.date {
-        let req = DiaryAppRequests::CleanConflicts(date);
-        let text = state.db.handle(req).await?;
-        form_http_response(text.join("\n"))
+        let text = DiaryAppRequests::CleanConflicts(date)
+            .handle(&state.db)
+            .await?;
+        text.join("\n")
     } else {
-        form_http_response("".to_string())
-    }
+        "".to_string()
+    };
+    Ok(body)
 }
 
 #[derive(Serialize, Deserialize)]
@@ -386,19 +412,22 @@ pub struct ConflictUpdateData {
 }
 
 pub async fn update_conflict(
-    query: Query<ConflictUpdateData>,
+    query: ConflictUpdateData,
     _: LoggedUser,
-    state: Data<AppState>,
-) -> HttpResult {
-    let query = query.into_inner();
-    let req = DiaryAppRequests::UpdateConflict {
+    state: AppState,
+) -> WarpResult<impl Reply> {
+    update_conflict_body(query, state).await?;
+    Ok(warp::reply::html("finished".to_string()))
+}
+
+async fn update_conflict_body(query: ConflictUpdateData, state: AppState) -> HttpResult<()> {
+    DiaryAppRequests::UpdateConflict {
         id: query.id,
         diff_text: query.diff_type,
-    };
-
-    state.db.handle(req).await?;
-
-    form_http_response("finished".to_string())
+    }
+    .handle(&state.db)
+    .await?;
+    Ok(())
 }
 
 #[derive(Serialize, Deserialize)]
@@ -407,18 +436,25 @@ pub struct CommitConflictData {
 }
 
 pub async fn commit_conflict(
-    query: Query<CommitConflictData>,
+    query: CommitConflictData,
     _: LoggedUser,
-    state: Data<AppState>,
-) -> HttpResult {
-    let query = query.into_inner();
-    let req = DiaryAppRequests::CommitConflict(query.datetime);
-
-    let body = state.db.handle(req).await?;
+    state: AppState,
+) -> WarpResult<impl Reply> {
+    let body = commit_conflict_body(query, state).await?;
     let body = hashmap! {"entry" => body.join("\n")};
-    to_json(body)
+    Ok(warp::reply::json(&body))
 }
 
-pub async fn user(user: LoggedUser) -> HttpResult {
-    to_json(user)
+async fn commit_conflict_body(
+    query: CommitConflictData,
+    state: AppState,
+) -> HttpResult<Vec<StackString>> {
+    DiaryAppRequests::CommitConflict(query.datetime)
+        .handle(&state.db)
+        .await
+        .map_err(Into::into)
+}
+
+pub async fn user(user: LoggedUser) -> WarpResult<impl Reply> {
+    Ok(warp::reply::json(&user))
 }

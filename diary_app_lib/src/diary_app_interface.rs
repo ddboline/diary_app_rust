@@ -106,8 +106,8 @@ impl DiaryAppInterface {
         year: Option<i32>,
         month: Option<u32>,
         day: Option<u32>,
-    ) -> Result<Vec<NaiveDate>, Error> {
-        let matching_dates = mod_map
+    ) -> Vec<NaiveDate> {
+        mod_map
             .iter()
             .map(|(d, _)| *d)
             .filter(|date| {
@@ -117,8 +117,7 @@ impl DiaryAppInterface {
                     }) && (y == date.year())
                 })
             })
-            .collect();
-        Ok(matching_dates)
+            .collect()
     }
 
     fn get_dates_from_search_text(
@@ -138,18 +137,18 @@ impl DiaryAppInterface {
                 let year: Option<i32> = cap.name("year").and_then(|x| x.as_str().parse().ok());
                 let month: Option<u32> = cap.name("month").and_then(|x| x.as_str().parse().ok());
                 let day: Option<u32> = cap.name("day").and_then(|x| x.as_str().parse().ok());
-                dates.extend_from_slice(&Self::get_matching_dates(&mod_map, year, month, day)?);
+                dates.extend_from_slice(&Self::get_matching_dates(&mod_map, year, month, day));
             }
         } else if year_month_regex.is_match(search_text) {
             for cap in year_month_regex.captures_iter(search_text) {
                 let year: Option<i32> = cap.name("year").and_then(|x| x.as_str().parse().ok());
                 let month: Option<u32> = cap.name("month").and_then(|x| x.as_str().parse().ok());
-                dates.extend_from_slice(&Self::get_matching_dates(&mod_map, year, month, None)?);
+                dates.extend_from_slice(&Self::get_matching_dates(&mod_map, year, month, None));
             }
         } else if year_regex.is_match(search_text) {
             for cap in year_regex.captures_iter(search_text) {
                 let year: Option<i32> = cap.name("year").and_then(|x| x.as_str().parse().ok());
-                dates.extend_from_slice(&Self::get_matching_dates(&mod_map, year, None, None)?);
+                dates.extend_from_slice(&Self::get_matching_dates(&mod_map, year, None, None));
             }
         }
         Ok(dates)
@@ -584,10 +583,10 @@ mod tests {
         let dap = get_dap()?;
         let mod_map = DiaryEntries::get_modified_map(&dap.pool).await?;
 
-        let results = DiaryAppInterface::get_matching_dates(&mod_map, Some(2011), None, None)?;
+        let results = DiaryAppInterface::get_matching_dates(&mod_map, Some(2011), None, None);
         assert_eq!(results.len(), 288);
 
-        let results = DiaryAppInterface::get_matching_dates(&mod_map, Some(2011), Some(6), None)?;
+        let results = DiaryAppInterface::get_matching_dates(&mod_map, Some(2011), Some(6), None);
         assert_eq!(results.len(), 23);
         Ok(())
     }
