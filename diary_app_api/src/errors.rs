@@ -5,7 +5,10 @@ use log::error;
 use serde::Serialize;
 use std::{convert::Infallible, fmt::Debug};
 use thiserror::Error;
-use warp::{reject::Reject, Rejection, Reply, reject::MissingCookie};
+use warp::{
+    reject::{InvalidHeader, MissingCookie, Reject},
+    Rejection, Reply,
+};
 
 use crate::logged_user::TRIGGER_DB_UPDATE;
 
