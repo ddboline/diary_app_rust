@@ -18,6 +18,7 @@ Daily journal"""
 diary_app_lib = {path="diary_app_lib"}
 diary_app_api = {path="diary_app_api"}
 diary_app_bot = {path="diary_app_bot"}
+gstorage_lib = {path="gstorage_lib"}
 env_logger = "0.8"
 tokio = {version="1.2", features=["full"]}
 dirs = "3.0"
