@@ -33,7 +33,7 @@ pub struct DiaryAppInterface {
     pub pool: PgPool,
     pub local: LocalInterface,
     pub s3: S3Interface,
-    pub stdout: StdoutChannel,
+    pub stdout: StdoutChannel<StackString>,
 }
 
 impl DiaryAppInterface {

@@ -7,6 +7,7 @@ edition = "2018"
 [dependencies]
 r2d2 = "0.8"
 diesel = {version="1.4", features=["postgres", "r2d2", "chrono"]}
+tokio-diesel = {git="https://github.com/mehcode/tokio-diesel.git", branch="master"}
 chrono = "0.4"
 rusoto_core = {version = "0.46", default_features = false, features=["rustls"]}
 rusoto_s3 = {version = "0.46", default_features = false, features=["rustls"]}
@@ -38,8 +39,8 @@ envy = "0.4"
 smartstring = "0.2"
 smallvec = "1.6"
 deadqueue = "0.2"
-stack-string = { git = "https://github.com/ddboline/stack-string-rs.git", tag="0.2.0", features=["diesel_types"] }
-stdout-channel = { git = "https://github.com/ddboline/stdout-channel-rs.git", tag="0.3.0" }
+stack-string = { version="0.2", features=["diesel_types"] }
+stdout-channel = "0.4"
 
 [dev-dependencies]
 tempdir = "0.3"
