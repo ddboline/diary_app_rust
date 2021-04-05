@@ -300,7 +300,6 @@ mod tests {
             .text()
             .await?;
         assert!(result.contains("javascript:searchDiary"));
-
         remove_var("TESTENV");
         Ok(())
     }
