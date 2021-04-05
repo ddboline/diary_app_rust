@@ -280,7 +280,6 @@ async fn diary_frontpage_body(state: AppState) -> HttpResult<String> {
     };
     let body = DiaryAppRequests::List(query).handle(&state.db).await?;
     debug!("Got list");
-    assert!(false);
     let conflicts: HashSet<_> = DiaryAppRequests::ListConflicts(None)
         .handle(&state.db)
         .await?
