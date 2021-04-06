@@ -137,7 +137,7 @@ impl DiaryAppOpts {
                         dap.stdout.send(timestamp);
                     }
                     Ok(())
-                };
+                }
 
                 if let Ok(datetime) =
                     DateTime::parse_from_rfc3339(&opts.text.join("").replace("Z", "+00:00"))

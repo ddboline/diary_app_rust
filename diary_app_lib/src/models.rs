@@ -261,7 +261,7 @@ impl DiaryEntries {
 
         let changeset = self
             ._get_difference(conn, insert_new)?
-            .ok_or_else(|| DieselError::NotFound)?;
+            .ok_or(DieselError::NotFound)?;
 
         let conflict_opt = if changeset.distance > 0 {
             DiaryConflict::insert_from_changeset(self.diary_date, changeset, conn)?
