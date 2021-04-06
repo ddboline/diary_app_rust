@@ -276,7 +276,7 @@ mod tests {
         config::Config, pgpool::PgPool, s3_instance::S3Instance, s3_interface::S3Interface,
     };
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread")]
     #[ignore]
     async fn test_validate_s3() -> Result<(), Error> {
         let config = Config::init_config()?;

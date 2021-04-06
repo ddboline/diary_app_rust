@@ -2,6 +2,7 @@ use chrono::{DateTime, Local, NaiveDate, Utc};
 use handlebars::Handlebars;
 use itertools::Itertools;
 use lazy_static::lazy_static;
+use log::debug;
 use maplit::hashmap;
 use serde::{Deserialize, Serialize};
 use stack_string::StackString;
@@ -278,12 +279,13 @@ async fn diary_frontpage_body(state: AppState) -> HttpResult<String> {
         ..ListOptions::default()
     };
     let body = DiaryAppRequests::List(query).handle(&state.db).await?;
-
+    debug!("Got list");
     let conflicts: HashSet<_> = DiaryAppRequests::ListConflicts(None)
         .handle(&state.db)
         .await?
         .into_iter()
         .collect();
+    debug!("Got conflicts");
     let body = _list_string(&conflicts, body, query);
     let params = hashmap! {
         "LIST_TEXT" => body.as_str(),

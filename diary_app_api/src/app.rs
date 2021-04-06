@@ -242,26 +242,18 @@ mod tests {
         logged_user::{get_random_key, JWT_SECRET, KEY_LENGTH, SECRET_KEY},
     };
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread")]
     async fn test_run_app() -> Result<(), Error> {
         set_var("TESTENV", "true");
 
         let email = format!("{}@localhost", get_random_string(32));
         let password = get_random_string(32);
 
-        let auth_port: u32 = 54321;
-        set_var("PORT", auth_port.to_string());
-        set_var("DOMAIN", "localhost");
-
-        let config = auth_server_lib::config::Config::init_config()?;
-
         let mut secret_key = [0u8; KEY_LENGTH];
         secret_key.copy_from_slice(&get_random_key());
 
         JWT_SECRET.set(secret_key);
         SECRET_KEY.set(secret_key);
-
-        tokio::task::spawn(async move { run_test_app(config).await.unwrap() });
 
         let test_port: u32 = 12345;
         set_var("PORT", test_port.to_string());
@@ -273,6 +265,14 @@ mod tests {
             env_logger::init();
             run_app(dapp, test_port).await.unwrap()
         });
+
+        let auth_port: u32 = 54321;
+        set_var("PORT", auth_port.to_string());
+        set_var("DOMAIN", "localhost");
+
+        let config = auth_server_lib::config::Config::init_config()?;
+        tokio::task::spawn(async move { run_test_app(config).await.unwrap() });
+
         tokio::time::sleep(std::time::Duration::from_secs(10)).await;
 
         let client = reqwest::Client::builder().cookie_store(true).build()?;
@@ -300,7 +300,6 @@ mod tests {
             .text()
             .await?;
         assert!(result.contains("javascript:searchDiary"));
-
         remove_var("TESTENV");
         Ok(())
     }

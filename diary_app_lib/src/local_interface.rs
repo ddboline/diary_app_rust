@@ -242,7 +242,7 @@ mod tests {
         Ok(LocalInterface::new(config, pool))
     }
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread")]
     async fn test_export_year_to_local() -> Result<(), Error> {
         let t = get_tempdir()?;
         let li = get_li(&t)?;
@@ -272,7 +272,7 @@ mod tests {
         Ok(())
     }
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread")]
     async fn test_cleanup_local() -> Result<(), Error> {
         let t = get_tempdir()?;
         let li = get_li(&t)?;

@@ -33,7 +33,7 @@ pub struct DiaryAppInterface {
     pub pool: PgPool,
     pub local: LocalInterface,
     pub s3: S3Interface,
-    pub stdout: StdoutChannel,
+    pub stdout: StdoutChannel<StackString>,
 }
 
 impl DiaryAppInterface {
@@ -522,7 +522,7 @@ mod tests {
         Ok(DiaryAppInterface::new(config, pool))
     }
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread")]
     async fn test_search_text() -> Result<(), Error> {
         let dap = get_dap()?;
 
@@ -552,7 +552,7 @@ mod tests {
         Ok(())
     }
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread")]
     async fn test_get_list_of_dates() -> Result<(), Error> {
         let dap = get_dap()?;
 
@@ -578,7 +578,7 @@ mod tests {
         Ok(())
     }
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread")]
     async fn test_get_matching_dates() -> Result<(), Error> {
         let dap = get_dap()?;
         let mod_map = DiaryEntries::get_modified_map(&dap.pool).await?;
@@ -591,7 +591,7 @@ mod tests {
         Ok(())
     }
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread")]
     async fn test_cache_text() -> Result<(), Error> {
         let dap = get_dap()?;
 
@@ -610,7 +610,7 @@ mod tests {
         Ok(())
     }
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread")]
     async fn test_replace_text() -> Result<(), Error> {
         let dap = get_dap()?;
         let test_date = NaiveDate::from_ymd(1950, 1, 1);
@@ -635,7 +635,7 @@ mod tests {
         Ok(())
     }
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread")]
     #[ignore]
     async fn test_validate_backup() -> Result<(), Error> {
         let dap = get_dap()?;

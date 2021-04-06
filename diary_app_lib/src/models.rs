@@ -1,18 +1,18 @@
-use anyhow::{format_err, Error};
+use anyhow::Error;
 use chrono::{DateTime, NaiveDate, Utc};
 use diesel::{
-    Connection, ExpressionMethods, Insertable, OptionalExtension, QueryDsl, Queryable, RunQueryDsl,
-    TextExpressionMethods,
+    pg::PgConnection, result::Error as DieselError, ExpressionMethods, Insertable, QueryDsl,
+    Queryable, RunQueryDsl, TextExpressionMethods,
 };
 use difference::{Changeset, Difference};
 use log::debug;
 use serde::{Deserialize, Serialize};
 use stack_string::StackString;
 use std::collections::HashMap;
-use tokio::task::spawn_blocking;
+use tokio_diesel::{AsyncConnection, AsyncRunQueryDsl, OptionalExtension};
 
 use crate::{
-    pgpool::{PgPool, PgPoolConn},
+    pgpool::PgPool,
     schema::{authorized_users, diary_cache, diary_conflict, diary_entries},
 };
 
@@ -75,60 +75,61 @@ impl From<DiaryConflict> for DiaryConflictInsert {
 }
 
 impl AuthorizedUsers {
-    fn get_authorized_users_sync(pool: &PgPool) -> Result<Vec<Self>, Error> {
-        use crate::schema::authorized_users::dsl::authorized_users;
-        let conn = pool.get()?;
-        authorized_users.load(&conn).map_err(Into::into)
-    }
-
     pub async fn get_authorized_users(pool: &PgPool) -> Result<Vec<Self>, Error> {
-        let pool = pool.clone();
-        spawn_blocking(move || Self::get_authorized_users_sync(&pool)).await?
+        use crate::schema::authorized_users::dsl::authorized_users;
+        authorized_users.load_async(pool).await.map_err(Into::into)
     }
 }
 
 impl DiaryConflict {
-    fn get_all_dates_sync(pool: &PgPool) -> Result<Vec<NaiveDate>, Error> {
+    pub async fn get_all_dates(pool: &PgPool) -> Result<Vec<NaiveDate>, Error> {
         use crate::schema::diary_conflict::dsl::{diary_conflict, diary_date};
-        let conn = pool.get()?;
         diary_conflict
             .select(diary_date)
             .distinct()
             .order(diary_date)
-            .load(&conn)
+            .load_async(pool)
+            .await
             .map_err(Into::into)
     }
 
-    pub async fn get_all_dates(pool: &PgPool) -> Result<Vec<NaiveDate>, Error> {
-        let pool = pool.clone();
-        spawn_blocking(move || Self::get_all_dates_sync(&pool)).await?
+    pub async fn get_first_date(pool: &PgPool) -> Result<Option<NaiveDate>, Error> {
+        use crate::schema::diary_conflict::dsl::{diary_conflict, diary_date};
+        diary_conflict
+            .select(diary_date)
+            .distinct()
+            .order(diary_date)
+            .first_async(pool)
+            .await
+            .optional()
+            .map_err(Into::into)
     }
 
-    fn get_by_date_sync(date: NaiveDate, pool: &PgPool) -> Result<Vec<DateTime<Utc>>, Error> {
+    pub async fn get_by_date(date: NaiveDate, pool: &PgPool) -> Result<Vec<DateTime<Utc>>, Error> {
         use crate::schema::diary_conflict::dsl::{diary_conflict, diary_date, sync_datetime};
-        let conn = pool.get()?;
-
         diary_conflict
             .filter(diary_date.eq(date))
             .select(sync_datetime)
             .distinct()
             .order(sync_datetime)
-            .load(&conn)
+            .load_async(pool)
+            .await
             .map_err(Into::into)
     }
 
-    pub async fn get_by_date(date: NaiveDate, pool: &PgPool) -> Result<Vec<DateTime<Utc>>, Error> {
-        let pool = pool.clone();
-        spawn_blocking(move || Self::get_by_date_sync(date, &pool)).await?
-    }
-
-    fn get_by_datetime_sync(datetime: DateTime<Utc>, pool: &PgPool) -> Result<Vec<Self>, Error> {
-        use crate::schema::diary_conflict::dsl::{diary_conflict, id, sync_datetime};
-        let conn = pool.get()?;
+    pub async fn get_first_by_date(
+        date: NaiveDate,
+        pool: &PgPool,
+    ) -> Result<Option<DateTime<Utc>>, Error> {
+        use crate::schema::diary_conflict::dsl::{diary_conflict, diary_date, sync_datetime};
         diary_conflict
-            .filter(sync_datetime.eq(datetime))
-            .order(id)
-            .load(&conn)
+            .filter(diary_date.eq(date))
+            .select(sync_datetime)
+            .distinct()
+            .order(sync_datetime)
+            .first_async(pool)
+            .await
+            .optional()
             .map_err(Into::into)
     }
 
@@ -136,61 +137,48 @@ impl DiaryConflict {
         datetime: DateTime<Utc>,
         pool: &PgPool,
     ) -> Result<Vec<Self>, Error> {
-        let pool = pool.clone();
-        spawn_blocking(move || Self::get_by_datetime_sync(datetime, &pool)).await?
+        use crate::schema::diary_conflict::dsl::{diary_conflict, id, sync_datetime};
+        diary_conflict
+            .filter(sync_datetime.eq(datetime))
+            .order(id)
+            .load_async(pool)
+            .await
+            .map_err(Into::into)
     }
 
-    fn get_first_conflict_sync(pool: &PgPool) -> Result<Option<DateTime<Utc>>, Error> {
-        let dates = Self::get_all_dates_sync(pool)?;
-        if !dates.is_empty() {
-            let conflicts = Self::get_by_date_sync(dates[0], pool)?;
-            if !conflicts.is_empty() {
-                return Ok(Some(conflicts[0]));
+    pub async fn get_first_conflict(pool: &PgPool) -> Result<Option<DateTime<Utc>>, Error> {
+        if let Some(first_date) = Self::get_first_date(pool).await? {
+            if let Some(first_conflict) = Self::get_first_by_date(first_date, pool).await? {
+                return Ok(Some(first_conflict));
             }
         }
         Ok(None)
     }
 
-    pub async fn get_first_conflict(pool: &PgPool) -> Result<Option<DateTime<Utc>>, Error> {
-        let pool = pool.clone();
-        spawn_blocking(move || Self::get_first_conflict_sync(&pool)).await?
-    }
-
-    fn update_by_id_sync(id_: i32, new_diff_type: &str, pool: &PgPool) -> Result<(), Error> {
+    pub async fn update_by_id(id_: i32, new_diff_type: &str, pool: &PgPool) -> Result<(), Error> {
         use crate::schema::diary_conflict::dsl::{diary_conflict, diff_type, id};
-        let conn = pool.get()?;
         diesel::update(diary_conflict.filter(id.eq(id_)))
             .set(diff_type.eq(new_diff_type))
-            .execute(&conn)
-            .map(|_| ())
-            .map_err(Into::into)
-    }
-
-    pub async fn update_by_id(id_: i32, new_diff_type: &str, pool: &PgPool) -> Result<(), Error> {
-        let pool = pool.clone();
-        let new_diff_type = new_diff_type.to_owned();
-        spawn_blocking(move || Self::update_by_id_sync(id_, &new_diff_type, &pool)).await?
-    }
-
-    fn remove_by_datetime_sync(datetime: DateTime<Utc>, pool: &PgPool) -> Result<(), Error> {
-        use crate::schema::diary_conflict::dsl::{diary_conflict, sync_datetime};
-        let conn = pool.get()?;
-        diesel::delete(diary_conflict.filter(sync_datetime.eq(datetime)))
-            .execute(&conn)
+            .execute_async(pool)
+            .await
             .map(|_| ())
             .map_err(Into::into)
     }
 
     pub async fn remove_by_datetime(datetime: DateTime<Utc>, pool: &PgPool) -> Result<(), Error> {
-        let pool = pool.clone();
-        spawn_blocking(move || Self::remove_by_datetime_sync(datetime, &pool)).await?
+        use crate::schema::diary_conflict::dsl::{diary_conflict, sync_datetime};
+        diesel::delete(diary_conflict.filter(sync_datetime.eq(datetime)))
+            .execute_async(pool)
+            .await
+            .map(|_| ())
+            .map_err(Into::into)
     }
 
     fn insert_from_changeset(
         diary_date: NaiveDate,
         changeset: Changeset,
-        conn: &PgPoolConn,
-    ) -> Result<Option<DateTime<Utc>>, Error> {
+        conn: &PgConnection,
+    ) -> Result<Option<DateTime<Utc>>, DieselError> {
         use crate::schema::diary_conflict::dsl::diary_conflict;
 
         let sync_datetime = Utc::now();
@@ -247,38 +235,33 @@ impl DiaryEntries {
         }
     }
 
-    fn _insert_entry(&self, conn: &PgPoolConn) -> Result<Option<DateTime<Utc>>, Error> {
+    fn _insert_entry(&self, conn: &PgConnection) -> Result<Option<DateTime<Utc>>, DieselError> {
         use crate::schema::diary_entries::dsl::diary_entries;
 
         diesel::insert_into(diary_entries)
             .values(self)
             .execute(conn)
             .map(|_| None)
-            .map_err(Into::into)
-    }
-
-    fn insert_entry_sync(&self, pool: &PgPool) -> Result<Option<DateTime<Utc>>, Error> {
-        let conn = pool.get()?;
-        self._insert_entry(&conn)
     }
 
     pub async fn insert_entry(self, pool: &PgPool) -> Result<(Self, Option<DateTime<Utc>>), Error> {
-        let pool = pool.clone();
-        spawn_blocking(move || self.insert_entry_sync(&pool).map(|x| (self, x))).await?
+        pool.run(move |conn| self._insert_entry(conn).map(|x| (self, x)))
+            .await
+            .map_err(Into::into)
     }
 
     fn _update_entry(
         &self,
-        conn: &PgPoolConn,
+        conn: &PgConnection,
         insert_new: bool,
-    ) -> Result<Option<DateTime<Utc>>, Error> {
+    ) -> Result<Option<DateTime<Utc>>, DieselError> {
         use crate::schema::diary_entries::dsl::{
             diary_date, diary_entries, diary_text, last_modified,
         };
 
         let changeset = self
             ._get_difference(conn, insert_new)?
-            .ok_or_else(|| format_err!("No entry found, should be insert"))?;
+            .ok_or(DieselError::NotFound)?;
 
         let conflict_opt = if changeset.distance > 0 {
             DiaryConflict::insert_from_changeset(self.diary_date, changeset, conn)?
@@ -300,35 +283,14 @@ impl DiaryEntries {
         }
     }
 
-    fn update_entry_sync(
-        &self,
-        pool: &PgPool,
-        insert_new: bool,
-    ) -> Result<Option<DateTime<Utc>>, Error> {
-        let conn = pool.get()?;
-        self._update_entry(&conn, insert_new)
-    }
-
     pub async fn update_entry(
         self,
         pool: &PgPool,
         insert_new: bool,
     ) -> Result<(Self, Option<DateTime<Utc>>), Error> {
-        let pool = pool.clone();
-        spawn_blocking(move || self.update_entry_sync(&pool, insert_new).map(|x| (self, x))).await?
-    }
-
-    fn upsert_entry_sync(
-        &self,
-        pool: &PgPool,
-        insert_new: bool,
-    ) -> Result<Option<DateTime<Utc>>, Error> {
-        let conn = pool.get()?;
-
-        conn.transaction(|| match Self::_get_by_date(self.diary_date, &conn)? {
-            Some(_) => self._update_entry(&conn, insert_new),
-            None => self._insert_entry(&conn),
-        })
+        pool.run(move |conn| self._update_entry(conn, insert_new).map(|x| (self, x)))
+            .await
+            .map_err(Into::into)
     }
 
     pub async fn upsert_entry(
@@ -336,69 +298,59 @@ impl DiaryEntries {
         pool: &PgPool,
         insert_new: bool,
     ) -> Result<(Self, Option<DateTime<Utc>>), Error> {
-        let pool = pool.clone();
-        spawn_blocking(move || self.upsert_entry_sync(&pool, insert_new).map(|x| (self, x))).await?
-    }
-
-    fn get_modified_map_sync(pool: &PgPool) -> Result<HashMap<NaiveDate, DateTime<Utc>>, Error> {
-        use crate::schema::diary_entries::dsl::{diary_date, diary_entries, last_modified};
-        let conn = pool.get()?;
-
-        diary_entries
-            .select((diary_date, last_modified))
-            .load(&conn)
-            .map(|v| v.into_iter().collect())
-            .map_err(Into::into)
+        pool.transaction(move |conn| {
+            match Self::_get_by_date(self.diary_date, conn)? {
+                Some(_) => self._update_entry(conn, insert_new),
+                None => self._insert_entry(conn),
+            }
+            .map(|x| (self, x))
+        })
+        .await
+        .map_err(Into::into)
     }
 
     pub async fn get_modified_map(
         pool: &PgPool,
     ) -> Result<HashMap<NaiveDate, DateTime<Utc>>, Error> {
-        let pool = pool.clone();
-        spawn_blocking(move || Self::get_modified_map_sync(&pool)).await?
+        use crate::schema::diary_entries::dsl::{diary_date, diary_entries, last_modified};
+        diary_entries
+            .select((diary_date, last_modified))
+            .load_async(pool)
+            .await
+            .map(|v| v.into_iter().collect())
+            .map_err(Into::into)
     }
 
-    fn _get_by_date(date: NaiveDate, conn: &PgPoolConn) -> Result<Option<Self>, Error> {
+    fn _get_by_date(date: NaiveDate, conn: &PgConnection) -> Result<Option<Self>, DieselError> {
         use crate::schema::diary_entries::dsl::{diary_date, diary_entries};
-
+        use diesel::OptionalExtension;
         diary_entries
             .filter(diary_date.eq(date))
             .first(conn)
             .optional()
-            .map_err(Into::into)
-    }
-
-    fn get_by_date_sync(date: NaiveDate, pool: &PgPool) -> Result<Option<Self>, Error> {
-        let conn = pool.get()?;
-        Self::_get_by_date(date, &conn)
     }
 
     pub async fn get_by_date(date: NaiveDate, pool: &PgPool) -> Result<Option<Self>, Error> {
-        let pool = pool.clone();
-        spawn_blocking(move || Self::get_by_date_sync(date, &pool)).await?
-    }
-
-    fn get_by_text_sync(search_text: &str, pool: &PgPool) -> Result<Vec<Self>, Error> {
-        use crate::schema::diary_entries::dsl::{diary_date, diary_entries, diary_text};
-        let conn = pool.get()?;
-        diary_entries
-            .filter(diary_text.like(&format!("%{}%", search_text)))
-            .order(diary_date)
-            .load(&conn)
+        pool.run(|conn| Self::_get_by_date(date, conn))
+            .await
             .map_err(Into::into)
     }
 
     pub async fn get_by_text(search_text: &str, pool: &PgPool) -> Result<Vec<Self>, Error> {
-        let pool = pool.clone();
-        let search_text = search_text.to_owned();
-        spawn_blocking(move || Self::get_by_text_sync(&search_text, &pool)).await?
+        use crate::schema::diary_entries::dsl::{diary_date, diary_entries, diary_text};
+        diary_entries
+            .filter(diary_text.like(&format!("%{}%", search_text)))
+            .order(diary_date)
+            .load_async(pool)
+            .await
+            .map_err(Into::into)
     }
 
     fn _get_difference(
         &self,
-        conn: &PgPoolConn,
+        conn: &PgConnection,
         insert_new: bool,
-    ) -> Result<Option<Changeset>, Error> {
+    ) -> Result<Option<Changeset>, DieselError> {
         Self::_get_by_date(self.diary_date, conn).map(|opt| {
             opt.map(|original| {
                 if insert_new {
@@ -410,86 +362,55 @@ impl DiaryEntries {
         })
     }
 
-    fn get_difference_sync(&self, pool: &PgPool) -> Result<Option<Changeset>, Error> {
-        let conn = pool.get()?;
-        self._get_difference(&conn, true)
-    }
-
     pub async fn get_difference(self, pool: &PgPool) -> Result<(Self, Option<Changeset>), Error> {
-        let pool = pool.clone();
-        spawn_blocking(move || self.get_difference_sync(&pool).map(|x| (self, x))).await?
-    }
-
-    fn delete_entry_sync(&self, pool: &PgPool) -> Result<(), Error> {
-        use crate::schema::diary_entries::dsl::{diary_date, diary_entries};
-        let conn = pool.get()?;
-        diesel::delete(diary_entries)
-            .filter(diary_date.eq(self.diary_date))
-            .execute(&conn)
-            .map(|_| ())
+        pool.run(move |conn| self._get_difference(conn, true).map(|x| (self, x)))
+            .await
             .map_err(Into::into)
     }
 
     pub async fn delete_entry(self, pool: &PgPool) -> Result<Self, Error> {
-        let pool = pool.clone();
-        spawn_blocking(move || self.delete_entry_sync(&pool).map(|_| self)).await?
+        use crate::schema::diary_entries::dsl::{diary_date, diary_entries};
+        diesel::delete(diary_entries)
+            .filter(diary_date.eq(self.diary_date))
+            .execute_async(pool)
+            .await
+            .map(|_| self)
+            .map_err(Into::into)
     }
 }
 
 impl DiaryCache {
-    fn insert_entry_sync(&self, pool: &PgPool) -> Result<(), Error> {
-        use crate::schema::diary_cache::dsl::diary_cache;
-        let conn = pool.get()?;
-        diesel::insert_into(diary_cache)
-            .values(self)
-            .execute(&conn)
-            .map(|_| ())
-            .map_err(Into::into)
-    }
-
     pub async fn insert_entry(self, pool: &PgPool) -> Result<Self, Error> {
-        let pool = pool.clone();
-        spawn_blocking(move || self.insert_entry_sync(&pool).map(|_| self)).await?
-    }
-
-    fn get_cache_entries_sync(pool: &PgPool) -> Result<Vec<Self>, Error> {
         use crate::schema::diary_cache::dsl::diary_cache;
-        let conn = pool.get()?;
-        diary_cache.load(&conn).map_err(Into::into)
+        diesel::insert_into(diary_cache)
+            .values(&self)
+            .execute_async(pool)
+            .await
+            .map(|_| self)
+            .map_err(Into::into)
     }
 
     pub async fn get_cache_entries(pool: &PgPool) -> Result<Vec<Self>, Error> {
-        let pool = pool.clone();
-        spawn_blocking(move || Self::get_cache_entries_sync(&pool)).await?
-    }
-
-    fn get_by_text_sync(search_text: &str, pool: &PgPool) -> Result<Vec<Self>, Error> {
-        use crate::schema::diary_cache::dsl::{diary_cache, diary_text};
-        let conn = pool.get()?;
-        diary_cache
-            .filter(diary_text.like(&format!("%{}%", search_text)))
-            .load(&conn)
-            .map_err(Into::into)
+        use crate::schema::diary_cache::dsl::diary_cache;
+        diary_cache.load_async(pool).await.map_err(Into::into)
     }
 
     pub async fn get_by_text(search_text: &str, pool: &PgPool) -> Result<Vec<Self>, Error> {
-        let pool = pool.clone();
-        let search_text = search_text.to_owned();
-        spawn_blocking(move || Self::get_by_text_sync(&search_text, &pool)).await?
-    }
-
-    fn delete_entry_sync(&self, pool: &PgPool) -> Result<(), Error> {
-        use crate::schema::diary_cache::dsl::{diary_cache, diary_datetime};
-        let conn = pool.get()?;
-        diesel::delete(diary_cache)
-            .filter(diary_datetime.eq(self.diary_datetime))
-            .execute(&conn)
-            .map(|_| ())
+        use crate::schema::diary_cache::dsl::{diary_cache, diary_text};
+        diary_cache
+            .filter(diary_text.like(&format!("%{}%", search_text)))
+            .load_async(pool)
+            .await
             .map_err(Into::into)
     }
 
     pub async fn delete_entry(self, pool: &PgPool) -> Result<Self, Error> {
-        let pool = pool.clone();
-        spawn_blocking(move || self.delete_entry_sync(&pool).map(|_| self)).await?
+        use crate::schema::diary_cache::dsl::{diary_cache, diary_datetime};
+        diesel::delete(diary_cache)
+            .filter(diary_datetime.eq(self.diary_datetime))
+            .execute_async(pool)
+            .await
+            .map(|_| self)
+            .map_err(Into::into)
     }
 }
