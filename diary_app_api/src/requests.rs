@@ -2,24 +2,28 @@ use anyhow::{format_err, Error};
 use chrono::{DateTime, NaiveDate, Utc};
 use futures::future::try_join_all;
 use itertools::Itertools;
+use rweb::Schema;
 use serde::{Deserialize, Serialize};
 use stack_string::StackString;
 use std::collections::BTreeSet;
 
-use diary_app_lib::models::{DiaryConflict, DiaryEntries};
+use diary_app_lib::{
+    models::{DiaryConflict, DiaryEntries},
+    naivedate_wrapper::NaiveDateWrapper,
+};
 
 use super::app::DiaryAppActor;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Schema)]
 pub struct SearchOptions {
     pub text: Option<StackString>,
-    pub date: Option<NaiveDate>,
+    pub date: Option<NaiveDateWrapper>,
 }
 
-#[derive(Serialize, Deserialize, Default, Copy, Clone)]
+#[derive(Serialize, Deserialize, Default, Copy, Clone, Schema)]
 pub struct ListOptions {
-    pub min_date: Option<NaiveDate>,
-    pub max_date: Option<NaiveDate>,
+    pub min_date: Option<NaiveDateWrapper>,
+    pub max_date: Option<NaiveDateWrapper>,
     pub start: Option<usize>,
     pub limit: Option<usize>,
 }
@@ -47,7 +51,7 @@ impl DiaryAppRequests {
                     let results: Vec<_> = dapp.search_text(&text).await?;
                     results
                 } else if let Some(date) = opts.date {
-                    let entry = DiaryEntries::get_by_date(date, &dapp.pool)
+                    let entry = DiaryEntries::get_by_date(date.into(), &dapp.pool)
                         .await?
                         .ok_or_else(|| format_err!("Date should exist {}", date))?;
                     vec![entry.diary_text]
@@ -71,7 +75,12 @@ impl DiaryAppRequests {
             }
             DiaryAppRequests::List(opts) => {
                 let dates = dapp
-                    .get_list_of_dates(opts.min_date, opts.max_date, opts.start, opts.limit)
+                    .get_list_of_dates(
+                        opts.min_date.map(Into::into),
+                        opts.max_date.map(Into::into),
+                        opts.start,
+                        opts.limit,
+                    )
                     .await?
                     .into_iter()
                     .map(|x| x.to_string().into())

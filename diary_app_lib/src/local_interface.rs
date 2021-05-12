@@ -20,7 +20,7 @@ pub struct LocalInterface {
 
 impl LocalInterface {
     pub fn new(config: Config, pool: PgPool) -> Self {
-        Self { pool, config }
+        Self { config, pool }
     }
 
     pub async fn export_year_to_local(&self) -> Result<Vec<StackString>, Error> {
@@ -109,7 +109,7 @@ impl LocalInterface {
                 Ok(None)
             });
         let results: Result<Vec<_>, Error> = try_join_all(futures).await;
-        let dates: BTreeMap<_, _> = results?.into_iter().filter_map(|x| x).collect();
+        let dates: BTreeMap<_, _> = results?.into_iter().flatten().collect();
 
         let current_date = Local::now().naive_local().date();
 
