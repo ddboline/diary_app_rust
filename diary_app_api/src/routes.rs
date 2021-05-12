@@ -4,10 +4,10 @@ use itertools::Itertools;
 use lazy_static::lazy_static;
 use log::debug;
 use maplit::hashmap;
+use rweb::{get, post, Json, Query, Rejection, Reply, Schema};
 use serde::{Deserialize, Serialize};
 use stack_string::StackString;
 use std::collections::HashSet;
-use rweb::{Json, Query, Rejection, Reply, Schema, get, post};
 
 use diary_app_lib::{datetime_wrapper::DateTimeWrapper, naivedate_wrapper::NaiveDateWrapper};
 
@@ -82,7 +82,7 @@ pub struct InsertData {
 pub async fn insert(
     data: Json<InsertData>,
     #[cookie = "jwt"] _: LoggedUser,
-    #[data] state: AppState
+    #[data] state: AppState,
 ) -> WarpResult<impl Reply> {
     let data = data.into_inner();
     let body = insert_body(data, state).await?;
@@ -100,7 +100,7 @@ async fn insert_body(data: InsertData, state: AppState) -> HttpResult<Vec<StackS
 #[get("/api/sync")]
 pub async fn sync(
     #[cookie = "jwt"] _: LoggedUser,
-    #[data] state: AppState
+    #[data] state: AppState,
 ) -> WarpResult<impl Reply> {
     let body = sync_body(state).await?;
     let body = format!(
@@ -120,7 +120,7 @@ async fn sync_body(state: AppState) -> HttpResult<Vec<StackString>> {
 #[get("/api/sync_api")]
 pub async fn sync_api(
     #[cookie = "jwt"] _: LoggedUser,
-    #[data] state: AppState
+    #[data] state: AppState,
 ) -> WarpResult<impl Reply> {
     let body = sync_body(state).await?;
     let body = hashmap! {"response" => body.join("\n")};
@@ -137,7 +137,7 @@ pub struct ReplaceData {
 pub async fn replace(
     data: Json<ReplaceData>,
     #[cookie = "jwt"] _: LoggedUser,
-    #[data] state: AppState
+    #[data] state: AppState,
 ) -> WarpResult<impl Reply> {
     let data = data.into_inner();
     let body = replace_body(data, state).await?;
@@ -215,7 +215,7 @@ where
 pub async fn list(
     query: Query<ListOptions>,
     #[cookie = "jwt"] _: LoggedUser,
-    #[data] state: AppState
+    #[data] state: AppState,
 ) -> WarpResult<impl Reply> {
     let query = query.into_inner();
     let body = list_body(query, &state).await?;
@@ -261,7 +261,7 @@ pub struct EditData {
 pub async fn edit(
     query: Query<EditData>,
     #[cookie = "jwt"] _: LoggedUser,
-    #[data] state: AppState
+    #[data] state: AppState,
 ) -> WarpResult<impl Reply> {
     let query = query.into_inner();
     let body = edit_body(query, state).await?;
@@ -291,7 +291,7 @@ async fn edit_body(query: EditData, state: AppState) -> HttpResult<String> {
 pub async fn display(
     query: Query<EditData>,
     #[cookie = "jwt"] _: LoggedUser,
-    #[data] state: AppState
+    #[data] state: AppState,
 ) -> WarpResult<impl Reply> {
     let query = query.into_inner();
     let body = display_body(query, state).await?;
@@ -317,7 +317,7 @@ async fn display_body(query: EditData, state: AppState) -> HttpResult<String> {
 #[get("/api/index.html")]
 pub async fn diary_frontpage(
     #[cookie = "jwt"] _: LoggedUser,
-    #[data] state: AppState
+    #[data] state: AppState,
 ) -> WarpResult<impl Reply> {
     let body = diary_frontpage_body(state).await?;
     Ok(rweb::reply::html(body))
@@ -415,9 +415,10 @@ pub async fn show_conflict(
 
 async fn show_conflict_body(query: ConflictData, state: AppState) -> HttpResult<String> {
     let datetime = query.datetime.map_or_else(Utc::now, Into::into);
-    let diary_date = query
-        .date
-        .map_or_else(|| datetime.with_timezone(&Local).naive_local().date(), Into::into);
+    let diary_date = query.date.map_or_else(
+        || datetime.with_timezone(&Local).naive_local().date(),
+        Into::into,
+    );
     let text = DiaryAppRequests::ShowConflict(datetime)
         .handle(&state.db)
         .await?;

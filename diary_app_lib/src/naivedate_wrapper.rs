@@ -1,5 +1,5 @@
 use chrono::{NaiveDate, NaiveTime};
-use derive_more::{Deref, From, FromStr, Into, Display};
+use derive_more::{Deref, Display, From, FromStr, Into};
 use rweb::openapi::{Entity, Schema, Type};
 use serde::{Deserialize, Serialize};
 

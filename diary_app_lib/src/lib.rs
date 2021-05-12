@@ -9,22 +9,23 @@
 #![allow(clippy::cognitive_complexity)]
 #![allow(clippy::used_underscore_binding)]
 #![allow(clippy::upper_case_acronyms)]
+#![allow(clippy::default_trait_access)]
 
 #[macro_use]
 extern crate diesel;
 
 pub mod config;
+pub mod datetime_wrapper;
 pub mod diary_app_interface;
 pub mod diary_app_opts;
 pub mod local_interface;
 pub mod models;
+pub mod naivedate_wrapper;
 pub mod pgpool;
 pub mod s3_instance;
 pub mod s3_interface;
 pub mod schema;
 pub mod ssh_instance;
-pub mod naivedate_wrapper;
-pub mod datetime_wrapper;
 
 use anyhow::Error;
 use rand::{

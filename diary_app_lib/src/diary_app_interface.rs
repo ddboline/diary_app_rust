@@ -332,7 +332,7 @@ impl DiaryAppInterface {
             }
         });
         let entries: Result<Vec<_>, Error> = try_join_all(futures).await;
-        Ok(entries?.into_iter().filter_map(|x| x).collect())
+        Ok(entries?.into_iter().flatten().collect())
     }
 
     pub async fn serialize_cache(&self) -> Result<Vec<StackString>, Error> {
@@ -454,7 +454,7 @@ impl DiaryAppInterface {
             }
         });
         let results: Result<Vec<_>, Error> = try_join_all(futures).await;
-        Ok(results?.into_iter().filter_map(|x| x).collect())
+        Ok(results?.into_iter().flatten().collect())
     }
 
     pub async fn cleanup_backup(&self) -> Result<Vec<StackString>, Error> {
@@ -499,7 +499,7 @@ impl DiaryAppInterface {
             }
         });
         let results: Result<Vec<_>, Error> = try_join_all(futures).await;
-        Ok(results?.into_iter().filter_map(|x| x).collect())
+        Ok(results?.into_iter().flatten().collect())
     }
 }
 

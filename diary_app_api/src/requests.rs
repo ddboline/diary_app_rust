@@ -2,13 +2,15 @@ use anyhow::{format_err, Error};
 use chrono::{DateTime, NaiveDate, Utc};
 use futures::future::try_join_all;
 use itertools::Itertools;
+use rweb::Schema;
 use serde::{Deserialize, Serialize};
 use stack_string::StackString;
 use std::collections::BTreeSet;
-use rweb::Schema;
 
-use diary_app_lib::models::{DiaryConflict, DiaryEntries};
-use diary_app_lib::naivedate_wrapper::NaiveDateWrapper;
+use diary_app_lib::{
+    models::{DiaryConflict, DiaryEntries},
+    naivedate_wrapper::NaiveDateWrapper,
+};
 
 use super::app::DiaryAppActor;
 
@@ -73,7 +75,12 @@ impl DiaryAppRequests {
             }
             DiaryAppRequests::List(opts) => {
                 let dates = dapp
-                    .get_list_of_dates(opts.min_date.map(Into::into), opts.max_date.map(Into::into), opts.start, opts.limit)
+                    .get_list_of_dates(
+                        opts.min_date.map(Into::into),
+                        opts.max_date.map(Into::into),
+                        opts.start,
+                        opts.limit,
+                    )
                     .await?
                     .into_iter()
                     .map(|x| x.to_string().into())

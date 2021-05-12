@@ -1,7 +1,7 @@
 use anyhow::Error;
+use rweb::Filter;
 use std::{net::SocketAddr, ops::Deref, time::Duration};
 use tokio::time::interval;
-use rweb::Filter;
 
 use diary_app_lib::{config::Config, diary_app_interface::DiaryAppInterface, pgpool::PgPool};
 
@@ -59,10 +59,10 @@ pub async fn start_app() -> Result<(), Error> {
     run_app(dapp, config.port).await
 }
 
-async fn run_app(dapp: DiaryAppActor, port: u32) -> Result<(), Error> {
+async fn run_app(db: DiaryAppActor, port: u32) -> Result<(), Error> {
     TRIGGER_DB_UPDATE.set();
 
-    let app = AppState { db: dapp.clone() };
+    let app = AppState { db };
 
     let search_path = search(app.clone()).boxed();
     let search_api_path = search_api(app.clone()).boxed();
@@ -83,22 +83,23 @@ async fn run_app(dapp: DiaryAppActor, port: u32) -> Result<(), Error> {
     let user_path = user().boxed();
 
     let api_path = search_path
-                .or(search_api_path)
-                .or(insert_path)
-                .or(sync_path)
-                .or(sync_api_path)
-                .or(replace_path)
-                .or(list_path)
-                .or(list_api_path)
-                .or(edit_path)
-                .or(display_path)
-                .or(frontpage_path)
-                .or(list_conflicts_path)
-                .or(show_conflict_path)
-                .or(remove_conflict_path)
-                .or(update_conflict_path)
-                .or(commit_conflict_path)
-                .or(user_path).boxed();
+        .or(search_api_path)
+        .or(insert_path)
+        .or(sync_path)
+        .or(sync_api_path)
+        .or(replace_path)
+        .or(list_path)
+        .or(list_api_path)
+        .or(edit_path)
+        .or(display_path)
+        .or(frontpage_path)
+        .or(list_conflicts_path)
+        .or(show_conflict_path)
+        .or(remove_conflict_path)
+        .or(update_conflict_path)
+        .or(commit_conflict_path)
+        .or(user_path)
+        .boxed();
 
     let routes = api_path.recover(error_response);
     let addr: SocketAddr = format!("127.0.0.1:{}", port).parse()?;

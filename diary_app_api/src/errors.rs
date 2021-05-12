@@ -1,17 +1,16 @@
 use anyhow::Error as AnyhowError;
 use handlebars::RenderError;
 use http::StatusCode;
+use indexmap::IndexMap;
 use log::error;
-use serde::Serialize;
-use std::{convert::Infallible, fmt::Debug};
-use thiserror::Error;
 use rweb::{
     openapi::{Entity, Response, ResponseEntity, Responses, Schema},
     reject::{InvalidHeader, MissingCookie, Reject},
     Rejection, Reply,
 };
-use std::borrow::Cow;
-use indexmap::IndexMap;
+use serde::Serialize;
+use std::{borrow::Cow, convert::Infallible, fmt::Debug};
+use thiserror::Error;
 
 use crate::logged_user::TRIGGER_DB_UPDATE;
 
