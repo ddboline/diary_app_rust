@@ -23,6 +23,8 @@ pub mod s3_instance;
 pub mod s3_interface;
 pub mod schema;
 pub mod ssh_instance;
+pub mod naivedate_wrapper;
+pub mod datetime_wrapper;
 
 use anyhow::Error;
 use rand::{

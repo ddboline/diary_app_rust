@@ -1,7 +1,7 @@
 use anyhow::Error;
 use std::{net::SocketAddr, ops::Deref, time::Duration};
 use tokio::time::interval;
-use warp::Filter;
+use rweb::Filter;
 
 use diary_app_lib::{config::Config, diary_app_interface::DiaryAppInterface, pgpool::PgPool};
 
@@ -62,145 +62,27 @@ pub async fn start_app() -> Result<(), Error> {
 async fn run_app(dapp: DiaryAppActor, port: u32) -> Result<(), Error> {
     TRIGGER_DB_UPDATE.set();
 
-    let dapp = AppState { db: dapp.clone() };
+    let app = AppState { db: dapp.clone() };
 
-    let data = warp::any().map(move || dapp.clone());
+    let search_path = search(app.clone()).boxed();
+    let search_api_path = search_api(app.clone()).boxed();
+    let insert_path = insert(app.clone()).boxed();
+    let sync_path = sync(app.clone()).boxed();
+    let sync_api_path = sync_api(app.clone()).boxed();
+    let replace_path = replace(app.clone()).boxed();
+    let list_path = list(app.clone()).boxed();
+    let list_api_path = list_api(app.clone()).boxed();
+    let edit_path = edit(app.clone()).boxed();
+    let display_path = display(app.clone()).boxed();
+    let frontpage_path = diary_frontpage(app.clone()).boxed();
+    let list_conflicts_path = list_conflicts(app.clone()).boxed();
+    let show_conflict_path = show_conflict(app.clone()).boxed();
+    let remove_conflict_path = remove_conflict(app.clone()).boxed();
+    let update_conflict_path = update_conflict(app.clone()).boxed();
+    let commit_conflict_path = commit_conflict(app.clone()).boxed();
+    let user_path = user().boxed();
 
-    let search_path = warp::path("search")
-        .and(warp::path::end())
-        .and(warp::get())
-        .and(warp::query())
-        .and(warp::cookie("jwt"))
-        .and(data.clone())
-        .and_then(search)
-        .boxed();
-    let search_api_path = warp::path("search_api")
-        .and(warp::path::end())
-        .and(warp::get())
-        .and(warp::query())
-        .and(warp::cookie("jwt"))
-        .and(data.clone())
-        .and_then(search_api)
-        .boxed();
-    let insert_path = warp::path("insert")
-        .and(warp::path::end())
-        .and(warp::post())
-        .and(warp::body::json())
-        .and(warp::cookie("jwt"))
-        .and(data.clone())
-        .and_then(insert)
-        .boxed();
-    let sync_path = warp::path("sync")
-        .and(warp::path::end())
-        .and(warp::get())
-        .and(warp::cookie("jwt"))
-        .and(data.clone())
-        .and_then(sync)
-        .boxed();
-    let sync_api_path = warp::path("sync_api")
-        .and(warp::path::end())
-        .and(warp::get())
-        .and(warp::cookie("jwt"))
-        .and(data.clone())
-        .and_then(sync_api)
-        .boxed();
-    let replace_path = warp::path("replace")
-        .and(warp::path::end())
-        .and(warp::post())
-        .and(warp::body::json())
-        .and(warp::cookie("jwt"))
-        .and(data.clone())
-        .and_then(replace)
-        .boxed();
-    let list_path = warp::path("list")
-        .and(warp::path::end())
-        .and(warp::get())
-        .and(warp::query())
-        .and(warp::cookie("jwt"))
-        .and(data.clone())
-        .and_then(list)
-        .boxed();
-    let list_api_path = warp::path("list_api")
-        .and(warp::path::end())
-        .and(warp::get())
-        .and(warp::query())
-        .and(warp::cookie("jwt"))
-        .and(data.clone())
-        .and_then(list_api)
-        .boxed();
-    let edit_path = warp::path("edit")
-        .and(warp::path::end())
-        .and(warp::get())
-        .and(warp::query())
-        .and(warp::cookie("jwt"))
-        .and(data.clone())
-        .and_then(edit)
-        .boxed();
-    let display_path = warp::path("display")
-        .and(warp::path::end())
-        .and(warp::get())
-        .and(warp::query())
-        .and(warp::cookie("jwt"))
-        .and(data.clone())
-        .and_then(display)
-        .boxed();
-    let frontpage_path = warp::path("index.html")
-        .and(warp::path::end())
-        .and(warp::get())
-        .and(warp::cookie("jwt"))
-        .and(data.clone())
-        .and_then(diary_frontpage)
-        .boxed();
-    let list_conflicts_path = warp::path("list_conflicts")
-        .and(warp::path::end())
-        .and(warp::get())
-        .and(warp::query())
-        .and(warp::cookie("jwt"))
-        .and(data.clone())
-        .and_then(list_conflicts)
-        .boxed();
-    let show_conflict_path = warp::path("show_conflict")
-        .and(warp::path::end())
-        .and(warp::get())
-        .and(warp::query())
-        .and(warp::cookie("jwt"))
-        .and(data.clone())
-        .and_then(show_conflict)
-        .boxed();
-    let remove_conflict_path = warp::path("remove_conflict")
-        .and(warp::path::end())
-        .and(warp::get())
-        .and(warp::query())
-        .and(warp::cookie("jwt"))
-        .and(data.clone())
-        .and_then(remove_conflict)
-        .boxed();
-    let update_conflict_path = warp::path("update_conflict")
-        .and(warp::path::end())
-        .and(warp::get())
-        .and(warp::query())
-        .and(warp::cookie("jwt"))
-        .and(data.clone())
-        .and_then(update_conflict)
-        .boxed();
-    let commit_conflict_path = warp::path("commit_conflict")
-        .and(warp::path::end())
-        .and(warp::get())
-        .and(warp::query())
-        .and(warp::cookie("jwt"))
-        .and(data.clone())
-        .and_then(commit_conflict)
-        .boxed();
-    let user_path = warp::path("user")
-        .and(warp::path::end())
-        .and(warp::get())
-        .and(warp::cookie("jwt"))
-        .and_then(user)
-        .boxed();
-
-    let api_path = warp::path("api")
-        .and(
-            search_path
+    let api_path = search_path
                 .or(search_api_path)
                 .or(insert_path)
                 .or(sync_path)
@@ -216,13 +98,11 @@ async fn run_app(dapp: DiaryAppActor, port: u32) -> Result<(), Error> {
                 .or(remove_conflict_path)
                 .or(update_conflict_path)
                 .or(commit_conflict_path)
-                .or(user_path),
-        )
-        .boxed();
+                .or(user_path).boxed();
 
     let routes = api_path.recover(error_response);
     let addr: SocketAddr = format!("127.0.0.1:{}", port).parse()?;
-    warp::serve(routes).bind(addr).await;
+    rweb::serve(routes).bind(addr).await;
     Ok(())
 }
 

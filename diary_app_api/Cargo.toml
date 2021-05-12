@@ -1,6 +1,6 @@
 [package]
 name = "diary_app_api"
-version = "0.7.1"
+version = "0.7.2"
 authors = ["Daniel Boline <ddboline@gmail.com>"]
 edition = "2018"
 
@@ -8,7 +8,7 @@ edition = "2018"
 
 [dependencies]
 diary_app_lib = {path = "../diary_app_lib"}
-warp = "0.3"
+rweb = {version="0.11", features=["openapi"]}
 http = "0.2"
 chrono = "0.4"
 futures = "0.3"
@@ -25,11 +25,12 @@ thiserror = "1.0"
 async-trait = "0.1"
 handlebars = "3.5"
 itertools = "0.10"
-stack-string = { version="0.2", features=["diesel_types"] }
-authorized_users = { git = "https://github.com/ddboline/auth_server_rust.git", tag="0.4.9"}
+indexmap = "1.6"
+stack-string = { version="0.2", features=["diesel_types", "rweb-openapi"] }
+authorized_users = { git = "https://github.com/ddboline/auth_server_rust.git", tag="0.4.12"}
 
 [dev-dependencies]
 reqwest = {version="0.11", features=["cookies", "json", "rustls-tls", "stream"]}
-auth_server_http = { git = "https://github.com/ddboline/auth_server_rust.git", tag="0.4.9"}
-auth_server_lib = { git = "https://github.com/ddboline/auth_server_rust.git", tag="0.4.9"}
+auth_server_http = { git = "https://github.com/ddboline/auth_server_rust.git", tag="0.4.12"}
+auth_server_lib = { git = "https://github.com/ddboline/auth_server_rust.git", tag="0.4.12"}
 env_logger = "0.8"
