@@ -1,6 +1,7 @@
 use anyhow::Error;
+use handlebars::Handlebars;
 use rweb::Filter;
-use std::{net::SocketAddr, ops::Deref, time::Duration};
+use std::{net::SocketAddr, ops::Deref, sync::Arc, time::Duration};
 use tokio::time::interval;
 
 use diary_app_lib::{config::Config, diary_app_interface::DiaryAppInterface, pgpool::PgPool};
@@ -29,6 +30,7 @@ impl Deref for DiaryAppActor {
 #[derive(Clone)]
 pub struct AppState {
     pub db: DiaryAppActor,
+    pub hb: Arc<Handlebars<'static>>,
 }
 
 pub async fn start_app() -> Result<(), Error> {
@@ -62,7 +64,12 @@ pub async fn start_app() -> Result<(), Error> {
 async fn run_app(db: DiaryAppActor, port: u32) -> Result<(), Error> {
     TRIGGER_DB_UPDATE.set();
 
-    let app = AppState { db };
+    let mut hb = Handlebars::new();
+    hb.register_template_string("id", include_str!("../../templates/index.html.hbr"))
+        .expect("Failed to parse template");
+    let hb = Arc::new(hb);
+
+    let app = AppState { db, hb };
 
     let search_path = search(app.clone()).boxed();
     let search_api_path = search_api(app.clone()).boxed();

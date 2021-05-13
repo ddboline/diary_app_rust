@@ -1,7 +1,5 @@
 use chrono::{Local, Utc};
-use handlebars::Handlebars;
 use itertools::Itertools;
-use lazy_static::lazy_static;
 use log::debug;
 use maplit::hashmap;
 use rweb::{get, post, Json, Query, Rejection, Reply, Schema};
@@ -20,15 +18,6 @@ use super::{
 
 pub type WarpResult<T> = Result<T, Rejection>;
 pub type HttpResult<T> = Result<T, Error>;
-
-lazy_static! {
-    static ref HANDLEBARS: Handlebars<'static> = {
-        let mut h = Handlebars::new();
-        h.register_template_string("id", include_str!("../../templates/index.html.hbr"))
-            .expect("Failed to parse template");
-        h
-    };
-}
 
 #[get("/api/search_api")]
 pub async fn search_api(
@@ -341,7 +330,7 @@ async fn diary_frontpage_body(state: AppState) -> HttpResult<String> {
         "LIST_TEXT" => body.as_str(),
         "DISPLAY_TEXT" => "",
     };
-    let body = HANDLEBARS.render("id", &params)?;
+    let body = state.hb.render("id", &params)?;
     Ok(body)
 }
 
