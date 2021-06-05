@@ -1,6 +1,11 @@
 use anyhow::Error;
 use handlebars::Handlebars;
-use rweb::Filter;
+use rweb::{
+    filters::BoxedFilter,
+    http::header::CONTENT_TYPE,
+    openapi::{self, Info},
+    Filter, Reply,
+};
 use std::{net::SocketAddr, ops::Deref, sync::Arc, time::Duration};
 use tokio::time::interval;
 
@@ -61,16 +66,7 @@ pub async fn start_app() -> Result<(), Error> {
     run_app(dapp, config.port).await
 }
 
-async fn run_app(db: DiaryAppActor, port: u32) -> Result<(), Error> {
-    TRIGGER_DB_UPDATE.set();
-
-    let mut hb = Handlebars::new();
-    hb.register_template_string("id", include_str!("../../templates/index.html.hbr"))
-        .expect("Failed to parse template");
-    let hb = Arc::new(hb);
-
-    let app = AppState { db, hb };
-
+fn get_api_path(app: &AppState) -> BoxedFilter<(impl Reply,)> {
     let search_path = search(app.clone()).boxed();
     let search_api_path = search_api(app.clone()).boxed();
     let insert_path = insert(app.clone()).boxed();
@@ -89,7 +85,7 @@ async fn run_app(db: DiaryAppActor, port: u32) -> Result<(), Error> {
     let commit_conflict_path = commit_conflict(app.clone()).boxed();
     let user_path = user().boxed();
 
-    let api_path = search_path
+    search_path
         .or(search_api_path)
         .or(insert_path)
         .or(sync_path)
@@ -106,9 +102,47 @@ async fn run_app(db: DiaryAppActor, port: u32) -> Result<(), Error> {
         .or(update_conflict_path)
         .or(commit_conflict_path)
         .or(user_path)
-        .boxed();
+        .boxed()
+}
 
-    let routes = api_path.recover(error_response);
+async fn run_app(db: DiaryAppActor, port: u32) -> Result<(), Error> {
+    TRIGGER_DB_UPDATE.set();
+
+    let mut hb = Handlebars::new();
+    hb.register_template_string("id", include_str!("../../templates/index.html.hbr"))
+        .expect("Failed to parse template");
+    let hb = Arc::new(hb);
+
+    let app = AppState { db, hb };
+
+    let (spec, api_path) = openapi::spec()
+        .info(Info {
+            title: "Frontend for AWS".into(),
+            description: "Web Frontend for AWS Services".into(),
+            version: env!("CARGO_PKG_VERSION").into(),
+            ..Info::default()
+        })
+        .build(|| get_api_path(&app));
+    let spec = Arc::new(spec);
+    let spec_json_path = rweb::path!("api" / "openapi" / "json")
+        .and(rweb::path::end())
+        .map({
+            let spec = spec.clone();
+            move || rweb::reply::json(spec.as_ref())
+        });
+
+    let spec_yaml = serde_yaml::to_string(spec.as_ref())?;
+    let spec_yaml_path = rweb::path!("api" / "openapi" / "yaml")
+        .and(rweb::path::end())
+        .map(move || {
+            let reply = rweb::reply::html(spec_yaml.clone());
+            rweb::reply::with_header(reply, CONTENT_TYPE, "text/yaml")
+        });
+
+    let routes = api_path
+        .or(spec_json_path)
+        .or(spec_yaml_path)
+        .recover(error_response);
     let addr: SocketAddr = format!("127.0.0.1:{}", port).parse()?;
     rweb::serve(routes).bind(addr).await;
     Ok(())

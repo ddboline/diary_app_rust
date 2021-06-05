@@ -33,14 +33,14 @@ difference = "2.0"
 anyhow = "1.0"
 thiserror = "1.0"
 dirs = "3.0"
-tokio = {version="1.2", features=["full"]}
+tokio = {version="1.6", features=["full"]}
 derive_more = "0.99"
 envy = "0.4"
 smartstring = "0.2"
 smallvec = "1.6"
 deadqueue = "0.2"
 diesel-derive-newtype = "0.1"
-rweb = {version="0.11", features=["openapi"]}
+rweb = {version="0.12", features=["openapi"]}
 stack-string = { version="0.2", features=["diesel_types", "rweb-openapi"] }
 stdout-channel = "0.4"
 

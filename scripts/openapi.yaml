@@ -1,0 +1,427 @@
+---
+openapi: 3.0.1
+info:
+  title: Frontend for AWS
+  description: Web Frontend for AWS Services
+  version: 0.7.3
+paths:
+  /api/search:
+    get:
+      parameters:
+        - name: text
+          in: query
+          schema:
+            nullable: true
+            type: string
+        - name: date
+          in: query
+          schema:
+            format: naivedate
+            nullable: true
+            type: string
+      responses:
+        "200":
+          description: Search Output
+          content:
+            text/html:
+              schema:
+                type: string
+        "400":
+          description: Bad Request
+        "500":
+          description: Internal Server Error
+  /api/search_api:
+    get:
+      parameters:
+        - name: text
+          in: query
+          schema:
+            nullable: true
+            type: string
+        - name: date
+          in: query
+          schema:
+            format: naivedate
+            nullable: true
+            type: string
+      responses:
+        "200":
+          description: Search Result
+          content:
+            application/json:
+              schema:
+                properties:
+                  text:
+                    type: string
+                type: object
+                required:
+                  - text
+        "400":
+          description: Bad Request
+        "500":
+          description: Internal Server Error
+  /api/insert:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              properties:
+                text:
+                  type: string
+              type: object
+              required:
+                - text
+        required: true
+      responses:
+        "201":
+          description: Insert Data Result
+          content:
+            application/json:
+              schema:
+                properties:
+                  datetime:
+                    type: string
+                type: object
+                required:
+                  - datetime
+        "400":
+          description: Bad Request
+        "500":
+          description: Internal Server Error
+  /api/sync:
+    get:
+      responses:
+        "200":
+          description: Sync Output
+          content:
+            text/html:
+              schema:
+                type: string
+        "400":
+          description: Bad Request
+        "500":
+          description: Internal Server Error
+  /api/sync_api:
+    get:
+      responses:
+        "200":
+          description: Sync Api Response
+          content:
+            application/json:
+              schema:
+                properties:
+                  response:
+                    type: string
+                type: object
+                required:
+                  - response
+        "400":
+          description: Bad Request
+        "500":
+          description: Internal Server Error
+  /api/replace:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              properties:
+                date:
+                  format: naivedate
+                  type: string
+                text:
+                  type: string
+              type: object
+              required:
+                - date
+                - text
+        required: true
+      responses:
+        "201":
+          description: Replace Response
+          content:
+            application/json:
+              schema:
+                properties:
+                  entry:
+                    type: string
+                type: object
+                required:
+                  - entry
+        "400":
+          description: Bad Request
+        "500":
+          description: Internal Server Error
+  /api/list:
+    get:
+      parameters:
+        - name: min_date
+          in: query
+          schema:
+            format: naivedate
+            nullable: true
+            type: string
+        - name: max_date
+          in: query
+          schema:
+            format: naivedate
+            nullable: true
+            type: string
+        - name: start
+          in: query
+          schema:
+            nullable: true
+            type: integer
+        - name: limit
+          in: query
+          schema:
+            nullable: true
+            type: integer
+      responses:
+        "200":
+          description: List Output
+          content:
+            text/html:
+              schema:
+                type: string
+        "400":
+          description: Bad Request
+        "500":
+          description: Internal Server Error
+  /api/list_api:
+    get:
+      parameters:
+        - name: min_date
+          in: query
+          schema:
+            format: naivedate
+            nullable: true
+            type: string
+        - name: max_date
+          in: query
+          schema:
+            format: naivedate
+            nullable: true
+            type: string
+        - name: start
+          in: query
+          schema:
+            nullable: true
+            type: integer
+        - name: limit
+          in: query
+          schema:
+            nullable: true
+            type: integer
+      responses:
+        "200":
+          description: ListApi Response
+          content:
+            application/json:
+              schema:
+                properties:
+                  list:
+                    items:
+                      type: string
+                    type: array
+                type: object
+                required:
+                  - list
+        "400":
+          description: Bad Request
+        "500":
+          description: Internal Server Error
+  /api/edit:
+    get:
+      parameters:
+        - name: date
+          in: query
+          schema:
+            format: naivedate
+            type: string
+      responses:
+        "200":
+          description: Edit Output
+          content:
+            text/html:
+              schema:
+                type: string
+        "400":
+          description: Bad Request
+        "500":
+          description: Internal Server Error
+  /api/display:
+    get:
+      parameters:
+        - name: date
+          in: query
+          schema:
+            format: naivedate
+            type: string
+      responses:
+        "200":
+          description: Display Output
+          content:
+            text/html:
+              schema:
+                type: string
+        "400":
+          description: Bad Request
+        "500":
+          description: Internal Server Error
+  /api/index.html:
+    get:
+      responses:
+        "200":
+          description: Frontpage
+          content:
+            text/html:
+              schema:
+                type: string
+        "400":
+          description: Bad Request
+        "500":
+          description: Internal Server Error
+  /api/list_conflicts:
+    get:
+      parameters:
+        - name: date
+          in: query
+          schema:
+            format: naivedate
+            nullable: true
+            type: string
+        - name: datetime
+          in: query
+          schema:
+            format: datetime
+            nullable: true
+            type: string
+      responses:
+        "200":
+          description: List Conflicts
+          content:
+            text/html:
+              schema:
+                type: string
+        "400":
+          description: Bad Request
+        "500":
+          description: Internal Server Error
+  /api/show_conflict:
+    get:
+      parameters:
+        - name: date
+          in: query
+          schema:
+            format: naivedate
+            nullable: true
+            type: string
+        - name: datetime
+          in: query
+          schema:
+            format: datetime
+            nullable: true
+            type: string
+      responses:
+        "200":
+          description: Show Conflict
+          content:
+            text/html:
+              schema:
+                type: string
+        "400":
+          description: Bad Request
+        "500":
+          description: Internal Server Error
+  /api/remove_conflict:
+    get:
+      parameters:
+        - name: date
+          in: query
+          schema:
+            format: naivedate
+            nullable: true
+            type: string
+        - name: datetime
+          in: query
+          schema:
+            format: datetime
+            nullable: true
+            type: string
+      responses:
+        "200":
+          description: Remove Conflict
+          content:
+            text/html:
+              schema:
+                type: string
+        "400":
+          description: Bad Request
+        "500":
+          description: Internal Server Error
+  /api/update_conflict:
+    get:
+      parameters:
+        - name: id
+          in: query
+          schema:
+            type: integer
+        - name: diff_type
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Update Conflict
+          content:
+            text/html:
+              schema:
+                type: string
+        "400":
+          description: Bad Request
+        "500":
+          description: Internal Server Error
+  /api/commit_conflict:
+    get:
+      parameters:
+        - name: datetime
+          in: query
+          schema:
+            format: datetime
+            type: string
+      responses:
+        "200":
+          description: Commit Confclit
+          content:
+            application/json:
+              schema:
+                properties:
+                  entry:
+                    type: string
+                type: object
+                required:
+                  - entry
+        "400":
+          description: Bad Request
+        "500":
+          description: Internal Server Error
+  /api/user:
+    get:
+      responses:
+        "200":
+          description: Logged in User
+          content:
+            application/json:
+              schema:
+                properties:
+                  email:
+                    type: string
+                type: object
+                required:
+                  - email
+        "400":
+          description: Bad Request
+        "500":
+          description: Internal Server Error
