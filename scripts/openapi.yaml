@@ -3,7 +3,7 @@ openapi: 3.0.1
 info:
   title: Frontend for AWS
   description: Web Frontend for AWS Services
-  version: 0.7.3
+  version: 0.7.4
 paths:
   /api/search:
     get:
@@ -393,7 +393,7 @@ paths:
             type: string
       responses:
         "200":
-          description: Commit Confclit
+          description: Commit Conflict
           content:
             application/json:
               schema:

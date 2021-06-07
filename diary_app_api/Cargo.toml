@@ -27,7 +27,7 @@ handlebars = "4.0"
 itertools = "0.10"
 indexmap = "1.6"
 serde_yaml = "0.8"
-rweb_helper = { git = "https://github.com/ddboline/rweb_helper.git", tag="0.1.0" }
+rweb_helper = { git = "https://github.com/ddboline/rweb_helper.git", tag="0.2.2" }
 stack-string = { version="0.2", features=["diesel_types", "rweb-openapi"] }
 authorized_users = { git = "https://github.com/ddboline/auth_server_rust.git", tag="0.5.4"}
 

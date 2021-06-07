@@ -4,11 +4,7 @@ use log::debug;
 use maplit::hashmap;
 use rweb::{get, post, Json, Query, Rejection, Schema};
 use rweb_helper::{
-    content_type_trait::ContentTypeHtml,
-    derive_response_description,
-    html_response::HtmlResponse as HtmlBase,
-    json_response::JsonResponse as JsonBase,
-    status_code_trait::{StatusCodeCreated, StatusCodeOk},
+    html_response::HtmlResponse as HtmlBase, json_response::JsonResponse as JsonBase, RwebResponse,
 };
 use serde::{Deserialize, Serialize};
 use stack_string::StackString;
@@ -30,9 +26,10 @@ pub type HttpResult<T> = Result<T, Error>;
 struct SearchApiOutput {
     text: String,
 }
-struct SearchApiDescription {}
-derive_response_description!(SearchApiDescription, "Search Result");
-type SearchApiResponse = JsonBase<SearchApiOutput, Error, StatusCodeOk, SearchApiDescription>;
+
+#[derive(RwebResponse)]
+#[response(description = "Search Result")]
+struct SearchApiResponse(JsonBase<SearchApiOutput, Error>);
 
 #[get("/api/search_api")]
 pub async fn search_api(
@@ -43,7 +40,7 @@ pub async fn search_api(
     let query = query.into_inner();
     let body = search_api_body(query, state).await?;
     let text = body.join("\n");
-    Ok(JsonBase::new(SearchApiOutput { text }))
+    Ok(JsonBase::new(SearchApiOutput { text }).into())
 }
 
 async fn search_api_body(query: SearchOptions, state: AppState) -> HttpResult<Vec<StackString>> {
@@ -53,9 +50,9 @@ async fn search_api_body(query: SearchOptions, state: AppState) -> HttpResult<Ve
         .map_err(Into::into)
 }
 
-struct SearchDescription {}
-derive_response_description!(SearchDescription, "Search Output");
-type SearchResponse = HtmlBase<String, Error, StatusCodeOk, ContentTypeHtml, SearchDescription>;
+#[derive(RwebResponse)]
+#[response(description = "Search Output", content = "html")]
+struct SearchResponse(HtmlBase<String, Error>);
 
 #[get("/api/search")]
 pub async fn search(
@@ -71,7 +68,7 @@ pub async fn search(
             rows=50 cols=100>{}</textarea>"#,
         body.join("\n")
     );
-    Ok(HtmlBase::new(body))
+    Ok(HtmlBase::new(body).into())
 }
 
 async fn search_body(query: SearchOptions, state: AppState) -> HttpResult<Vec<StackString>> {
@@ -90,10 +87,10 @@ pub struct InsertData {
 struct InsertDataOutput {
     datetime: String,
 }
-struct InsertDataDescription {}
-derive_response_description!(InsertDataDescription, "Insert Data Result");
-type InsertDataResponse =
-    JsonBase<InsertDataOutput, Error, StatusCodeCreated, InsertDataDescription>;
+
+#[derive(RwebResponse)]
+#[response(description = "Insert Data Result", status = "CREATED")]
+struct InsertDataResponse(JsonBase<InsertDataOutput, Error>);
 
 #[post("/api/insert")]
 pub async fn insert(
@@ -104,7 +101,7 @@ pub async fn insert(
     let data = data.into_inner();
     let body = insert_body(data, state).await?;
     let datetime = body.join("\n");
-    Ok(JsonBase::new(InsertDataOutput { datetime }))
+    Ok(JsonBase::new(InsertDataOutput { datetime }).into())
 }
 
 async fn insert_body(data: InsertData, state: AppState) -> HttpResult<Vec<StackString>> {
@@ -114,9 +111,9 @@ async fn insert_body(data: InsertData, state: AppState) -> HttpResult<Vec<StackS
         .map_err(Into::into)
 }
 
-struct SyncDescription {}
-derive_response_description!(SyncDescription, "Sync Output");
-type SyncResponse = HtmlBase<String, Error, StatusCodeOk, ContentTypeHtml, SyncDescription>;
+#[derive(RwebResponse)]
+#[response(description = "Sync Output", content = "html")]
+struct SyncResponse(HtmlBase<String, Error>);
 
 #[get("/api/sync")]
 pub async fn sync(
@@ -128,7 +125,7 @@ pub async fn sync(
         r#"<textarea autofocus readonly="readonly" name="message" id="diary_editor_form" rows=50 cols=100>{}</textarea>"#,
         body.join("\n")
     );
-    Ok(HtmlBase::new(body))
+    Ok(HtmlBase::new(body).into())
 }
 
 async fn sync_body(state: AppState) -> HttpResult<Vec<StackString>> {
@@ -142,9 +139,10 @@ async fn sync_body(state: AppState) -> HttpResult<Vec<StackString>> {
 struct SyncApiOutput {
     response: String,
 }
-struct SyncApiDescription {}
-derive_response_description!(SyncApiDescription, "Sync Api Response");
-type SyncApiResponse = JsonBase<SyncApiOutput, Error, StatusCodeOk, SyncApiDescription>;
+
+#[derive(RwebResponse)]
+#[response(description = "Sync Api Response")]
+struct SyncApiResponse(JsonBase<SyncApiOutput, Error>);
 
 #[get("/api/sync_api")]
 pub async fn sync_api(
@@ -153,7 +151,7 @@ pub async fn sync_api(
 ) -> WarpResult<SyncApiResponse> {
     let body = sync_body(state).await?;
     let response = body.join("\n");
-    Ok(JsonBase::new(SyncApiOutput { response }))
+    Ok(JsonBase::new(SyncApiOutput { response }).into())
 }
 
 #[derive(Serialize, Deserialize, Schema)]
@@ -166,9 +164,10 @@ pub struct ReplaceData {
 struct ReplaceOutput {
     entry: String,
 }
-struct ReplaceDescription {}
-derive_response_description!(ReplaceDescription, "Replace Response");
-type ReplaceResponse = JsonBase<ReplaceOutput, Error, StatusCodeCreated, ReplaceDescription>;
+
+#[derive(RwebResponse)]
+#[response(description = "Replace Response", status = "CREATED")]
+struct ReplaceResponse(JsonBase<ReplaceOutput, Error>);
 
 #[post("/api/replace")]
 pub async fn replace(
@@ -179,7 +178,7 @@ pub async fn replace(
     let data = data.into_inner();
     let body = replace_body(data, state).await?;
     let entry = body.join("\n");
-    Ok(JsonBase::new(ReplaceOutput { entry }))
+    Ok(JsonBase::new(ReplaceOutput { entry }).into())
 }
 
 async fn replace_body(data: ReplaceData, state: AppState) -> HttpResult<Vec<StackString>> {
@@ -248,9 +247,9 @@ where
     format!("{}\n<br>\n{}", text, buttons)
 }
 
-struct ListDescription {}
-derive_response_description!(ListDescription, "List Output");
-type ListResponse = HtmlBase<String, Error, StatusCodeOk, ContentTypeHtml, ListDescription>;
+#[derive(RwebResponse)]
+#[response(description = "List Output", content = "html")]
+struct ListResponse(HtmlBase<String, Error>);
 
 #[get("/api/list")]
 pub async fn list(
@@ -260,7 +259,7 @@ pub async fn list(
 ) -> WarpResult<ListResponse> {
     let query = query.into_inner();
     let body = list_body(query, &state).await?;
-    Ok(HtmlBase::new(body))
+    Ok(HtmlBase::new(body).into())
 }
 
 async fn list_body(query: ListOptions, state: &AppState) -> HttpResult<String> {
@@ -285,9 +284,10 @@ async fn list_api_body(query: ListOptions, state: &AppState) -> HttpResult<Vec<S
 struct ListOutput {
     list: Vec<StackString>,
 }
-struct ListApiDescription {}
-derive_response_description!(ListApiDescription, "ListApi Response");
-type ListApiResponse = JsonBase<ListOutput, Error, StatusCodeOk, ListApiDescription>;
+
+#[derive(RwebResponse)]
+#[response(description = "ListApi Response")]
+struct ListApiResponse(JsonBase<ListOutput, Error>);
 
 #[get("/api/list_api")]
 pub async fn list_api(
@@ -297,7 +297,7 @@ pub async fn list_api(
 ) -> WarpResult<ListApiResponse> {
     let query = query.into_inner();
     let list = list_api_body(query, &state).await?;
-    Ok(JsonBase::new(ListOutput { list }))
+    Ok(JsonBase::new(ListOutput { list }).into())
 }
 
 #[derive(Serialize, Deserialize, Schema)]
@@ -305,9 +305,9 @@ pub struct EditData {
     pub date: NaiveDateWrapper,
 }
 
-struct EditDescription {}
-derive_response_description!(EditDescription, "Edit Output");
-type EditResponse = HtmlBase<String, Error, StatusCodeOk, ContentTypeHtml, EditDescription>;
+#[derive(RwebResponse)]
+#[response(description = "Edit Output", content = "html")]
+struct EditResponse(HtmlBase<String, Error>);
 
 #[get("/api/edit")]
 pub async fn edit(
@@ -317,7 +317,7 @@ pub async fn edit(
 ) -> WarpResult<EditResponse> {
     let query = query.into_inner();
     let body = edit_body(query, state).await?;
-    Ok(HtmlBase::new(body))
+    Ok(HtmlBase::new(body).into())
 }
 
 async fn edit_body(query: EditData, state: AppState) -> HttpResult<String> {
@@ -339,9 +339,9 @@ async fn edit_body(query: EditData, state: AppState) -> HttpResult<String> {
     Ok(body)
 }
 
-struct DisplayDescription {}
-derive_response_description!(DisplayDescription, "Display Output");
-type DisplayResponse = HtmlBase<String, Error, StatusCodeOk, ContentTypeHtml, DisplayDescription>;
+#[derive(RwebResponse)]
+#[response(description = "Display Output", content = "html")]
+struct DisplayResponse(HtmlBase<String, Error>);
 
 #[get("/api/display")]
 pub async fn display(
@@ -351,7 +351,7 @@ pub async fn display(
 ) -> WarpResult<DisplayResponse> {
     let query = query.into_inner();
     let body = display_body(query, state).await?;
-    Ok(HtmlBase::new(body))
+    Ok(HtmlBase::new(body).into())
 }
 
 async fn display_body(query: EditData, state: AppState) -> HttpResult<String> {
@@ -370,10 +370,9 @@ async fn display_body(query: EditData, state: AppState) -> HttpResult<String> {
     Ok(body)
 }
 
-struct FrontpageDescription {}
-derive_response_description!(FrontpageDescription, "Frontpage");
-type FrontpageResponse =
-    HtmlBase<String, Error, StatusCodeOk, ContentTypeHtml, FrontpageDescription>;
+#[derive(RwebResponse)]
+#[response(description = "Frontpage", content = "html")]
+struct FrontpageResponse(HtmlBase<String, Error>);
 
 #[get("/api/index.html")]
 pub async fn diary_frontpage(
@@ -381,7 +380,7 @@ pub async fn diary_frontpage(
     #[data] state: AppState,
 ) -> WarpResult<FrontpageResponse> {
     let body = diary_frontpage_body(state).await?;
-    Ok(HtmlBase::new(body))
+    Ok(HtmlBase::new(body).into())
 }
 
 async fn diary_frontpage_body(state: AppState) -> HttpResult<String> {
@@ -412,10 +411,9 @@ pub struct ConflictData {
     pub datetime: Option<DateTimeWrapper>,
 }
 
-struct ListConflictsDescription {}
-derive_response_description!(ListConflictsDescription, "List Conflicts");
-type ListConflictsResponse =
-    HtmlBase<String, Error, StatusCodeOk, ContentTypeHtml, ListConflictsDescription>;
+#[derive(RwebResponse)]
+#[response(description = "List Conflicts", content = "html")]
+struct ListConflictsResponse(HtmlBase<String, Error>);
 
 #[get("/api/list_conflicts")]
 pub async fn list_conflicts(
@@ -425,7 +423,7 @@ pub async fn list_conflicts(
 ) -> WarpResult<ListConflictsResponse> {
     let query = query.into_inner();
     let body = list_conflicts_body(query, state).await?;
-    Ok(HtmlBase::new(body))
+    Ok(HtmlBase::new(body).into())
 }
 
 async fn list_conflicts_body(query: ConflictData, state: AppState) -> HttpResult<String> {
@@ -468,10 +466,9 @@ async fn list_conflicts_body(query: ConflictData, state: AppState) -> HttpResult
     Ok(body)
 }
 
-struct ShowConflictDescription {}
-derive_response_description!(ShowConflictDescription, "Show Conflict");
-type ShowConflictResponse =
-    HtmlBase<String, Error, StatusCodeOk, ContentTypeHtml, ShowConflictDescription>;
+#[derive(RwebResponse)]
+#[response(description = "Show Conflict", content = "html")]
+struct ShowConflictResponse(HtmlBase<String, Error>);
 
 #[get("/api/show_conflict")]
 pub async fn show_conflict(
@@ -481,7 +478,7 @@ pub async fn show_conflict(
 ) -> WarpResult<ShowConflictResponse> {
     let query = query.into_inner();
     let body = show_conflict_body(query, state).await?;
-    Ok(HtmlBase::new(body))
+    Ok(HtmlBase::new(body).into())
 }
 
 async fn show_conflict_body(query: ConflictData, state: AppState) -> HttpResult<String> {
@@ -507,10 +504,9 @@ async fn show_conflict_body(query: ConflictData, state: AppState) -> HttpResult<
     Ok(body)
 }
 
-struct RemoveConflictDescription {}
-derive_response_description!(RemoveConflictDescription, "Remove Conflict");
-type RemoveConflictResponse =
-    HtmlBase<String, Error, StatusCodeOk, ContentTypeHtml, RemoveConflictDescription>;
+#[derive(RwebResponse)]
+#[response(description = "Remove Conflict", content = "html")]
+struct RemoveConflictResponse(HtmlBase<String, Error>);
 
 #[get("/api/remove_conflict")]
 pub async fn remove_conflict(
@@ -520,7 +516,7 @@ pub async fn remove_conflict(
 ) -> WarpResult<RemoveConflictResponse> {
     let query = query.into_inner();
     let body = remove_conflict_body(query, state).await?;
-    Ok(HtmlBase::new(body))
+    Ok(HtmlBase::new(body).into())
 }
 
 async fn remove_conflict_body(query: ConflictData, state: AppState) -> HttpResult<String> {
@@ -546,10 +542,9 @@ pub struct ConflictUpdateData {
     pub diff_type: StackString,
 }
 
-struct UpdateConflictDescription {}
-derive_response_description!(UpdateConflictDescription, "Update Conflict");
-type UpdateConflictResponse =
-    HtmlBase<String, Error, StatusCodeOk, ContentTypeHtml, UpdateConflictDescription>;
+#[derive(RwebResponse)]
+#[response(description = "Update Conflict", content = "html")]
+struct UpdateConflictResponse(HtmlBase<String, Error>);
 
 #[get("/api/update_conflict")]
 pub async fn update_conflict(
@@ -559,7 +554,7 @@ pub async fn update_conflict(
 ) -> WarpResult<UpdateConflictResponse> {
     let query = query.into_inner();
     update_conflict_body(query, state).await?;
-    Ok(HtmlBase::new("finished".to_string()))
+    Ok(HtmlBase::new("finished".to_string()).into())
 }
 
 async fn update_conflict_body(query: ConflictUpdateData, state: AppState) -> HttpResult<()> {
@@ -577,9 +572,9 @@ pub struct CommitConflictData {
     pub datetime: DateTimeWrapper,
 }
 
-struct ConflictDescription {}
-derive_response_description!(ConflictDescription, "Commit Confclit");
-type ConflictResponse = JsonBase<ReplaceOutput, Error, StatusCodeOk, ConflictDescription>;
+#[derive(RwebResponse)]
+#[response(description = "Commit Conflict")]
+struct ConflictResponse(JsonBase<ReplaceOutput, Error>);
 
 #[get("/api/commit_conflict")]
 pub async fn commit_conflict(
@@ -590,7 +585,7 @@ pub async fn commit_conflict(
     let query = query.into_inner();
     let body = commit_conflict_body(query, state).await?;
     let entry = body.join("\n");
-    Ok(JsonBase::new(ReplaceOutput { entry }))
+    Ok(JsonBase::new(ReplaceOutput { entry }).into())
 }
 
 async fn commit_conflict_body(
@@ -603,11 +598,11 @@ async fn commit_conflict_body(
         .map_err(Into::into)
 }
 
-struct UserDescription {}
-derive_response_description!(UserDescription, "Logged in User");
-type UserResponse = JsonBase<LoggedUser, Error, StatusCodeOk, UserDescription>;
+#[derive(RwebResponse)]
+#[response(description = "Logged in User")]
+struct UserResponse(JsonBase<LoggedUser, Error>);
 
 #[get("/api/user")]
 pub async fn user(#[cookie = "jwt"] user: LoggedUser) -> WarpResult<UserResponse> {
-    Ok(JsonBase::new(user))
+    Ok(JsonBase::new(user).into())
 }
