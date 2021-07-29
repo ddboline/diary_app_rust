@@ -1,6 +1,6 @@
 [package]
 name = "diary_app_lib"
-version = "0.7.5"
+version = "0.7.6"
 authors = ["Daniel Boline <ddboline@gmail.com>"]
 edition = "2018"
 
@@ -9,10 +9,10 @@ r2d2 = "0.8"
 diesel = {version="1.4", features=["postgres", "r2d2", "chrono"]}
 tokio-diesel = {git="https://github.com/mehcode/tokio-diesel.git", branch="master"}
 chrono = "0.4"
-rusoto_core = {version = "0.46", default_features = false, features=["rustls"]}
-rusoto_s3 = {version = "0.46", default_features = false, features=["rustls"]}
+rusoto_core = {version = "0.47", default_features = false, features=["rustls"]}
+rusoto_s3 = {version = "0.47", default_features = false, features=["rustls"]}
 sts_profile_auth = "0.6"
-s3-ext = "0.2"
+s3-ext = "0.3"
 rand = "0.8"
 log = "0.4"
 url = "2.2"
@@ -33,7 +33,7 @@ difference = "2.0"
 anyhow = "1.0"
 thiserror = "1.0"
 dirs = "3.0"
-tokio = {version="1.6", features=["full"]}
+tokio = {version="1.9", features=["full"]}
 derive_more = "0.99"
 envy = "0.4"
 smartstring = "0.2"
