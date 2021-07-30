@@ -10,11 +10,12 @@ use serde::{Deserialize, Serialize};
 use stack_string::StackString;
 use std::collections::HashSet;
 
-use super::{datetime_wrapper::DateTimeWrapper, naivedate_wrapper::NaiveDateWrapper};
 use super::{
     app::AppState,
+    datetime_wrapper::DateTimeWrapper,
     errors::ServiceError as Error,
     logged_user::LoggedUser,
+    naivedate_wrapper::NaiveDateWrapper,
     requests::{DiaryAppRequests, ListOptions, SearchOptions},
 };
 

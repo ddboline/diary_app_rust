@@ -7,12 +7,9 @@ use serde::{Deserialize, Serialize};
 use stack_string::StackString;
 use std::collections::BTreeSet;
 
-use diary_app_lib::{
-    models::{DiaryConflict, DiaryEntries},
-};
+use diary_app_lib::models::{DiaryConflict, DiaryEntries};
 
-use super::app::DiaryAppActor;
-use super::naivedate_wrapper::NaiveDateWrapper;
+use super::{app::DiaryAppActor, naivedate_wrapper::NaiveDateWrapper};
 
 #[derive(Serialize, Deserialize, Schema)]
 pub struct SearchOptions {
