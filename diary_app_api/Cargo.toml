@@ -1,6 +1,6 @@
 [package]
 name = "diary_app_api"
-version = "0.7.6"
+version = "0.7.7"
 authors = ["Daniel Boline <ddboline@gmail.com>"]
 edition = "2018"
 
@@ -27,6 +27,9 @@ handlebars = "4.0"
 itertools = "0.10"
 indexmap = "1.6"
 serde_yaml = "0.8"
+derive_more = "0.99"
+diesel = {version="1.4", features=["postgres", "r2d2", "chrono"]}
+diesel-derive-newtype = "0.1"
 rweb_helper = { git = "https://github.com/ddboline/rweb_helper.git", tag="0.2.2" }
 stack-string = { version="0.2", features=["diesel_types", "rweb-openapi"] }
 authorized_users = { git = "https://github.com/ddboline/auth_server_rust.git", tag="0.5.13"}

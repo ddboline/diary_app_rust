@@ -9,10 +9,10 @@ use std::collections::BTreeSet;
 
 use diary_app_lib::{
     models::{DiaryConflict, DiaryEntries},
-    naivedate_wrapper::NaiveDateWrapper,
 };
 
 use super::app::DiaryAppActor;
+use super::naivedate_wrapper::NaiveDateWrapper;
 
 #[derive(Serialize, Deserialize, Schema)]
 pub struct SearchOptions {
