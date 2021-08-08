@@ -2,7 +2,7 @@ use anyhow::{format_err, Error};
 use chrono::{DateTime, Datelike, Local, NaiveDate, Utc};
 use futures::future::try_join_all;
 use jwalk::WalkDir;
-use log::debug;
+use log::{debug, info};
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use regex::Regex;
 use stack_string::StackString;
@@ -437,7 +437,7 @@ impl DiaryAppInterface {
             spawn_blocking(move || dap.get_file_date_len_map()).await?
         };
         let file_date_len_map = Arc::new(file_date_len_map?);
-        println!("len file_date_len_map {}", file_date_len_map.len());
+        info!("len file_date_len_map {}", file_date_len_map.len());
 
         let futures = file_date_len_map.iter().map(|(date, backup_len)| {
             let pool = self.pool.clone();
