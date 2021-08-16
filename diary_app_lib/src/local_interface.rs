@@ -153,7 +153,7 @@ impl LocalInterface {
                     DiaryEntries::get_by_date(current_date, &self.pool).await?
                 {
                     f.write_all(existing_entry.diary_text.as_bytes()).await?;
-                    entries.push(existing_entry)
+                    entries.push(existing_entry);
                 } else {
                     f.write_all(b"").await?;
                     let new_entry = DiaryEntries::new(current_date, "");
@@ -206,7 +206,7 @@ impl LocalInterface {
                 );
                 entry.upsert_entry(&self.pool, true).await?.0
             };
-            entries.push(entry)
+            entries.push(entry);
         }
         Ok(entries)
     }

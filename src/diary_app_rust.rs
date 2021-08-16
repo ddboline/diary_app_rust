@@ -8,7 +8,7 @@ async fn main() {
         Ok(_) => {}
         Err(e) => {
             if !e.to_string().contains("Broken pipe") {
-                panic!("{}", e)
+                panic!("{}", e);
             }
         }
     }

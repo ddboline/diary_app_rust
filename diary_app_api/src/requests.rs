@@ -54,7 +54,7 @@ impl DiaryAppRequests {
                     let results: Vec<_> = dapp.search_text(&text).await?;
                     results
                 } else if let Some(date) = opts.date {
-                    let entry = DiaryEntries::get_by_date(date.into(), &dapp.pool)
+                    let entry = DiaryEntries::get_by_date(date, &dapp.pool)
                         .await?
                         .ok_or_else(|| format_err!("Date should exist {}", date))?;
                     vec![entry.diary_text]

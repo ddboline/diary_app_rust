@@ -27,7 +27,7 @@ async fn main() -> Result<(), Error> {
             original_length.replace(entry.diary_text.len());
             original_text = entry.diary_text.to_string();
         }
-        if diary_files.contains(&date) {
+        if diary_files.contains(date) {
             let diary_path = diary_dir.join(date.to_string()).with_extension("txt");
             let new_text = read_to_string(&diary_path)?;
 
@@ -36,7 +36,7 @@ async fn main() -> Result<(), Error> {
                 diary_text = new_text;
             }
         }
-        if elog_files.contains(&date) {
+        if elog_files.contains(date) {
             let elog_path = elog_dir.join(date.to_string()).with_extension("txt");
             let new_text = read_to_string(&elog_path)?;
 

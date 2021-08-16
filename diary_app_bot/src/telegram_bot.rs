@@ -63,7 +63,7 @@ async fn bot_handler(dapp_interface: DiaryAppInterface) -> Result<(), Error> {
                     FAILURE_COUNT.check()?;
                     let first_word = data.split_whitespace().next();
                     match first_word.map(str::to_lowercase).as_deref() {
-                        Some(":search") | Some(":s") => {
+                        Some(":search" | ":s") => {
                             let search_text = data
                                 .trim_start_matches(first_word.unwrap())
                                 .trim()
@@ -86,7 +86,7 @@ async fn bot_handler(dapp_interface: DiaryAppInterface) -> Result<(), Error> {
                             }
                             FAILURE_COUNT.check()?;
                         }
-                        Some(":help") | Some(":h") => {
+                        Some(":help" | ":h") => {
                             let help_text = format!(
                                 "{}\n{}\n{}\n{}",
                                 ":s, :search => search for text, get text for given date, or for \
@@ -105,14 +105,14 @@ async fn bot_handler(dapp_interface: DiaryAppInterface) -> Result<(), Error> {
                             )
                             .await?;
                         }
-                        Some(":next") | Some(":n") => {
+                        Some(":next" | ":n") => {
                             if let Some(entry) = OUTPUT_BUFFER.write().await.pop() {
                                 api.send(message.text_reply(entry.to_string())).await?;
                             } else {
                                 api.send(message.text_reply("...")).await?;
                             }
                         }
-                        Some(":insert") | Some(":i") => {
+                        Some(":insert" | ":i") => {
                             let insert_text = data
                                 .trim_start_matches(first_word.unwrap())
                                 .trim()
@@ -180,7 +180,7 @@ async fn fill_telegram_user_ids(pool: PgPool) -> Result<(), Error> {
             *TELEGRAM_USERIDS.write().await = telegram_userid_set;
             FAILURE_COUNT.reset()?;
         } else {
-            FAILURE_COUNT.increment()?
+            FAILURE_COUNT.increment()?;
         }
         sleep(Duration::from_secs(60)).await;
     }

@@ -61,7 +61,7 @@ impl FromStr for LoggedUser {
 pub async fn fill_from_db(pool: &PgPool) -> Result<(), Error> {
     debug!("{:?}", *TRIGGER_DB_UPDATE);
     let users: Vec<_> = if TRIGGER_DB_UPDATE.check() {
-        AuthorizedUsers::get_authorized_users(&pool)
+        AuthorizedUsers::get_authorized_users(pool)
             .await?
             .into_iter()
             .map(|user| user.email)

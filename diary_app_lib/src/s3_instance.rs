@@ -100,7 +100,7 @@ impl S3Instance {
                 let last_modified = resp
                     .last_modified
                     .as_ref()
-                    .and_then(|lm| DateTime::parse_from_rfc3339(&lm).ok())
+                    .and_then(|lm| DateTime::parse_from_rfc3339(lm).ok())
                     .map_or_else(Utc::now, |d| d.with_timezone(&Utc));
                 Ok((buf, last_modified))
             }

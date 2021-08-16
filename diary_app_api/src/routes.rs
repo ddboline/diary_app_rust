@@ -184,7 +184,7 @@ pub async fn replace(
 
 async fn replace_body(data: ReplaceData, state: AppState) -> HttpResult<Vec<StackString>> {
     DiaryAppRequests::Replace {
-        date: data.date.into(),
+        date: data.date,
         text: data.text,
     }
     .handle(&state.db)
@@ -322,7 +322,7 @@ pub async fn edit(
 }
 
 async fn edit_body(query: EditData, state: AppState) -> HttpResult<String> {
-    let diary_date = query.date.into();
+    let diary_date = query.date;
     let text = DiaryAppRequests::Display(diary_date)
         .handle(&state.db)
         .await?;
@@ -356,7 +356,7 @@ pub async fn display(
 }
 
 async fn display_body(query: EditData, state: AppState) -> HttpResult<String> {
-    let diary_date = query.date.into();
+    let diary_date = query.date;
     let text = DiaryAppRequests::Display(diary_date)
         .handle(&state.db)
         .await?;
@@ -440,7 +440,7 @@ async fn list_conflicts_body(query: ConflictData, state: AppState) -> HttpResult
             buttons.push(format!(
                 r#"<button type="submit" onclick="cleanConflicts('{}')">Clean</button>"#,
                 date
-            ))
+            ));
         }
     }
     buttons.push(r#"<button type="submit" onclick="switchToList()">List</button>"#.to_string());
@@ -524,12 +524,12 @@ pub async fn remove_conflict(
 
 async fn remove_conflict_body(query: ConflictData, state: AppState) -> HttpResult<String> {
     let body = if let Some(datetime) = query.datetime {
-        let text = DiaryAppRequests::RemoveConflict(datetime.into())
+        let text = DiaryAppRequests::RemoveConflict(datetime)
             .handle(&state.db)
             .await?;
         text.join("\n")
     } else if let Some(date) = query.date {
-        let text = DiaryAppRequests::CleanConflicts(date.into())
+        let text = DiaryAppRequests::CleanConflicts(date)
             .handle(&state.db)
             .await?;
         text.join("\n")
@@ -597,7 +597,7 @@ async fn commit_conflict_body(
     query: CommitConflictData,
     state: AppState,
 ) -> HttpResult<Vec<StackString>> {
-    DiaryAppRequests::CommitConflict(query.datetime.into())
+    DiaryAppRequests::CommitConflict(query.datetime)
         .handle(&state.db)
         .await
         .map_err(Into::into)

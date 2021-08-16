@@ -137,18 +137,18 @@ impl DiaryAppInterface {
                 let year: Option<i32> = cap.name("year").and_then(|x| x.as_str().parse().ok());
                 let month: Option<u32> = cap.name("month").and_then(|x| x.as_str().parse().ok());
                 let day: Option<u32> = cap.name("day").and_then(|x| x.as_str().parse().ok());
-                dates.extend_from_slice(&Self::get_matching_dates(&mod_map, year, month, day));
+                dates.extend_from_slice(&Self::get_matching_dates(mod_map, year, month, day));
             }
         } else if year_month_regex.is_match(search_text) {
             for cap in year_month_regex.captures_iter(search_text) {
                 let year: Option<i32> = cap.name("year").and_then(|x| x.as_str().parse().ok());
                 let month: Option<u32> = cap.name("month").and_then(|x| x.as_str().parse().ok());
-                dates.extend_from_slice(&Self::get_matching_dates(&mod_map, year, month, None));
+                dates.extend_from_slice(&Self::get_matching_dates(mod_map, year, month, None));
             }
         } else if year_regex.is_match(search_text) {
             for cap in year_regex.captures_iter(search_text) {
                 let year: Option<i32> = cap.name("year").and_then(|x| x.as_str().parse().ok());
-                dates.extend_from_slice(&Self::get_matching_dates(&mod_map, year, None, None));
+                dates.extend_from_slice(&Self::get_matching_dates(mod_map, year, None, None));
             }
         }
         Ok(dates)

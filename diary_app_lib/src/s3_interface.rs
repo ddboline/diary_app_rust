@@ -41,7 +41,7 @@ impl TryFrom<Object> for KeyMetaData {
         let last_modified = obj
             .last_modified
             .as_ref()
-            .and_then(|lm| DateTime::parse_from_rfc3339(&lm).ok())
+            .and_then(|lm| DateTime::parse_from_rfc3339(lm).ok())
             .map_or_else(Utc::now, |d| d.with_timezone(&Utc));
         let size = obj.size.unwrap_or(0);
         Ok(Self {
