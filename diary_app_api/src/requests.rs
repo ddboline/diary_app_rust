@@ -9,19 +9,25 @@ use std::collections::BTreeSet;
 
 use diary_app_lib::models::{DiaryConflict, DiaryEntries};
 
-use super::{app::DiaryAppActor, naivedate_wrapper::NaiveDateWrapper};
+use super::app::DiaryAppActor;
 
 #[derive(Serialize, Deserialize, Schema)]
 pub struct SearchOptions {
+    #[schema(description = "Search Text")]
     pub text: Option<StackString>,
-    pub date: Option<NaiveDateWrapper>,
+    #[schema(description = "Search Date")]
+    pub date: Option<NaiveDate>,
 }
 
 #[derive(Serialize, Deserialize, Default, Copy, Clone, Schema)]
 pub struct ListOptions {
-    pub min_date: Option<NaiveDateWrapper>,
-    pub max_date: Option<NaiveDateWrapper>,
+    #[schema(description = "Minimum Date")]
+    pub min_date: Option<NaiveDate>,
+    #[schema(description = "Maximum Date")]
+    pub max_date: Option<NaiveDate>,
+    #[schema(description = "Start Index")]
     pub start: Option<usize>,
+    #[schema(description = "Limit")]
     pub limit: Option<usize>,
 }
 

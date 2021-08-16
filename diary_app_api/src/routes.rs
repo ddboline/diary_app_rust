@@ -1,4 +1,4 @@
-use chrono::{Local, Utc};
+use chrono::{DateTime, Local, NaiveDate, Utc};
 use itertools::Itertools;
 use log::debug;
 use maplit::hashmap;
@@ -12,10 +12,8 @@ use std::collections::HashSet;
 
 use super::{
     app::AppState,
-    datetime_wrapper::DateTimeWrapper,
     errors::ServiceError as Error,
     logged_user::LoggedUser,
-    naivedate_wrapper::NaiveDateWrapper,
     requests::{DiaryAppRequests, ListOptions, SearchOptions},
 };
 
@@ -80,6 +78,7 @@ async fn search_body(query: SearchOptions, state: AppState) -> HttpResult<Vec<St
 
 #[derive(Serialize, Deserialize, Schema)]
 pub struct InsertData {
+    #[schema(description = "Text to Insert")]
     pub text: StackString,
 }
 
@@ -156,7 +155,9 @@ pub async fn sync_api(
 
 #[derive(Serialize, Deserialize, Schema)]
 pub struct ReplaceData {
-    pub date: NaiveDateWrapper,
+    #[schema(description = "Replacement Date")]
+    pub date: NaiveDate,
+    #[schema(description = "Replacement Text")]
     pub text: StackString,
 }
 
@@ -302,7 +303,7 @@ pub async fn list_api(
 
 #[derive(Serialize, Deserialize, Schema)]
 pub struct EditData {
-    pub date: NaiveDateWrapper,
+    pub date: NaiveDate,
 }
 
 #[derive(RwebResponse)]
@@ -407,8 +408,10 @@ async fn diary_frontpage_body(state: AppState) -> HttpResult<String> {
 
 #[derive(Serialize, Deserialize, Schema)]
 pub struct ConflictData {
-    pub date: Option<NaiveDateWrapper>,
-    pub datetime: Option<DateTimeWrapper>,
+    #[schema(description = "Conflict Date")]
+    pub date: Option<NaiveDate>,
+    #[schema(description = "Conflict DateTime")]
+    pub datetime: Option<DateTime<Utc>>,
 }
 
 #[derive(RwebResponse)]
@@ -538,7 +541,9 @@ async fn remove_conflict_body(query: ConflictData, state: AppState) -> HttpResul
 
 #[derive(Serialize, Deserialize, Schema)]
 pub struct ConflictUpdateData {
+    #[schema(description = "Conflict ID")]
     pub id: i32,
+    #[schema(description = "Difference Type")]
     pub diff_type: StackString,
 }
 
@@ -569,7 +574,7 @@ async fn update_conflict_body(query: ConflictUpdateData, state: AppState) -> Htt
 
 #[derive(Serialize, Deserialize, Schema)]
 pub struct CommitConflictData {
-    pub datetime: DateTimeWrapper,
+    pub datetime: DateTime<Utc>,
 }
 
 #[derive(RwebResponse)]

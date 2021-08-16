@@ -9,9 +9,7 @@
 #![allow(clippy::default_trait_access)]
 
 pub mod app;
-pub mod datetime_wrapper;
 pub mod errors;
 pub mod logged_user;
-pub mod naivedate_wrapper;
 pub mod requests;
 pub mod routes;
