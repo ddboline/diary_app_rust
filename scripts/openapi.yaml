@@ -3,20 +3,24 @@ openapi: 3.0.1
 info:
   title: Frontend for AWS
   description: Web Frontend for AWS Services
-  version: 0.7.4
+  version: 0.7.9
 paths:
   /api/search:
     get:
       parameters:
         - name: text
           in: query
+          required: false
           schema:
+            description: Search Text
             nullable: true
             type: string
         - name: date
           in: query
+          required: false
           schema:
-            format: naivedate
+            description: Search Date
+            format: date
             nullable: true
             type: string
       responses:
@@ -35,13 +39,17 @@ paths:
       parameters:
         - name: text
           in: query
+          required: false
           schema:
+            description: Search Text
             nullable: true
             type: string
         - name: date
           in: query
+          required: false
           schema:
-            format: naivedate
+            description: Search Date
+            format: date
             nullable: true
             type: string
       responses:
@@ -68,6 +76,7 @@ paths:
             schema:
               properties:
                 text:
+                  description: Text to Insert
                   type: string
               type: object
               required:
@@ -128,9 +137,11 @@ paths:
             schema:
               properties:
                 date:
-                  format: naivedate
+                  description: Replacement Date
+                  format: date
                   type: string
                 text:
+                  description: Replacement Text
                   type: string
               type: object
               required:
@@ -158,26 +169,36 @@ paths:
       parameters:
         - name: min_date
           in: query
+          required: false
           schema:
-            format: naivedate
+            description: Minimum Date
+            format: date
             nullable: true
             type: string
         - name: max_date
           in: query
+          required: false
           schema:
-            format: naivedate
+            description: Maximum Date
+            format: date
             nullable: true
             type: string
         - name: start
           in: query
+          required: false
           schema:
+            description: Start Index
             nullable: true
             type: integer
+            minimum: 0
         - name: limit
           in: query
+          required: false
           schema:
+            description: Limit
             nullable: true
             type: integer
+            minimum: 0
       responses:
         "200":
           description: List Output
@@ -194,26 +215,36 @@ paths:
       parameters:
         - name: min_date
           in: query
+          required: false
           schema:
-            format: naivedate
+            description: Minimum Date
+            format: date
             nullable: true
             type: string
         - name: max_date
           in: query
+          required: false
           schema:
-            format: naivedate
+            description: Maximum Date
+            format: date
             nullable: true
             type: string
         - name: start
           in: query
+          required: false
           schema:
+            description: Start Index
             nullable: true
             type: integer
+            minimum: 0
         - name: limit
           in: query
+          required: false
           schema:
+            description: Limit
             nullable: true
             type: integer
+            minimum: 0
       responses:
         "200":
           description: ListApi Response
@@ -237,8 +268,9 @@ paths:
       parameters:
         - name: date
           in: query
+          required: true
           schema:
-            format: naivedate
+            format: date
             type: string
       responses:
         "200":
@@ -256,8 +288,9 @@ paths:
       parameters:
         - name: date
           in: query
+          required: true
           schema:
-            format: naivedate
+            format: date
             type: string
       responses:
         "200":
@@ -288,14 +321,18 @@ paths:
       parameters:
         - name: date
           in: query
+          required: false
           schema:
-            format: naivedate
+            description: Conflict Date
+            format: date
             nullable: true
             type: string
         - name: datetime
           in: query
+          required: false
           schema:
-            format: datetime
+            description: Conflict DateTime
+            format: date-time
             nullable: true
             type: string
       responses:
@@ -314,14 +351,18 @@ paths:
       parameters:
         - name: date
           in: query
+          required: false
           schema:
-            format: naivedate
+            description: Conflict Date
+            format: date
             nullable: true
             type: string
         - name: datetime
           in: query
+          required: false
           schema:
-            format: datetime
+            description: Conflict DateTime
+            format: date-time
             nullable: true
             type: string
       responses:
@@ -340,14 +381,18 @@ paths:
       parameters:
         - name: date
           in: query
+          required: false
           schema:
-            format: naivedate
+            description: Conflict Date
+            format: date
             nullable: true
             type: string
         - name: datetime
           in: query
+          required: false
           schema:
-            format: datetime
+            description: Conflict DateTime
+            format: date-time
             nullable: true
             type: string
       responses:
@@ -366,11 +411,15 @@ paths:
       parameters:
         - name: id
           in: query
+          required: true
           schema:
+            description: Conflict ID
             type: integer
         - name: diff_type
           in: query
+          required: true
           schema:
+            description: Difference Type
             type: string
       responses:
         "200":
@@ -388,8 +437,9 @@ paths:
       parameters:
         - name: datetime
           in: query
+          required: true
           schema:
-            format: datetime
+            format: date-time
             type: string
       responses:
         "200":
@@ -417,6 +467,7 @@ paths:
               schema:
                 properties:
                   email:
+                    description: Email Address
                     type: string
                 type: object
                 required:
@@ -425,3 +476,4 @@ paths:
           description: Bad Request
         "500":
           description: Internal Server Error
+components: {}
