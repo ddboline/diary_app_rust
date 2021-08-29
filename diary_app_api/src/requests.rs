@@ -46,8 +46,32 @@ pub enum DiaryAppRequests {
     CommitConflict(DateTime<Utc>),
 }
 
+pub enum DiaryAppOutput {
+    Lines(Vec<StackString>),
+    Timestamps(Vec<DateTime<Utc>>),
+    Dates(Vec<NaiveDate>),
+}
+
+impl From<Vec<StackString>> for DiaryAppOutput {
+    fn from(item: Vec<StackString>) -> Self {
+        Self::Lines(item)
+    }
+}
+
+impl From<Vec<DateTime<Utc>>> for DiaryAppOutput {
+    fn from(item: Vec<DateTime<Utc>>) -> Self {
+        Self::Timestamps(item)
+    }
+}
+
+impl From<Vec<NaiveDate>> for DiaryAppOutput {
+    fn from(item: Vec<NaiveDate>) -> Self {
+        Self::Dates(item)
+    }
+}
+
 impl DiaryAppRequests {
-    pub async fn handle(self, dapp: &DiaryAppActor) -> Result<Vec<StackString>, Error> {
+    pub async fn handle(self, dapp: &DiaryAppActor) -> Result<DiaryAppOutput, Error> {
         match self {
             DiaryAppRequests::Search(opts) => {
                 let body = if let Some(text) = opts.text {
@@ -61,20 +85,21 @@ impl DiaryAppRequests {
                 } else {
                     vec!["".into()]
                 };
-                Ok(body)
+                Ok(body.into())
             }
             DiaryAppRequests::Insert(text) => {
                 let cache = dapp.cache_text(&text).await?;
-                Ok(vec![format!("{}", cache.diary_datetime).into()])
+                Ok(vec![cache.diary_datetime].into())
             }
             DiaryAppRequests::Sync => {
                 let output = dapp.sync_everything().await?;
-                Ok(output)
+                Ok(output.into())
             }
             DiaryAppRequests::Replace { date, text } => {
                 let (entry, _) = dapp.replace_text(date, &text).await?;
-                let body = format!("{}\n{}", entry.diary_date, entry.diary_text).into();
-                Ok(vec![body])
+                let body: StackString =
+                    format!("{}\n{}", entry.diary_date, entry.diary_text).into();
+                Ok(vec![body].into())
             }
             DiaryAppRequests::List(opts) => {
                 let dates = dapp
@@ -84,33 +109,26 @@ impl DiaryAppRequests {
                         opts.start,
                         opts.limit,
                     )
-                    .await?
-                    .into_iter()
-                    .map(|x| x.to_string().into())
-                    .collect();
-                Ok(dates)
+                    .await?;
+                Ok(dates.into())
             }
             DiaryAppRequests::Display(date) => {
                 let entry = DiaryEntries::get_by_date(date, &dapp.pool)
                     .await?
                     .ok_or_else(|| format_err!("Date should exist {}", date))?;
-                Ok(vec![entry.diary_text])
+                Ok(vec![entry.diary_text].into())
             }
             DiaryAppRequests::ListConflicts(None) => {
-                let conflicts: BTreeSet<_> = DiaryConflict::get_all_dates(&dapp.pool)
-                    .await?
-                    .into_iter()
-                    .map(|x| x.to_string().into())
-                    .collect();
-                Ok(conflicts.into_iter().collect())
+                let mut conflicts = DiaryConflict::get_all_dates(&dapp.pool).await?;
+                conflicts.sort();
+                conflicts.dedup();
+                Ok(conflicts.into())
             }
             DiaryAppRequests::ListConflicts(Some(date)) => {
-                let conflicts: BTreeSet<_> = DiaryConflict::get_by_date(date, &dapp.pool)
-                    .await?
-                    .into_iter()
-                    .map(|entry| entry.format("%Y-%m-%dT%H:%M:%S%.fZ").to_string().into())
-                    .collect();
-                Ok(conflicts.into_iter().collect())
+                let mut conflicts = DiaryConflict::get_by_date(date, &dapp.pool).await?;
+                conflicts.sort();
+                conflicts.dedup();
+                Ok(conflicts.into())
             }
             DiaryAppRequests::ShowConflict(datetime) => {
                 let conflicts = DiaryConflict::get_by_datetime(datetime, &dapp.pool).await?;
@@ -126,7 +144,7 @@ impl DiaryAppRequests {
                     format_err!("Something has gone horribly wrong {:?}", conflicts)
                 })?;
 
-                let conflicts = conflicts
+                let conflicts: Vec<StackString> = conflicts
                     .into_iter()
                     .map(|entry| {
                         let nlines = entry.diff_text.split('\n').count() + 1;
@@ -157,11 +175,12 @@ impl DiaryAppRequests {
                         }
                     })
                     .collect();
-                Ok(conflicts)
+                Ok(conflicts.into())
             }
             DiaryAppRequests::RemoveConflict(datetime) => {
                 DiaryConflict::remove_by_datetime(datetime, &dapp.pool).await?;
-                Ok(vec![format!("remove {}", datetime).into()])
+                let body: StackString = format!("remove {}", datetime).into();
+                Ok(vec![body].into())
             }
             DiaryAppRequests::CleanConflicts(date) => {
                 let futures = DiaryConflict::get_by_date(date, &dapp.pool)
@@ -174,7 +193,8 @@ impl DiaryAppRequests {
                             Ok(format!("remove {}", datetime).into())
                         }
                     });
-                try_join_all(futures).await
+                let results: Result<Vec<StackString>, Error> = try_join_all(futures).await;
+                results.map(Into::into).map_err(Into::into)
             }
             DiaryAppRequests::UpdateConflict { id, diff_text } => {
                 let new_diff_type = match diff_text.as_str() {
@@ -183,7 +203,8 @@ impl DiaryAppRequests {
                     _ => return Err(format_err!("Bad diff type {}", diff_text)),
                 };
                 DiaryConflict::update_by_id(id, new_diff_type, &dapp.pool).await?;
-                Ok(Vec::new())
+                let body: StackString = "updated".into();
+                Ok(vec![body].into())
             }
             DiaryAppRequests::CommitConflict(datetime) => {
                 let conflicts = DiaryConflict::get_by_datetime(datetime, &dapp.pool).await?;
@@ -210,8 +231,9 @@ impl DiaryAppRequests {
                     })
                     .join("\n");
                 let (entry, _) = dapp.replace_text(date, &additions).await?;
-                let body = format!("{}\n{}", entry.diary_date, entry.diary_text).into();
-                Ok(vec![body])
+                let body: StackString =
+                    format!("{}\n{}", entry.diary_date, entry.diary_text).into();
+                Ok(vec![body].into())
             }
         }
     }
