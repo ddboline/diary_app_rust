@@ -14,3 +14,26 @@ pub mod errors;
 pub mod logged_user;
 pub mod requests;
 pub mod routes;
+
+use chrono::{DateTime, Utc};
+use derive_more::{Deref, From, Into};
+use diary_app_lib::models::DiaryCache;
+use rweb::Schema;
+use serde::{Deserialize, Serialize};
+use stack_string::StackString;
+
+use rweb_helper::derive_rweb_schema;
+
+#[derive(Deref, Clone, Debug, Serialize, Deserialize, Into, From)]
+pub struct DiaryCacheWrapper(DiaryCache);
+
+derive_rweb_schema!(DiaryCacheWrapper, _DiaryCacheWrapper);
+
+#[allow(dead_code)]
+#[derive(Schema)]
+struct _DiaryCacheWrapper {
+    #[schema(description = "Cache Datetime")]
+    diary_datetime: DateTime<Utc>,
+    #[schema(description = "Cache Text")]
+    diary_text: StackString,
+}

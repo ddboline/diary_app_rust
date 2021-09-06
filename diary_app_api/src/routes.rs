@@ -10,11 +10,14 @@ use serde::{Deserialize, Serialize};
 use stack_string::StackString;
 use std::collections::HashSet;
 
+use diary_app_lib::models::DiaryCache;
+
 use super::{
     app::AppState,
     errors::ServiceError as Error,
     logged_user::LoggedUser,
     requests::{DiaryAppOutput, DiaryAppRequests, ListOptions, SearchOptions},
+    DiaryCacheWrapper,
 };
 
 pub type WarpResult<T> = Result<T, Rejection>;
@@ -663,4 +666,42 @@ struct UserResponse(JsonBase<LoggedUser, Error>);
 #[get("/api/user")]
 pub async fn user(#[cookie = "jwt"] user: LoggedUser) -> WarpResult<UserResponse> {
     Ok(JsonBase::new(user).into())
+}
+
+#[derive(RwebResponse)]
+#[response(description = "Get Diary Cache")]
+struct DiaryCacheResponse(JsonBase<Vec<DiaryCacheWrapper>, Error>);
+
+#[get("/api/diary_cache")]
+pub async fn diary_cache(
+    #[cookie = "jwt"] _: LoggedUser,
+    #[data] state: AppState,
+) -> WarpResult<DiaryCacheResponse> {
+    let cache_entries: Vec<_> = DiaryCache::get_cache_entries(&state.db.pool)
+        .await
+        .map_err(Into::<Error>::into)?
+        .into_iter()
+        .map(Into::into)
+        .collect();
+    Ok(JsonBase::new(cache_entries).into())
+}
+
+#[derive(RwebResponse)]
+#[response(description = "Cache Update Response")]
+struct DiaryCacheUpdateResponse(HtmlBase<&'static str, Error>);
+
+#[post("/api/diary_cache")]
+pub async fn diary_cache_update(
+    payload: Json<Vec<DiaryCacheWrapper>>,
+    #[cookie = "jwt"] _: LoggedUser,
+    #[data] state: AppState,
+) -> WarpResult<DiaryCacheUpdateResponse> {
+    for entry in payload.into_inner() {
+        let entry: DiaryCache = entry.into();
+        entry
+            .insert_entry(&state.db.pool)
+            .await
+            .map_err(Into::<Error>::into)?;
+    }
+    Ok(HtmlBase::new("finished").into())
 }
