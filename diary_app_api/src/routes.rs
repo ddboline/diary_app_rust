@@ -464,8 +464,7 @@ pub async fn list_conflicts(
 }
 
 async fn list_conflicts_body(query: ConflictData, state: AppState) -> HttpResult<String> {
-    let diary_date = query.date.map(Into::into);
-    let body = if let DiaryAppOutput::Dates(dates) = DiaryAppRequests::ListConflicts(diary_date)
+    let body = if let DiaryAppOutput::Timestamps(dates) = DiaryAppRequests::ListConflicts(query.date)
         .handle(&state.db)
         .await?
     {
@@ -474,7 +473,7 @@ async fn list_conflicts_body(query: ConflictData, state: AppState) -> HttpResult
         Vec::new()
     };
     let mut buttons = Vec::new();
-    if let Some(date) = diary_date {
+    if let Some(date) = query.date {
         if !body.is_empty() {
             buttons.push(format!(
                 r#"<button type="submit" onclick="cleanConflicts('{}')">Clean</button>"#,
@@ -497,7 +496,7 @@ async fn list_conflicts_body(query: ConflictData, state: AppState) -> HttpResult
             <br>
         "#,
                 t = t,
-                d = diary_date
+                d = query.date
                     .unwrap_or_else(|| Local::today().naive_local())
                     .to_string(),
             )
@@ -524,10 +523,9 @@ pub async fn show_conflict(
 }
 
 async fn show_conflict_body(query: ConflictData, state: AppState) -> HttpResult<String> {
-    let datetime = query.datetime.map_or_else(Utc::now, Into::into);
-    let diary_date = query.date.map_or_else(
-        || datetime.with_timezone(&Local).naive_local().date(),
-        Into::into,
+    let datetime = query.datetime.unwrap_or_else(Utc::now);
+    let diary_date = query.date.unwrap_or_else(
+        || datetime.with_timezone(&Local).naive_local().date()
     );
     let text = if let DiaryAppOutput::Lines(lines) = DiaryAppRequests::ShowConflict(datetime)
         .handle(&state.db)
