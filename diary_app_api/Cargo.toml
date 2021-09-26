@@ -8,7 +8,7 @@ edition = "2018"
 
 [dependencies]
 diary_app_lib = {path = "../diary_app_lib"}
-rweb = {version="0.13", features=["openapi", "chrono"]}
+rweb = {version="0.14", features=["openapi", "chrono"]}
 http = "0.2"
 chrono = "0.4"
 futures = "0.3"
@@ -30,12 +30,12 @@ serde_yaml = "0.8"
 derive_more = "0.99"
 diesel = {version="1.4", features=["postgres", "r2d2", "chrono"]}
 diesel-derive-newtype = "0.1"
-rweb_helper = { git = "https://github.com/ddboline/rweb_helper.git", tag="0.3.1.1" }
+rweb_helper = { git = "https://github.com/ddboline/rweb_helper.git", tag="0.3.4" }
 stack-string = { version="0.3", features=["diesel_types", "rweb-openapi"] }
-authorized_users = { git = "https://github.com/ddboline/auth_server_rust.git", tag="0.6.1"}
+authorized_users = { git = "https://github.com/ddboline/auth_server_rust.git", tag="0.7.2"}
 
 [dev-dependencies]
 reqwest = {version="0.11", features=["cookies", "json", "rustls-tls", "stream"]}
-auth_server_http = { git = "https://github.com/ddboline/auth_server_rust.git", tag="0.6.1"}
-auth_server_lib = { git = "https://github.com/ddboline/auth_server_rust.git", tag="0.6.1"}
+auth_server_http = { git = "https://github.com/ddboline/auth_server_rust.git", tag="0.7.2"}
+auth_server_lib = { git = "https://github.com/ddboline/auth_server_rust.git", tag="0.7.2"}
 env_logger = "0.9"
