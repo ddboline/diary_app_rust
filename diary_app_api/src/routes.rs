@@ -35,7 +35,7 @@ struct SearchApiResponse(JsonBase<SearchApiOutput, Error>);
 #[get("/api/search_api")]
 pub async fn search_api(
     query: Query<SearchOptions>,
-    #[cookie = "jwt"] _: LoggedUser,
+    #[filter = "LoggedUser::filter"] _: LoggedUser,
     #[data] state: AppState,
 ) -> WarpResult<SearchApiResponse> {
     let query = query.into_inner();
@@ -59,7 +59,7 @@ struct SearchResponse(HtmlBase<String, Error>);
 #[get("/api/search")]
 pub async fn search(
     query: Query<SearchOptions>,
-    #[cookie = "jwt"] _: LoggedUser,
+    #[filter = "LoggedUser::filter"] _: LoggedUser,
     #[data] state: AppState,
 ) -> WarpResult<SearchResponse> {
     let query = query.into_inner();
@@ -99,7 +99,7 @@ struct InsertDataResponse(JsonBase<InsertDataOutput, Error>);
 #[post("/api/insert")]
 pub async fn insert(
     data: Json<InsertData>,
-    #[cookie = "jwt"] _: LoggedUser,
+    #[filter = "LoggedUser::filter"] _: LoggedUser,
     #[data] state: AppState,
 ) -> WarpResult<InsertDataResponse> {
     let data = data.into_inner();
@@ -125,7 +125,7 @@ struct SyncResponse(HtmlBase<String, Error>);
 
 #[get("/api/sync")]
 pub async fn sync(
-    #[cookie = "jwt"] _: LoggedUser,
+    #[filter = "LoggedUser::filter"] _: LoggedUser,
     #[data] state: AppState,
 ) -> WarpResult<SyncResponse> {
     let body = sync_body(state).await?;
@@ -155,7 +155,7 @@ struct SyncApiResponse(JsonBase<SyncApiOutput, Error>);
 
 #[get("/api/sync_api")]
 pub async fn sync_api(
-    #[cookie = "jwt"] _: LoggedUser,
+    #[filter = "LoggedUser::filter"] _: LoggedUser,
     #[data] state: AppState,
 ) -> WarpResult<SyncApiResponse> {
     let body = sync_body(state).await?;
@@ -183,7 +183,7 @@ struct ReplaceResponse(JsonBase<ReplaceOutput, Error>);
 #[post("/api/replace")]
 pub async fn replace(
     data: Json<ReplaceData>,
-    #[cookie = "jwt"] _: LoggedUser,
+    #[filter = "LoggedUser::filter"] _: LoggedUser,
     #[data] state: AppState,
 ) -> WarpResult<ReplaceResponse> {
     let data = data.into_inner();
@@ -266,7 +266,7 @@ struct ListResponse(HtmlBase<String, Error>);
 #[get("/api/list")]
 pub async fn list(
     query: Query<ListOptions>,
-    #[cookie = "jwt"] _: LoggedUser,
+    #[filter = "LoggedUser::filter"] _: LoggedUser,
     #[data] state: AppState,
 ) -> WarpResult<ListResponse> {
     let query = query.into_inner();
@@ -308,7 +308,7 @@ struct ListApiResponse(JsonBase<ListOutput, Error>);
 #[get("/api/list_api")]
 pub async fn list_api(
     query: Query<ListOptions>,
-    #[cookie = "jwt"] _: LoggedUser,
+    #[filter = "LoggedUser::filter"] _: LoggedUser,
     #[data] state: AppState,
 ) -> WarpResult<ListApiResponse> {
     let query = query.into_inner();
@@ -328,7 +328,7 @@ struct EditResponse(HtmlBase<String, Error>);
 #[get("/api/edit")]
 pub async fn edit(
     query: Query<EditData>,
-    #[cookie = "jwt"] _: LoggedUser,
+    #[filter = "LoggedUser::filter"] _: LoggedUser,
     #[data] state: AppState,
 ) -> WarpResult<EditResponse> {
     let query = query.into_inner();
@@ -367,7 +367,7 @@ struct DisplayResponse(HtmlBase<String, Error>);
 #[get("/api/display")]
 pub async fn display(
     query: Query<EditData>,
-    #[cookie = "jwt"] _: LoggedUser,
+    #[filter = "LoggedUser::filter"] _: LoggedUser,
     #[data] state: AppState,
 ) -> WarpResult<DisplayResponse> {
     let query = query.into_inner();
@@ -402,7 +402,7 @@ struct FrontpageResponse(HtmlBase<String, Error>);
 
 #[get("/api/index.html")]
 pub async fn diary_frontpage(
-    #[cookie = "jwt"] _: LoggedUser,
+    #[filter = "LoggedUser::filter"] _: LoggedUser,
     #[data] state: AppState,
 ) -> WarpResult<FrontpageResponse> {
     let body = diary_frontpage_body(state).await?;
@@ -455,7 +455,7 @@ struct ListConflictsResponse(HtmlBase<String, Error>);
 #[get("/api/list_conflicts")]
 pub async fn list_conflicts(
     query: Query<ConflictData>,
-    #[cookie = "jwt"] _: LoggedUser,
+    #[filter = "LoggedUser::filter"] _: LoggedUser,
     #[data] state: AppState,
 ) -> WarpResult<ListConflictsResponse> {
     let query = query.into_inner();
@@ -516,7 +516,7 @@ struct ShowConflictResponse(HtmlBase<String, Error>);
 #[get("/api/show_conflict")]
 pub async fn show_conflict(
     query: Query<ConflictData>,
-    #[cookie = "jwt"] _: LoggedUser,
+    #[filter = "LoggedUser::filter"] _: LoggedUser,
     #[data] state: AppState,
 ) -> WarpResult<ShowConflictResponse> {
     let query = query.into_inner();
@@ -558,7 +558,7 @@ struct RemoveConflictResponse(HtmlBase<String, Error>);
 #[get("/api/remove_conflict")]
 pub async fn remove_conflict(
     query: Query<ConflictData>,
-    #[cookie = "jwt"] _: LoggedUser,
+    #[filter = "LoggedUser::filter"] _: LoggedUser,
     #[data] state: AppState,
 ) -> WarpResult<RemoveConflictResponse> {
     let query = query.into_inner();
@@ -606,7 +606,7 @@ struct UpdateConflictResponse(HtmlBase<String, Error>);
 #[get("/api/update_conflict")]
 pub async fn update_conflict(
     query: Query<ConflictUpdateData>,
-    #[cookie = "jwt"] _: LoggedUser,
+    #[filter = "LoggedUser::filter"] _: LoggedUser,
     #[data] state: AppState,
 ) -> WarpResult<UpdateConflictResponse> {
     let query = query.into_inner();
@@ -636,7 +636,7 @@ struct ConflictResponse(JsonBase<ReplaceOutput, Error>);
 #[get("/api/commit_conflict")]
 pub async fn commit_conflict(
     query: Query<CommitConflictData>,
-    #[cookie = "jwt"] _: LoggedUser,
+    #[filter = "LoggedUser::filter"] _: LoggedUser,
     #[data] state: AppState,
 ) -> WarpResult<ConflictResponse> {
     let query = query.into_inner();
@@ -664,7 +664,7 @@ async fn commit_conflict_body(
 struct UserResponse(JsonBase<LoggedUser, Error>);
 
 #[get("/api/user")]
-pub async fn user(#[cookie = "jwt"] user: LoggedUser) -> WarpResult<UserResponse> {
+pub async fn user(#[filter = "LoggedUser::filter"] user: LoggedUser) -> WarpResult<UserResponse> {
     Ok(JsonBase::new(user).into())
 }
 
@@ -674,7 +674,7 @@ struct DiaryCacheResponse(JsonBase<Vec<DiaryCacheWrapper>, Error>);
 
 #[get("/api/diary_cache")]
 pub async fn diary_cache(
-    #[cookie = "jwt"] _: LoggedUser,
+    #[filter = "LoggedUser::filter"] _: LoggedUser,
     #[data] state: AppState,
 ) -> WarpResult<DiaryCacheResponse> {
     let cache_entries: Vec<_> = DiaryCache::get_cache_entries(&state.db.pool)
@@ -693,7 +693,7 @@ struct DiaryCacheUpdateResponse(HtmlBase<&'static str, Error>);
 #[post("/api/diary_cache")]
 pub async fn diary_cache_update(
     payload: Json<Vec<DiaryCacheWrapper>>,
-    #[cookie = "jwt"] _: LoggedUser,
+    #[filter = "LoggedUser::filter"] _: LoggedUser,
     #[data] state: AppState,
 ) -> WarpResult<DiaryCacheUpdateResponse> {
     for entry in payload.into_inner() {
