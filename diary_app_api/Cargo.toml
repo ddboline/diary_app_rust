@@ -1,6 +1,6 @@
 [package]
 name = "diary_app_api"
-version = "0.7.12"
+version = "0.7.13"
 authors = ["Daniel Boline <ddboline@gmail.com>"]
 edition = "2018"
 
@@ -33,10 +33,10 @@ diesel-derive-newtype = "0.1"
 uuid = "0.8"
 rweb_helper = { git = "https://github.com/ddboline/rweb_helper.git", tag="0.3.4" }
 stack-string = { version="0.3", features=["diesel_types", "rweb-openapi"] }
-authorized_users = { git = "https://github.com/ddboline/auth_server_rust.git", tag="0.7.4"}
+authorized_users = { git = "https://github.com/ddboline/auth_server_rust.git", tag="0.7.5"}
 
 [dev-dependencies]
 reqwest = {version="0.11", features=["cookies", "json", "rustls-tls", "stream"]}
-auth_server_http = { git = "https://github.com/ddboline/auth_server_rust.git", tag="0.7.4"}
-auth_server_lib = { git = "https://github.com/ddboline/auth_server_rust.git", tag="0.7.4"}
+auth_server_http = { git = "https://github.com/ddboline/auth_server_rust.git", tag="0.7.5"}
+auth_server_lib = { git = "https://github.com/ddboline/auth_server_rust.git", tag="0.7.5"}
 env_logger = "0.9"
