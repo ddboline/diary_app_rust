@@ -3,7 +3,7 @@ openapi: 3.0.1
 info:
   title: Frontend for AWS
   description: Web Frontend for AWS Services
-  version: 0.7.9
+  version: 0.7.13
 paths:
   /api/search:
     get:
@@ -470,9 +470,14 @@ paths:
                   email:
                     description: Email Address
                     type: string
+                  session:
+                    description: Session Id
+                    format: uuid
+                    type: string
                 type: object
                 required:
                   - email
+                  - session
         "400":
           description: Bad Request
         "500":
