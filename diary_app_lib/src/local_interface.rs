@@ -196,16 +196,13 @@ impl LocalInterface {
                 continue;
             };
 
-            let entry = if entry.diary_text.trim().is_empty() {
-                entry
-            } else {
+            if !entry.diary_text.trim().is_empty() {
                 debug!(
                     "import local date {} lines {}\n",
                     entry.diary_date,
                     entry.diary_text.matches('\n').count()
                 );
                 entry.upsert_entry(&self.pool, true).await?;
-                entry
             };
             entries.push(entry);
         }

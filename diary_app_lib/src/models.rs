@@ -392,10 +392,7 @@ impl DiaryEntries {
     pub async fn get_by_text(search_text: &str, pool: &PgPool) -> Result<Vec<Self>, Error> {
         let search_text: StackString = search_text
             .chars()
-            .filter(|c| match c {
-                'a'..='z' | 'A'..='Z' | '0'..='9' => true,
-                _ => false,
-            })
+            .filter(|c| char::is_alphanumeric(*c))
             .collect();
         let query = format!(
             r#"
@@ -469,10 +466,7 @@ impl DiaryCache {
     pub async fn get_by_text(search_text: &str, pool: &PgPool) -> Result<Vec<Self>, Error> {
         let search_text: StackString = search_text
             .chars()
-            .filter(|c| match c {
-                'a'..='z' | 'A'..='Z' | '0'..='9' => true,
-                _ => false,
-            })
+            .filter(|c| char::is_alphanumeric(*c))
             .collect();
         let query = format!(
             r#"
