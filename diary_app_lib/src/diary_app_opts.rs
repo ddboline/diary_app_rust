@@ -1,9 +1,9 @@
 use anyhow::{format_err, Error};
 use chrono::{DateTime, NaiveDate, Utc};
+use refinery::embed_migrations;
 use stack_string::StackString;
 use std::{collections::BTreeSet, str::FromStr};
 use structopt::StructOpt;
-use refinery::embed_migrations;
 
 use crate::{
     config::Config,
