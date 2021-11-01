@@ -19,12 +19,6 @@ jobs:
 
     steps:
     - uses: actions/checkout@v1
-    - name: Install deps
-      run: |
-        sudo apt-get update && \
-        sudo apt-get install libpq-dev postgresql-client-common awscli && \
-        rustup update && \
-        cargo install diesel_cli
 
     - name: Clippy
       run: cargo clippy -- -W clippy::pedantic
@@ -34,7 +28,7 @@ jobs:
 
     - name: Run tests
       run: |
-        diesel database setup && \
+        ./target/debug/diary-app-rust run-migrations && \
         mkdir -p ${DIARY_PATH} && \
         aws s3 cp s3://${DIARY_DB_BUCKET}/diary_entries.sql.gz ${DIARY_PATH}/ && \
         gzip -dc ${DIARY_PATH}/diary_entries.sql.gz | psql ${DATABASE_URL} -c "COPY diary_entries FROM STDIN" && \

@@ -1,18 +1,18 @@
 use anyhow::Error;
+use deadpool_postgres::{Client, Config, Pool};
 use derive_more::Deref;
-use diesel::{pg::PgConnection, r2d2::ConnectionManager};
-use r2d2::{Pool, PooledConnection};
 use std::{fmt, sync::Arc};
+use tokio_postgres::{Config as PgConfig, NoTls};
+
+pub use tokio_postgres::Transaction as PgTransaction;
 
 use stack_string::StackString;
-
-pub type PgPoolConn = PooledConnection<ConnectionManager<PgConnection>>;
 
 #[derive(Clone, Deref)]
 pub struct PgPool {
     pgurl: Arc<StackString>,
     #[deref]
-    pool: Pool<ConnectionManager<PgConnection>>,
+    pool: Pool,
 }
 
 impl fmt::Debug for PgPool {
@@ -22,18 +22,36 @@ impl fmt::Debug for PgPool {
 }
 
 impl PgPool {
+    #[allow(clippy::missing_panics_doc)]
     pub fn new(pgurl: &str) -> Self {
-        let manager = ConnectionManager::new(pgurl);
+        let pgconf: PgConfig = pgurl.parse().expect("Failed to parse Url");
+
+        let mut config = Config::default();
+
+        if let tokio_postgres::config::Host::Tcp(s) = &pgconf.get_hosts()[0] {
+            config.host.replace(s.to_string());
+        }
+        if let Some(u) = pgconf.get_user() {
+            config.user.replace(u.to_string());
+        }
+        if let Some(p) = pgconf.get_password() {
+            config
+                .password
+                .replace(String::from_utf8_lossy(p).to_string());
+        }
+        if let Some(db) = pgconf.get_dbname() {
+            config.dbname.replace(db.to_string());
+        }
+
         Self {
             pgurl: Arc::new(pgurl.into()),
-            pool: Pool::builder()
-                .min_idle(Some(2))
-                .build(manager)
-                .expect("Failed to open DB connection"),
+            pool: config
+                .create_pool(None, NoTls)
+                .unwrap_or_else(|_| panic!("Failed to create pool {}", pgurl)),
         }
     }
 
-    pub fn get(&self) -> Result<PgPoolConn, Error> {
-        self.pool.get().map_err(Into::into)
+    pub async fn get(&self) -> Result<Client, Error> {
+        self.pool.get().await.map_err(Into::into)
     }
 }

@@ -1,13 +1,10 @@
 [package]
 name = "diary_app_lib"
-version = "0.7.13"
+version = "0.8.0"
 authors = ["Daniel Boline <ddboline@gmail.com>"]
 edition = "2018"
 
 [dependencies]
-r2d2 = "0.8"
-diesel = {version="1.4", features=["postgres", "r2d2", "chrono"]}
-tokio-diesel = {git="https://github.com/mehcode/tokio-diesel.git", branch="master"}
 chrono = "0.4"
 rusoto_core = {version = "0.47", default_features = false, features=["rustls"]}
 rusoto_s3 = {version = "0.47", default_features = false, features=["rustls"]}
@@ -39,8 +36,15 @@ envy = "0.4"
 smartstring = "0.2"
 smallvec = "1.6"
 deadqueue = "0.2"
-diesel-derive-newtype = "0.1"
-stack-string = { version="0.3", features=["diesel_types"] }
+uuid = "0.8"
+refinery = {version="0.7", features=["tokio-postgres"]}
+deadpool = { version = "0.9", features=["serde", "rt_tokio_1"] }
+deadpool-postgres = { version = "0.10", features=["serde"] }
+tokio-postgres = {version = "0.7", features = ["with-chrono-0_4", "with-uuid-0_8", "with-serde_json-1"]}
+postgres-types = "0.2"
+postgres_query = {git = "https://github.com/ddboline/rust-postgres-query", tag = "0.3.4", features=["deadpool"]}
+
+stack-string = { version="0.3", features=["postgres_types"] }
 stdout-channel = "0.4"
 
 [dev-dependencies]

@@ -11,9 +11,6 @@
 #![allow(clippy::upper_case_acronyms)]
 #![allow(clippy::default_trait_access)]
 
-#[macro_use]
-extern crate diesel;
-
 pub mod config;
 pub mod diary_app_interface;
 pub mod diary_app_opts;
@@ -22,7 +19,6 @@ pub mod models;
 pub mod pgpool;
 pub mod s3_instance;
 pub mod s3_interface;
-pub mod schema;
 pub mod ssh_instance;
 
 use anyhow::Error;

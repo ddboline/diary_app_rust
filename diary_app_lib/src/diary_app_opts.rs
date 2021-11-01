@@ -1,5 +1,6 @@
 use anyhow::{format_err, Error};
 use chrono::{DateTime, NaiveDate, Utc};
+use refinery::embed_migrations;
 use stack_string::StackString;
 use std::{collections::BTreeSet, str::FromStr};
 use structopt::StructOpt;
@@ -11,6 +12,8 @@ use crate::{
     pgpool::PgPool,
 };
 
+embed_migrations!("../migrations");
+
 #[derive(Debug, Clone, Copy)]
 pub enum DiaryAppCommands {
     Search,
@@ -21,6 +24,7 @@ pub enum DiaryAppCommands {
     ListConflicts,
     ShowConflict,
     RemoveConflict,
+    RunMigrations,
 }
 
 impl FromStr for DiaryAppCommands {
@@ -36,6 +40,7 @@ impl FromStr for DiaryAppCommands {
             "list" | "list_conflicts" => Ok(Self::ListConflicts),
             "show" | "show_conflict" => Ok(Self::ShowConflict),
             "remove" | "remove_conflict" => Ok(Self::RemoveConflict),
+            "run-migrations" => Ok(Self::RunMigrations),
             _ => Err(format_err!("Parse failure")),
         }
     }
@@ -157,6 +162,10 @@ impl DiaryAppOpts {
                 } else if let Some(datetime) = DiaryConflict::get_first_conflict(&dap.pool).await? {
                     DiaryConflict::remove_by_datetime(datetime, &dap.pool).await?;
                 }
+            }
+            DiaryAppCommands::RunMigrations => {
+                let mut client = dap.pool.get().await?;
+                migrations::runner().run_async(&mut **client).await?;
             }
         }
         dap.stdout.close().await

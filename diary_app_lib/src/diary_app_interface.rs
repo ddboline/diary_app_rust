@@ -52,7 +52,8 @@ impl DiaryAppInterface {
             diary_datetime: Utc::now(),
             diary_text: diary_text.into(),
         };
-        dc.insert_entry(&self.pool).await
+        dc.insert_entry(&self.pool).await?;
+        Ok(dc)
     }
 
     pub async fn replace_text(
@@ -61,7 +62,8 @@ impl DiaryAppInterface {
         diary_text: &str,
     ) -> Result<(DiaryEntries, Option<DateTime<Utc>>), Error> {
         let de = DiaryEntries::new(diary_date, diary_text);
-        de.upsert_entry(&self.pool, true).await
+        let output = de.upsert_entry(&self.pool, true).await?;
+        Ok((de, output))
     }
 
     pub async fn get_list_of_dates(
@@ -316,13 +318,13 @@ impl DiaryAppInterface {
                         format!("{}\n\n{}", &current_entry.diary_text, entry_string).into();
                     self.stdout
                         .send(format!("update {}", diary_file.to_string_lossy()));
-                    let (current_entry, _) = current_entry.update_entry(&self.pool, true).await?;
+                    current_entry.update_entry(&self.pool, true).await?;
                     Some(current_entry)
                 } else {
                     let new_entry = DiaryEntries::new(entry_date, &entry_string);
                     self.stdout
                         .send(format!("upsert {}", diary_file.to_string_lossy()));
-                    let (new_entry, _) = new_entry.upsert_entry(&self.pool, true).await?;
+                    new_entry.upsert_entry(&self.pool, true).await?;
                     Some(new_entry)
                 };
                 for entry in entry_list {
@@ -388,7 +390,10 @@ impl DiaryAppInterface {
         let entries = Self::process_ssh(&ssh_url, &cache_set).await?;
         let futures = entries.into_iter().map(|item| {
             let pool = self.pool.clone();
-            async move { item.insert_entry(&pool).await }
+            async move {
+                item.insert_entry(&pool).await?;
+                Ok(item)
+            }
         });
         let inserted_entries: Result<Vec<_>, Error> = try_join_all(futures).await;
         let inserted_entries: Vec<_> = inserted_entries?;
@@ -602,7 +607,7 @@ mod tests {
             .await
             .unwrap_or_else(|_| Vec::new());
         let results2 = dap.serialize_cache().await?;
-        let result = result.delete_entry(&dap.pool).await?;
+        result.delete_entry(&dap.pool).await?;
         assert_eq!(result.diary_text.as_str(), "Test text");
         assert_eq!(results.len(), 1);
         assert_eq!(results[0], result);
@@ -621,7 +626,7 @@ mod tests {
         let test_text2 = "Test text2";
         let (result2, conflict2) = dap.replace_text(test_date, test_text2.into()).await?;
 
-        let result = result.delete_entry(&dap.pool).await?;
+        result.delete_entry(&dap.pool).await?;
 
         assert_eq!(result.diary_date, test_date);
         assert!(conflict.is_none());
