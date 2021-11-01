@@ -3,6 +3,7 @@ use chrono::{DateTime, NaiveDate, Utc};
 use stack_string::StackString;
 use std::{collections::BTreeSet, str::FromStr};
 use structopt::StructOpt;
+use refinery::embed_migrations;
 
 use crate::{
     config::Config,
@@ -10,6 +11,8 @@ use crate::{
     models::{DiaryCache, DiaryConflict},
     pgpool::PgPool,
 };
+
+embed_migrations!("../migrations");
 
 #[derive(Debug, Clone, Copy)]
 pub enum DiaryAppCommands {
@@ -21,6 +24,7 @@ pub enum DiaryAppCommands {
     ListConflicts,
     ShowConflict,
     RemoveConflict,
+    RunMigrations,
 }
 
 impl FromStr for DiaryAppCommands {
@@ -157,6 +161,10 @@ impl DiaryAppOpts {
                 } else if let Some(datetime) = DiaryConflict::get_first_conflict(&dap.pool).await? {
                     DiaryConflict::remove_by_datetime(datetime, &dap.pool).await?;
                 }
+            }
+            DiaryAppCommands::RunMigrations => {
+                let mut client = dap.pool.get().await?;
+                migrations::runner().run_async(&mut **client).await?;
             }
         }
         dap.stdout.close().await

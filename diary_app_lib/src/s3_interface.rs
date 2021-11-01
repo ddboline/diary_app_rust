@@ -227,7 +227,7 @@ impl S3Interface {
                             entry.diary_date,
                             entry.diary_text.matches('\n').count()
                         );
-                        let (entry, _) = entry.upsert_entry(&self.pool, insert_new).await?;
+                        entry.upsert_entry(&self.pool, insert_new).await?;
                         return Ok(Some(entry));
                     }
                 }

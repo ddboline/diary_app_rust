@@ -138,7 +138,7 @@ impl LocalInterface {
                     }
                 } else {
                     let d = DiaryEntries::new(current_date, "");
-                    let (d, _) = d.upsert_entry(&self.pool, true).await?;
+                    d.upsert_entry(&self.pool, true).await?;
                     entries.push(d);
                 }
             } else {
@@ -157,7 +157,7 @@ impl LocalInterface {
                 } else {
                     f.write_all(b"").await?;
                     let new_entry = DiaryEntries::new(current_date, "");
-                    let (new_entry, _) = new_entry.upsert_entry(&self.pool, true).await?;
+                    new_entry.upsert_entry(&self.pool, true).await?;
                     entries.push(new_entry);
                 }
             }
@@ -204,7 +204,8 @@ impl LocalInterface {
                     entry.diary_date,
                     entry.diary_text.matches('\n').count()
                 );
-                entry.upsert_entry(&self.pool, true).await?.0
+                entry.upsert_entry(&self.pool, true).await?;
+                entry
             };
             entries.push(entry);
         }
