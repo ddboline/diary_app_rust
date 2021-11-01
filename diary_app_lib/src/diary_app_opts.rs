@@ -40,6 +40,7 @@ impl FromStr for DiaryAppCommands {
             "list" | "list_conflicts" => Ok(Self::ListConflicts),
             "show" | "show_conflict" => Ok(Self::ShowConflict),
             "remove" | "remove_conflict" => Ok(Self::RemoveConflict),
+            "run-migrations" => Ok(Self::RunMigrations),
             _ => Err(format_err!("Parse failure")),
         }
     }
