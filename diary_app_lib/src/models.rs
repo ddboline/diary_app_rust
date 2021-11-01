@@ -74,7 +74,7 @@ impl DiaryConflict {
         #[derive(FromSqlRow, Into)]
         struct Wrap(NaiveDate);
 
-        let query = query!("SELECT distinct diary_date FROM diary_conflict ORDER BY dieary_date");
+        let query = query!("SELECT distinct diary_date FROM diary_conflict ORDER BY diary_date");
         let conn = pool.get().await?;
         let result: Vec<Wrap> = query.fetch(&conn).await?;
         Ok(result.into_iter().map(Into::into).collect())
