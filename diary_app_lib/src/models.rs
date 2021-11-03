@@ -99,7 +99,7 @@ impl DiaryConflict {
             r#"
                 SELECT distinct sync_datetime
                 FROM diary_conflict
-                WHERE date_date = $date
+                WHERE diary_date = $date
                 ORDER BY sync_datetime
             "#,
             date = date,
@@ -120,7 +120,7 @@ impl DiaryConflict {
             r#"
                 SELECT distinct sync_datetime
                 FROM diary_conflict
-                WHERE date_date = $date
+                WHERE diary_date = $date
                 ORDER BY sync_datetime
                 LIMIT 1
             "#,
@@ -392,7 +392,7 @@ impl DiaryEntries {
     pub async fn get_by_text(search_text: &str, pool: &PgPool) -> Result<Vec<Self>, Error> {
         let search_text: StackString = search_text
             .chars()
-            .filter(|c| char::is_alphanumeric(*c))
+            .filter(|c| char::is_alphanumeric(*c) || *c == '-' || *c == '_')
             .collect();
         let query = format!(
             r#"
@@ -466,7 +466,7 @@ impl DiaryCache {
     pub async fn get_by_text(search_text: &str, pool: &PgPool) -> Result<Vec<Self>, Error> {
         let search_text: StackString = search_text
             .chars()
-            .filter(|c| char::is_alphanumeric(*c))
+            .filter(|c| char::is_alphanumeric(*c) || *c == '-' || *c == '_')
             .collect();
         let query = format!(
             r#"
