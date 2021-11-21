@@ -20,6 +20,8 @@ pub struct ConfigInner {
     #[serde(default)]
     pub telegram_bot_token: StackString,
     pub ssh_url: Option<StackString>,
+    #[serde(default = "default_host")]
+    pub host: StackString,
     #[serde(default = "default_port")]
     pub port: u32,
     #[serde(default = "default_domain")]
@@ -46,6 +48,9 @@ fn default_diary_bucket() -> StackString {
 fn default_diary_path() -> PathBuf {
     let home_dir = default_home_dir();
     home_dir.join("Dropbox").join("epistle")
+}
+fn default_host() -> StackString {
+    "0.0.0.0".into()
 }
 fn default_port() -> u32 {
     3042
