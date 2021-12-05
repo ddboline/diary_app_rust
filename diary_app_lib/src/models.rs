@@ -58,15 +58,15 @@ impl DiaryConflict {
     pub fn new(
         sync_datetime: DateTime<Utc>,
         diary_date: NaiveDate,
-        diff_type: StackString,
-        diff_text: StackString,
+        diff_type: impl Into<StackString>,
+        diff_text: impl Into<StackString>,
     ) -> Self {
         Self {
             id: Uuid::new_v4(),
             sync_datetime,
             diary_date,
-            diff_type,
-            diff_text,
+            diff_type: diff_type.into(),
+            diff_text: diff_text.into(),
         }
     }
 
@@ -152,9 +152,13 @@ impl DiaryConflict {
         Ok(None)
     }
 
-    pub async fn update_by_id(id: i32, new_diff_type: &str, pool: &PgPool) -> Result<(), Error> {
+    pub async fn update_by_id(
+        id: i32,
+        new_diff_type: impl AsRef<str>,
+        pool: &PgPool,
+    ) -> Result<(), Error> {
         let conn = pool.get().await?;
-        Self::update_by_id_conn(id, new_diff_type, &conn).await?;
+        Self::update_by_id_conn(id, new_diff_type.as_ref(), &conn).await?;
         Ok(())
     }
 
@@ -228,15 +232,9 @@ impl DiaryConflict {
             .diffs
             .into_iter()
             .map(|entry| match entry {
-                Difference::Same(s) => {
-                    DiaryConflict::new(sync_datetime, diary_date, "same".into(), s.into())
-                }
-                Difference::Rem(s) => {
-                    DiaryConflict::new(sync_datetime, diary_date, "rem".into(), s.into())
-                }
-                Difference::Add(s) => {
-                    DiaryConflict::new(sync_datetime, diary_date, "add".into(), s.into())
-                }
+                Difference::Same(s) => DiaryConflict::new(sync_datetime, diary_date, "same", s),
+                Difference::Rem(s) => DiaryConflict::new(sync_datetime, diary_date, "rem", s),
+                Difference::Add(s) => DiaryConflict::new(sync_datetime, diary_date, "add", s),
             })
             .collect();
 
@@ -259,7 +257,7 @@ impl DiaryConflict {
 }
 
 impl DiaryEntries {
-    pub fn new(diary_date: NaiveDate, diary_text: &str) -> Self {
+    pub fn new(diary_date: NaiveDate, diary_text: impl Into<StackString>) -> Self {
         Self {
             diary_date,
             diary_text: diary_text.into(),
@@ -389,8 +387,12 @@ impl DiaryEntries {
         Self::_get_by_date(date, &conn).await.map_err(Into::into)
     }
 
-    pub async fn get_by_text(search_text: &str, pool: &PgPool) -> Result<Vec<Self>, Error> {
+    pub async fn get_by_text(
+        search_text: impl AsRef<str>,
+        pool: &PgPool,
+    ) -> Result<Vec<Self>, Error> {
         let search_text: StackString = search_text
+            .as_ref()
             .chars()
             .filter(|c| char::is_alphanumeric(*c) || *c == '-' || *c == '_')
             .collect();
@@ -463,8 +465,12 @@ impl DiaryCache {
         query.fetch(&conn).await.map_err(Into::into)
     }
 
-    pub async fn get_by_text(search_text: &str, pool: &PgPool) -> Result<Vec<Self>, Error> {
+    pub async fn get_by_text(
+        search_text: impl AsRef<str>,
+        pool: &PgPool,
+    ) -> Result<Vec<Self>, Error> {
         let search_text: StackString = search_text
+            .as_ref()
             .chars()
             .filter(|c| char::is_alphanumeric(*c) || *c == '-' || *c == '_')
             .collect();

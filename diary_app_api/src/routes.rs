@@ -204,10 +204,11 @@ async fn replace_body(data: ReplaceData, state: AppState) -> HttpResult<Vec<Stac
     }
 }
 
-fn _list_string<T>(conflicts: &HashSet<NaiveDate>, body: T, query: ListOptions) -> String
-where
-    T: IntoIterator<Item = NaiveDate>,
-{
+fn _list_string(
+    conflicts: &HashSet<NaiveDate>,
+    body: impl IntoIterator<Item = NaiveDate>,
+    query: ListOptions,
+) -> String {
     let text = body
         .into_iter()
         .map(|t| {

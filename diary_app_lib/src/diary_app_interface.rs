@@ -47,7 +47,10 @@ impl DiaryAppInterface {
         }
     }
 
-    pub async fn cache_text(&self, diary_text: &str) -> Result<DiaryCache, Error> {
+    pub async fn cache_text(
+        &self,
+        diary_text: impl Into<StackString>,
+    ) -> Result<DiaryCache, Error> {
         let dc = DiaryCache {
             diary_datetime: Utc::now(),
             diary_text: diary_text.into(),
@@ -59,7 +62,7 @@ impl DiaryAppInterface {
     pub async fn replace_text(
         &self,
         diary_date: NaiveDate,
-        diary_text: &str,
+        diary_text: impl Into<StackString>,
     ) -> Result<(DiaryEntries, Option<DateTime<Utc>>), Error> {
         let de = DiaryEntries::new(diary_date, diary_text);
         let output = de.upsert_entry(&self.pool, true).await?;
@@ -601,7 +604,7 @@ mod tests {
         let dap = get_dap()?;
 
         let test_text = "Test text";
-        let result = dap.cache_text(test_text.into()).await?;
+        let result = dap.cache_text(test_text).await?;
         debug!("{}", result.diary_datetime);
         let results = DiaryCache::get_cache_entries(&dap.pool)
             .await
@@ -621,10 +624,10 @@ mod tests {
         let test_date = NaiveDate::from_ymd(1950, 1, 1);
         let test_text = "Test text";
 
-        let (result, conflict) = dap.replace_text(test_date, test_text.into()).await?;
+        let (result, conflict) = dap.replace_text(test_date, test_text).await?;
 
         let test_text2 = "Test text2";
-        let (result2, conflict2) = dap.replace_text(test_date, test_text2.into()).await?;
+        let (result2, conflict2) = dap.replace_text(test_date, test_text2).await?;
 
         result.delete_entry(&dap.pool).await?;
 

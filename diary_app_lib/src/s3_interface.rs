@@ -23,7 +23,6 @@ lazy_static! {
 
 #[derive(Debug, Clone)]
 struct KeyMetaData {
-    key: StackString,
     date: NaiveDate,
     last_modified: DateTime<Utc>,
     size: i64,
@@ -45,7 +44,6 @@ impl TryFrom<Object> for KeyMetaData {
             .map_or_else(Utc::now, |d| d.with_timezone(&Utc));
         let size = obj.size.unwrap_or(0);
         Ok(Self {
-            key,
             date,
             last_modified,
             size,

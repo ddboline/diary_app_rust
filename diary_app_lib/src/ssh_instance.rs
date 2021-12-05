@@ -2,7 +2,7 @@ use anyhow::{format_err, Error};
 use lazy_static::lazy_static;
 use log::debug;
 use smallvec::{smallvec, SmallVec};
-use std::{collections::HashMap, process::Stdio};
+use std::{collections::HashMap, fmt::Display, process::Stdio};
 use tokio::{
     io::{stdout, AsyncBufReadExt, AsyncWriteExt, BufReader},
     process::Command,
@@ -24,11 +24,19 @@ pub struct SSHInstance {
 }
 
 impl SSHInstance {
-    pub async fn new(user: &str, host: &str, port: u16) -> Self {
-        LOCK_CACHE.write().await.insert(host.into(), Mutex::new(()));
+    pub async fn new(
+        user: impl Into<StackString>,
+        host: impl Into<StackString>,
+        port: u16,
+    ) -> Self {
+        let host = host.into();
+        LOCK_CACHE
+            .write()
+            .await
+            .insert(host.clone(), Mutex::new(()));
         Self {
             user: user.into(),
-            host: host.into(),
+            host,
             port,
         }
     }
@@ -40,7 +48,7 @@ impl SSHInstance {
         Ok(Self::new(user, host, port).await)
     }
 
-    pub fn get_ssh_str(&self, path: &str) -> Result<String, Error> {
+    pub fn get_ssh_str(&self, path: impl Display) -> Result<String, Error> {
         let ssh_str = if self.port == 22 {
             format!("{}@{}:{}", self.user, self.host, path)
         } else {

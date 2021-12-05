@@ -70,7 +70,8 @@ impl TryFrom<Token> for LoggedUser {
 impl FromStr for LoggedUser {
     type Err = Error;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let token: Token = s.to_string().into();
+        let s: StackString = s.into();
+        let token: Token = s.into();
         token.try_into()
     }
 }
@@ -87,7 +88,7 @@ pub async fn fill_from_db(pool: &PgPool) -> Result<(), Error> {
         AUTHORIZED_USERS.get_users()
     };
     if let Ok("true") = var("TESTENV").as_ref().map(String::as_str) {
-        AUTHORIZED_USERS.merge_users(&["user@test".into()])?;
+        AUTHORIZED_USERS.merge_users(["user@test"])?;
     }
     AUTHORIZED_USERS.merge_users(&users)?;
 
