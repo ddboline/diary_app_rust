@@ -37,3 +37,15 @@ struct _DiaryCacheWrapper {
     #[schema(description = "Cache Text")]
     diary_text: StackString,
 }
+
+#[cfg(test)]
+mod test {
+    use rweb_helper::derive_rweb_test;
+
+    use crate::{DiaryCacheWrapper, _DiaryCacheWrapper};
+
+    #[test]
+    fn test_type() {
+        derive_rweb_test!(DiaryCacheWrapper, _DiaryCacheWrapper);
+    }
+}
