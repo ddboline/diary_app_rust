@@ -64,13 +64,10 @@ async fn bot_handler(dapp_interface: DiaryAppInterface) -> Result<(), Error> {
                     let first_word = data.split_whitespace().next();
                     match first_word.map(str::to_lowercase).as_deref() {
                         Some(":search" | ":s") => {
-                            let search_text = data
-                                .trim_start_matches(first_word.unwrap())
-                                .trim()
-                                .to_string();
+                            let search_text = data.trim_start_matches(first_word.unwrap()).trim();
                             OUTPUT_BUFFER.write().await.clear();
                             if let Ok(mut search_results) =
-                                dapp_interface.search_text(&search_text).await
+                                dapp_interface.search_text(search_text).await
                             {
                                 search_results.reverse();
                                 OUTPUT_BUFFER
@@ -80,7 +77,7 @@ async fn bot_handler(dapp_interface: DiaryAppInterface) -> Result<(), Error> {
                             }
                             FAILURE_COUNT.check()?;
                             if let Some(entry) = OUTPUT_BUFFER.write().await.pop() {
-                                api.send(message.text_reply(entry.to_string())).await?;
+                                api.send(message.text_reply(entry.as_str())).await?;
                             } else {
                                 api.send(message.text_reply("...")).await?;
                             }
@@ -107,17 +104,14 @@ async fn bot_handler(dapp_interface: DiaryAppInterface) -> Result<(), Error> {
                         }
                         Some(":next" | ":n") => {
                             if let Some(entry) = OUTPUT_BUFFER.write().await.pop() {
-                                api.send(message.text_reply(entry.to_string())).await?;
+                                api.send(message.text_reply(entry.as_str())).await?;
                             } else {
                                 api.send(message.text_reply("...")).await?;
                             }
                         }
                         Some(":insert" | ":i") => {
-                            let insert_text = data
-                                .trim_start_matches(first_word.unwrap())
-                                .trim()
-                                .to_string();
-                            if let Ok(cache_entry) = dapp_interface.cache_text(&insert_text).await {
+                            let insert_text = data.trim_start_matches(first_word.unwrap()).trim();
+                            if let Ok(cache_entry) = dapp_interface.cache_text(insert_text).await {
                                 api.send(
                                     message.text_reply(format!("cached entry {:?}", cache_entry)),
                                 )
@@ -129,8 +123,7 @@ async fn bot_handler(dapp_interface: DiaryAppInterface) -> Result<(), Error> {
                             FAILURE_COUNT.check()?;
                         }
                         _ => {
-                            let data = data.to_string();
-                            if let Ok(cache_entry) = dapp_interface.cache_text(&data).await {
+                            if let Ok(cache_entry) = dapp_interface.cache_text(data).await {
                                 api.send(
                                     message.text_reply(format!("cached entry {:?}", cache_entry)),
                                 )

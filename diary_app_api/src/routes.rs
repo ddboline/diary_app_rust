@@ -587,7 +587,7 @@ async fn remove_conflict_body(query: ConflictData, state: AppState) -> HttpResul
             String::new()
         }
     } else {
-        "".to_string()
+        String::new()
     };
     Ok(body)
 }
@@ -602,7 +602,7 @@ pub struct ConflictUpdateData {
 
 #[derive(RwebResponse)]
 #[response(description = "Update Conflict", content = "html")]
-struct UpdateConflictResponse(HtmlBase<String, Error>);
+struct UpdateConflictResponse(HtmlBase<&'static str, Error>);
 
 #[get("/api/update_conflict")]
 pub async fn update_conflict(
@@ -612,7 +612,7 @@ pub async fn update_conflict(
 ) -> WarpResult<UpdateConflictResponse> {
     let query = query.into_inner();
     update_conflict_body(query, state).await?;
-    Ok(HtmlBase::new("finished".to_string()).into())
+    Ok(HtmlBase::new("finished").into())
 }
 
 async fn update_conflict_body(query: ConflictUpdateData, state: AppState) -> HttpResult<()> {

@@ -100,9 +100,10 @@ impl DiaryAppOpts {
                     let conflicts: BTreeSet<_> = DiaryConflict::get_by_date(date, &dap.pool)
                         .await?
                         .into_iter()
-                        .map(|entry| entry.format("%Y-%m-%dT%H:%M:%S%.fZ").to_string())
                         .collect();
-                    for timestamp in conflicts {
+                    for entry in conflicts {
+                        let timestamp =
+                            StackString::from_display(entry.format("%Y-%m-%dT%H:%M:%S%.fZ"))?;
                         dap.stdout.send(timestamp);
                     }
                     Ok(())
@@ -114,7 +115,8 @@ impl DiaryAppOpts {
                     let conflicts = DiaryConflict::get_all_dates(&dap.pool).await?;
                     if conflicts.len() > 1 {
                         for date in conflicts {
-                            dap.stdout.send(date.to_string());
+                            let date = StackString::from_display(date)?;
+                            dap.stdout.send(date);
                         }
                     } else {
                         for date in conflicts {

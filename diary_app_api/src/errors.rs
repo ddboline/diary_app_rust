@@ -33,9 +33,9 @@ pub enum ServiceError {
 impl Reject for ServiceError {}
 
 #[derive(Serialize)]
-struct ErrorMessage {
+struct ErrorMessage<'a> {
     code: u16,
-    message: String,
+    message: &'a str,
 }
 
 pub async fn error_response(err: Rejection) -> Result<Box<dyn Reply>, Infallible> {
@@ -82,7 +82,7 @@ pub async fn error_response(err: Rejection) -> Result<Box<dyn Reply>, Infallible
 
     let reply = rweb::reply::json(&ErrorMessage {
         code: code.as_u16(),
-        message: message.to_string(),
+        message,
     });
     let reply = rweb::reply::with_status(reply, code);
 

@@ -125,10 +125,11 @@ impl LocalInterface {
                             if existing_size > *file_size {
                                 debug!("file db diff {} {}", file_mod, db_mod);
                                 debug!("file db size {} {}", file_size, db_mod);
+                                let current_date_str = StackString::from_display(current_date)?;
                                 let filepath = self
                                     .config
                                     .diary_path
-                                    .join(current_date.to_string())
+                                    .join(current_date_str)
                                     .with_extension("txt");
                                 let mut f = File::create(&filepath).await?;
                                 f.write_all(existing_entry.diary_text.as_bytes()).await?;
@@ -142,10 +143,11 @@ impl LocalInterface {
                     entries.push(d);
                 }
             } else {
+                let current_date_str = StackString::from_display(current_date)?;
                 let filepath = self
                     .config
                     .diary_path
-                    .join(current_date.to_string())
+                    .join(current_date_str)
                     .with_extension("txt");
                 let mut f = File::create(&filepath).await?;
 
@@ -230,7 +232,7 @@ mod tests {
     fn get_li(tempdir: &TempDir) -> Result<LocalInterface, Error> {
         let config = Config::init_config()?.get_inner()?;
         let inner = ConfigInner {
-            diary_path: tempdir.path().to_string_lossy().to_string().into(),
+            diary_path: tempdir.path().to_path_buf(),
             ssh_url: None,
             ..config
         };

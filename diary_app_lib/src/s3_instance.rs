@@ -18,7 +18,7 @@ pub struct S3Instance {
 
 impl fmt::Debug for S3Instance {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "S3Instance")
+        f.write_str("S3Instance")
     }
 }
 
@@ -66,7 +66,7 @@ impl S3Instance {
             let target = PutObjectRequest {
                 bucket: bucket_name.into(),
                 key: key_name.into(),
-                body: Some(input_str.to_string().into_bytes().into()),
+                body: Some(input_str.as_bytes().to_vec().into()),
                 ..PutObjectRequest::default()
             };
             async move {
