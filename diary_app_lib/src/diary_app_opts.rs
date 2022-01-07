@@ -103,7 +103,7 @@ impl DiaryAppOpts {
                         .collect();
                     for entry in conflicts {
                         let timestamp =
-                            StackString::from_display(entry.format("%Y-%m-%dT%H:%M:%S%.fZ"))?;
+                            StackString::from_display(entry.format("%Y-%m-%dT%H:%M:%S%.fZ"));
                         dap.stdout.send(timestamp);
                     }
                     Ok(())
@@ -115,7 +115,7 @@ impl DiaryAppOpts {
                     let conflicts = DiaryConflict::get_all_dates(&dap.pool).await?;
                     if conflicts.len() > 1 {
                         for date in conflicts {
-                            let date = StackString::from_display(date)?;
+                            let date = StackString::from_display(date);
                             dap.stdout.send(date);
                         }
                     } else {

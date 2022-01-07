@@ -2,8 +2,8 @@ use anyhow::Error;
 use futures::{future::join, StreamExt};
 use lazy_static::lazy_static;
 use log::debug;
-use stack_string::StackString;
-use std::collections::HashSet;
+use stack_string::{format_sstr, StackString};
+use std::{collections::HashSet, fmt::Write};
 use telegram_bot::{types::refs::UserId, Api, CanReplySendMessage, MessageKind, UpdateKind};
 use tokio::{
     sync::{
@@ -84,7 +84,7 @@ async fn bot_handler(dapp_interface: DiaryAppInterface) -> Result<(), Error> {
                             FAILURE_COUNT.check()?;
                         }
                         Some(":help" | ":h") => {
-                            let help_text = format!(
+                            let help_text = format_sstr!(
                                 "{}\n{}\n{}\n{}",
                                 ":s, :search => search for text, get text for given date, or for \
                                  `today`",
@@ -93,7 +93,7 @@ async fn bot_handler(dapp_interface: DiaryAppInterface) -> Result<(), Error> {
                                 ":i, :insert => insert text (also the action if no other command \
                                  is specified"
                             );
-                            api.send(message.text_reply(help_text)).await?;
+                            api.send(message.text_reply(help_text.as_str())).await?;
                         }
                         Some(":sync") => {
                             send.send(()).await?;
@@ -112,10 +112,8 @@ async fn bot_handler(dapp_interface: DiaryAppInterface) -> Result<(), Error> {
                         Some(":insert" | ":i") => {
                             let insert_text = data.trim_start_matches(first_word.unwrap()).trim();
                             if let Ok(cache_entry) = dapp_interface.cache_text(insert_text).await {
-                                api.send(
-                                    message.text_reply(format!("cached entry {:?}", cache_entry)),
-                                )
-                                .await?;
+                                let reply = format_sstr!("cached entry {:?}", cache_entry);
+                                api.send(message.text_reply(reply.as_str())).await?;
                             } else {
                                 api.send(message.text_reply("failed to cache entry"))
                                     .await?;
@@ -124,10 +122,8 @@ async fn bot_handler(dapp_interface: DiaryAppInterface) -> Result<(), Error> {
                         }
                         _ => {
                             if let Ok(cache_entry) = dapp_interface.cache_text(data).await {
-                                api.send(
-                                    message.text_reply(format!("cached entry {:?}", cache_entry)),
-                                )
-                                .await?;
+                                let reply = format_sstr!("cached entry {:?}", cache_entry);
+                                api.send(message.text_reply(reply.as_str())).await?;
                             } else {
                                 api.send(message.text_reply("failed to cache entry"))
                                     .await?;
@@ -137,11 +133,13 @@ async fn bot_handler(dapp_interface: DiaryAppInterface) -> Result<(), Error> {
                     }
                 } else {
                     // Answer message with "Hi".
-                    api.send(message.text_reply(format!(
+                    let reply = format_sstr!(
                         "Hi, {}, user_id {}! You just wrote '{}'",
-                        &message.from.first_name, &message.from.id, data
-                    )))
-                    .await?;
+                        &message.from.first_name,
+                        &message.from.id,
+                        data
+                    );
+                    api.send(message.text_reply(reply.as_str())).await?;
                 }
             }
         }

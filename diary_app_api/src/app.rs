@@ -6,7 +6,8 @@ use rweb::{
     openapi::{self, Info},
     Filter, Reply,
 };
-use std::{net::SocketAddr, ops::Deref, sync::Arc, time::Duration};
+use stack_string::format_sstr;
+use std::{fmt::Write, net::SocketAddr, ops::Deref, sync::Arc, time::Duration};
 use tokio::time::interval;
 
 use diary_app_lib::{config::Config, diary_app_interface::DiaryAppInterface, pgpool::PgPool};
@@ -143,7 +144,7 @@ async fn run_app(db: DiaryAppActor, port: u32) -> Result<(), Error> {
         .or(spec_json_path)
         .or(spec_yaml_path)
         .recover(error_response);
-    let addr: SocketAddr = format!("127.0.0.1:{}", port).parse()?;
+    let addr: SocketAddr = format_sstr!("127.0.0.1:{}", port).parse()?;
     rweb::serve(routes).bind(addr).await;
     Ok(())
 }
@@ -152,7 +153,11 @@ async fn run_app(db: DiaryAppActor, port: u32) -> Result<(), Error> {
 mod tests {
     use anyhow::Error;
     use maplit::hashmap;
-    use std::env::{remove_var, set_var};
+    use stack_string::format_sstr;
+    use std::{
+        env::{remove_var, set_var},
+        fmt::Write,
+    };
 
     use auth_server_http::app::run_test_app;
     use auth_server_lib::get_random_string;
@@ -168,7 +173,7 @@ mod tests {
     async fn test_run_app() -> Result<(), Error> {
         set_var("TESTENV", "true");
 
-        let email = format!("{}@localhost", get_random_string(32));
+        let email = format_sstr!("{}@localhost", get_random_string(32));
         let password = get_random_string(32);
 
         let mut secret_key = [0u8; KEY_LENGTH];
@@ -198,13 +203,13 @@ mod tests {
         tokio::time::sleep(std::time::Duration::from_secs(10)).await;
 
         let client = reqwest::Client::builder().cookie_store(true).build()?;
-        let url = format!("http://localhost:{}/api/auth", auth_port);
+        let url = format_sstr!("http://localhost:{}/api/auth", auth_port);
         let data = hashmap! {
             "email" => &email,
             "password" => &password,
         };
         let result = client
-            .post(&url)
+            .post(url.as_str())
             .json(&data)
             .send()
             .await?
@@ -213,9 +218,9 @@ mod tests {
             .await?;
         println!("{}", result);
 
-        let url = format!("http://localhost:{}/api/index.html", test_port);
+        let url = format_sstr!("http://localhost:{}/api/index.html", test_port);
         let result = client
-            .get(&url)
+            .get(url.as_str())
             .send()
             .await?
             .error_for_status()?

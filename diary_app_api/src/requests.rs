@@ -4,8 +4,8 @@ use futures::future::try_join_all;
 use itertools::Itertools;
 use rweb::Schema;
 use serde::{Deserialize, Serialize};
-use stack_string::StackString;
-use std::collections::BTreeSet;
+use stack_string::{format_sstr, StackString};
+use std::{collections::BTreeSet, fmt::Write};
 
 use diary_app_lib::models::{DiaryConflict, DiaryEntries};
 
@@ -98,7 +98,7 @@ impl DiaryAppRequests {
             DiaryAppRequests::Replace { date, text } => {
                 let (entry, _) = dapp.replace_text(date, &text).await?;
                 let body: StackString =
-                    format!("{}\n{}", entry.diary_date, entry.diary_text).into();
+                    format_sstr!("{}\n{}", entry.diary_date, entry.diary_text).into();
                 Ok(vec![body].into())
             }
             DiaryAppRequests::List(opts) => {
@@ -149,7 +149,7 @@ impl DiaryAppRequests {
                     .map(|entry| {
                         let nlines = entry.diff_text.split('\n').count() + 1;
                         match entry.diff_type.as_ref() {
-                            "rem" => format!(
+                            "rem" => format_sstr!(
                                 r#"<textarea style="color:Red;" cols=100 rows={}
                                    >{}</textarea>
                                    <input type="button" name="add" value="Add" onclick="updateConflictAdd({}, '{}', '{}');">
@@ -160,7 +160,7 @@ impl DiaryAppRequests {
                                 date,
                                 datetime.format("%Y-%m-%dT%H:%M:%S%.fZ"),
                             ).into(),
-                            "add" => format!(
+                            "add" => format_sstr!(
                                 r#"<textarea style="color:Blue;" cols=100 rows={}
                                    >{}</textarea>
                                    <input type="button" name="rm" value="Rm" onclick="updateConflictRem({}, '{}', '{}');">
@@ -171,7 +171,7 @@ impl DiaryAppRequests {
                                 date,
                                 datetime.format("%Y-%m-%dT%H:%M:%S%.fZ"),
                             ).into(),
-                            _ => format!("<textarea cols=100 rows={}>{}</textarea><br>", nlines, entry.diff_text).into(),
+                            _ => format_sstr!("<textarea cols=100 rows={}>{}</textarea><br>", nlines, entry.diff_text).into(),
                         }
                     })
                     .collect();
@@ -179,7 +179,7 @@ impl DiaryAppRequests {
             }
             DiaryAppRequests::RemoveConflict(datetime) => {
                 DiaryConflict::remove_by_datetime(datetime, &dapp.pool).await?;
-                let body: StackString = format!("remove {}", datetime).into();
+                let body: StackString = format_sstr!("remove {}", datetime).into();
                 Ok(vec![body].into())
             }
             DiaryAppRequests::CleanConflicts(date) => {
@@ -190,7 +190,7 @@ impl DiaryAppRequests {
                         let pool = dapp.pool.clone();
                         async move {
                             DiaryConflict::remove_by_datetime(datetime, &pool).await?;
-                            Ok(format!("remove {}", datetime).into())
+                            Ok(format_sstr!("remove {}", datetime).into())
                         }
                     });
                 let results: Result<Vec<StackString>, Error> = try_join_all(futures).await;
@@ -232,7 +232,7 @@ impl DiaryAppRequests {
                     .join("\n");
                 let (entry, _) = dapp.replace_text(date, &additions).await?;
                 let body: StackString =
-                    format!("{}\n{}", entry.diary_date, entry.diary_text).into();
+                    format_sstr!("{}\n{}", entry.diary_date, entry.diary_text).into();
                 Ok(vec![body].into())
             }
         }

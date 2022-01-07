@@ -5,9 +5,10 @@ use jwalk::WalkDir;
 use log::{debug, info};
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use regex::Regex;
-use stack_string::StackString;
+use stack_string::{format_sstr, StackString};
 use std::{
     collections::{HashMap, HashSet},
+    fmt::Write,
     sync::Arc,
 };
 use stdout_channel::StdoutChannel;
@@ -171,13 +172,13 @@ impl DiaryAppInterface {
             let mut diary_entries: Vec<_> = DiaryEntries::get_by_text(search_text, &self.pool)
                 .await?
                 .into_iter()
-                .map(|entry| format!("{}\n{}", entry.diary_date, entry.diary_text).into())
+                .map(|entry| format_sstr!("{}\n{}", entry.diary_date, entry.diary_text).into())
                 .collect();
             let diary_cache_entries: Vec<_> = DiaryCache::get_by_text(search_text, &self.pool)
                 .await?
                 .into_iter()
                 .map(|entry| {
-                    format!(
+                    format_sstr!(
                         "{}\n{}",
                         entry.diary_datetime.format("%Y-%m-%dT%H:%M:%SZ"),
                         entry.diary_text
@@ -194,7 +195,7 @@ impl DiaryAppInterface {
                 let entry = DiaryEntries::get_by_date(date, &self.pool)
                     .await?
                     .ok_or_else(|| format_err!("Date SHOULD exist {}", date))?;
-                let entry = format!("{}\n{}", entry.diary_date, entry.diary_text).into();
+                let entry = format_sstr!("{}\n{}", entry.diary_date, entry.diary_text).into();
                 diary_entries.push(entry);
                 let diary_cache_entries: Vec<_> = DiaryCache::get_cache_entries(&self.pool)
                     .await?
@@ -207,7 +208,10 @@ impl DiaryAppInterface {
                             .date()
                             == date
                         {
-                            Some(format!("{}\n{}", entry.diary_datetime, entry.diary_text).into())
+                            Some(
+                                format_sstr!("{}\n{}", entry.diary_datetime, entry.diary_text)
+                                    .into(),
+                            )
                         } else {
                             None
                         }
@@ -225,14 +229,14 @@ impl DiaryAppInterface {
             self.sync_ssh()
                 .await?
                 .into_iter()
-                .map(|c| format!("ssh cache {}", c.diary_datetime).into()),
+                .map(|c| format_sstr!("ssh cache {}", c.diary_datetime).into()),
         );
 
         output.extend(
             self.sync_merge_cache_to_entries()
                 .await?
                 .into_iter()
-                .map(|c| format!("update {}", c.diary_date).into()),
+                .map(|c| format_sstr!("update {}", c.diary_date).into()),
         );
 
         let local = spawn({
@@ -248,19 +252,19 @@ impl DiaryAppInterface {
             local
                 .await??
                 .into_iter()
-                .map(|c| format!("local import {}", c.diary_date).into()),
+                .map(|c| format_sstr!("local import {}", c.diary_date).into()),
         );
         output.extend(
             s3.await??
                 .into_iter()
-                .map(|c| format!("s3 import {}", c.diary_date).into()),
+                .map(|c| format_sstr!("s3 import {}", c.diary_date).into()),
         );
         output.extend(
             self.local
                 .cleanup_local()
                 .await?
                 .into_iter()
-                .map(|c| format!("local cleanup {}", c.diary_date).into()),
+                .map(|c| format_sstr!("local cleanup {}", c.diary_date).into()),
         );
         let s3 = spawn({
             let s3 = self.s3.clone();
@@ -274,7 +278,7 @@ impl DiaryAppInterface {
         output.extend(
             s3.await??
                 .into_iter()
-                .map(|c| format!("s3 export {}", c.diary_date).into()),
+                .map(|c| format_sstr!("s3 export {}", c.diary_date).into()),
         );
 
         self.cleanup_backup().await?;
@@ -301,32 +305,35 @@ impl DiaryAppInterface {
                 .iter()
                 .map(|entry| {
                     let entry_datetime = entry.diary_datetime.with_timezone(&Local);
-                    format!("{}\n{}", entry_datetime, entry.diary_text)
+                    format_sstr!("{}\n{}", entry_datetime, entry.diary_text)
                 })
                 .collect();
             let entry_string = entry_string.join("\n\n");
 
-            let diary_file = self.config.diary_path.join(format!("{}.txt", entry_date));
+            let diary_file = self
+                .config
+                .diary_path
+                .join(format_sstr!("{}.txt", entry_date));
 
             async move {
                 let result = if diary_file.exists() {
                     let mut f = OpenOptions::new().append(true).open(&diary_file).await?;
-                    f.write_all(format!("\n\n{}\n\n", entry_string).as_bytes())
+                    f.write_all(format_sstr!("\n\n{}\n\n", entry_string).as_bytes())
                         .await?;
                     None
                 } else if let Some(mut current_entry) =
                     DiaryEntries::get_by_date(entry_date, &self.pool).await?
                 {
                     current_entry.diary_text =
-                        format!("{}\n\n{}", &current_entry.diary_text, entry_string).into();
+                        format_sstr!("{}\n\n{}", &current_entry.diary_text, entry_string).into();
                     self.stdout
-                        .send(format!("update {}", diary_file.to_string_lossy()));
+                        .send(format_sstr!("update {}", diary_file.to_string_lossy()));
                     current_entry.update_entry(&self.pool, true).await?;
                     Some(current_entry)
                 } else {
                     let new_entry = DiaryEntries::new(entry_date, &entry_string);
                     self.stdout
-                        .send(format!("upsert {}", diary_file.to_string_lossy()));
+                        .send(format_sstr!("upsert {}", diary_file.to_string_lossy()));
                     new_entry.upsert_entry(&self.pool, true).await?;
                     Some(new_entry)
                 };
@@ -482,7 +489,7 @@ impl DiaryAppInterface {
             let backup_directory = &backup_directory;
             async move {
                 if diary_len > backup_len {
-                    let backup_file = backup_directory.join(&format!("{}.txt", date));
+                    let backup_file = backup_directory.join(&format_sstr!("{}.txt", date));
                     if backup_file.exists() {
                         remove_file(&backup_file).await?;
                     } else {
@@ -495,9 +502,11 @@ impl DiaryAppInterface {
                     }
                     if self.s3.upload_entry(date).await?.is_some() {
                         return Ok(Some(
-                            format!(
+                            format_sstr!(
                                 "date {} backup_len {} diary_len {}",
-                                date, backup_len, diary_len
+                                date,
+                                backup_len,
+                                diary_len
                             )
                             .into(),
                         ));

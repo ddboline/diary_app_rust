@@ -3,8 +3,8 @@ use chrono::{DateTime, Datelike, Duration, Local, NaiveDate, TimeZone, Utc};
 use futures::future::try_join_all;
 use jwalk::WalkDir;
 use log::debug;
-use stack_string::StackString;
-use std::{collections::BTreeMap, fs::metadata, sync::Arc, time::SystemTime};
+use stack_string::{format_sstr, StackString};
+use std::{collections::BTreeMap, fmt::Write, fs::metadata, sync::Arc, time::SystemTime};
 use tokio::{
     fs::{read_to_string, remove_file, File},
     io::AsyncWriteExt,
@@ -49,14 +49,17 @@ impl LocalInterface {
         let futures = year_map.into_iter().map(|(year, date_list)| {
             let year_mod_map = year_mod_map.clone();
             async move {
-                let filepath = self.config.diary_path.join(format!("diary_{}.txt", year));
+                let filepath = self
+                    .config
+                    .diary_path
+                    .join(format_sstr!("diary_{}.txt", year));
                 if filepath.exists() {
                     if let Ok(metadata) = filepath.metadata() {
                         if let Ok(modified) = metadata.modified() {
                             let modified: DateTime<Utc> = modified.into();
                             if let Some(maxmod) = year_mod_map.get(&year) {
                                 if modified >= *maxmod {
-                                    return Ok(format!("{} 0", year).into());
+                                    return Ok(format_sstr!("{} 0", year).into());
                                 }
                             }
                         }
@@ -68,10 +71,10 @@ impl LocalInterface {
                     let entry = DiaryEntries::get_by_date(*date, &self.pool)
                         .await?
                         .ok_or_else(|| format_err!("Date should exist {}", date))?;
-                    f.write_all(format!("{}\n\n{}\n\n", date, entry.diary_text).as_bytes())
+                    f.write_all(format_sstr!("{}\n\n{}\n\n", date, entry.diary_text).as_bytes())
                         .await?;
                 }
-                Ok(format!("{} {}", year, date_list.len()).into())
+                Ok(format_sstr!("{} {}", year, date_list.len()).into())
             }
         });
         let output: Result<Vec<_>, Error> = try_join_all(futures).await;
@@ -125,7 +128,7 @@ impl LocalInterface {
                             if existing_size > *file_size {
                                 debug!("file db diff {} {}", file_mod, db_mod);
                                 debug!("file db size {} {}", file_size, db_mod);
-                                let current_date_str = StackString::from_display(current_date)?;
+                                let current_date_str = StackString::from_display(current_date);
                                 let filepath = self
                                     .config
                                     .diary_path
@@ -143,7 +146,7 @@ impl LocalInterface {
                     entries.push(d);
                 }
             } else {
-                let current_date_str = StackString::from_display(current_date)?;
+                let current_date_str = StackString::from_display(current_date);
                 let filepath = self
                     .config
                     .diary_path

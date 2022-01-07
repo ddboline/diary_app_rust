@@ -5,8 +5,8 @@ use difference::{Changeset, Difference};
 use log::debug;
 use postgres_query::{client::GenericClient, query, query_dyn, FromSqlRow};
 use serde::{Deserialize, Serialize};
-use stack_string::StackString;
-use std::collections::HashMap;
+use stack_string::{format_sstr, StackString};
+use std::{collections::HashMap, fmt::Write};
 use uuid::Uuid;
 
 use crate::pgpool::{PgPool, PgTransaction};
@@ -396,7 +396,7 @@ impl DiaryEntries {
             .chars()
             .filter(|c| char::is_alphanumeric(*c) || *c == '-' || *c == '_')
             .collect();
-        let query = format!(
+        let query = format_sstr!(
             r#"
                 SELECT * FROM diary_entries
                 WHERE diary_text like '%{}%'
@@ -474,7 +474,7 @@ impl DiaryCache {
             .chars()
             .filter(|c| char::is_alphanumeric(*c) || *c == '-' || *c == '_')
             .collect();
-        let query = format!(
+        let query = format_sstr!(
             r#"
                 SELECT * FROM diary_cache
                 WHERE diary_text like '%{}%'

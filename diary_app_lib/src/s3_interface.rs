@@ -4,10 +4,11 @@ use futures::future::try_join_all;
 use lazy_static::lazy_static;
 use log::debug;
 use rusoto_s3::Object;
-use stack_string::StackString;
+use stack_string::{format_sstr, StackString};
 use std::{
     collections::HashMap,
     convert::{TryFrom, TryInto},
+    fmt::Write,
     sync::Arc,
 };
 use tokio::sync::RwLock;
@@ -154,7 +155,7 @@ impl S3Interface {
             entry.diary_date,
             entry.diary_text.matches('\n').count()
         );
-        let key = format!("{}.txt", entry.diary_date);
+        let key = format_sstr!("{}.txt", entry.diary_date);
         self.s3_client
             .upload_from_string(&entry.diary_text, &self.config.diary_bucket, &key)
             .await?;
@@ -162,7 +163,7 @@ impl S3Interface {
     }
 
     pub async fn download_entry(&self, date: NaiveDate) -> Result<Option<DiaryEntries>, Error> {
-        let key = format!("{}.txt", date);
+        let key = format_sstr!("{}.txt", date);
         let (text, last_modified) = self
             .s3_client
             .download_to_string(&self.config.diary_bucket, &key)
