@@ -7,9 +7,7 @@ async fn main() {
     match DiaryAppOpts::process_args().await {
         Ok(_) => {}
         Err(e) => {
-            if !e.to_string().contains("Broken pipe") {
-                panic!("{}", e);
-            }
+            assert!(e.to_string().contains("Broken pipe"), "{}", e);
         }
     }
 }

@@ -59,7 +59,7 @@ impl LocalInterface {
                             let modified: DateTime<Utc> = modified.into();
                             if let Some(maxmod) = year_mod_map.get(&year) {
                                 if modified >= *maxmod {
-                                    return Ok(format_sstr!("{} 0", year).into());
+                                    return Ok(format_sstr!("{} 0", year));
                                 }
                             }
                         }
@@ -74,7 +74,7 @@ impl LocalInterface {
                     f.write_all(format_sstr!("{}\n\n{}\n\n", date, entry.diary_text).as_bytes())
                         .await?;
                 }
-                Ok(format_sstr!("{} {}", year, date_list.len()).into())
+                Ok(format_sstr!("{} {}", year, date_list.len()))
             }
         });
         let output: Result<Vec<_>, Error> = try_join_all(futures).await;

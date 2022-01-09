@@ -97,8 +97,7 @@ impl DiaryAppRequests {
             }
             DiaryAppRequests::Replace { date, text } => {
                 let (entry, _) = dapp.replace_text(date, &text).await?;
-                let body: StackString =
-                    format_sstr!("{}\n{}", entry.diary_date, entry.diary_text).into();
+                let body: StackString = format_sstr!("{}\n{}", entry.diary_date, entry.diary_text);
                 Ok(vec![body].into())
             }
             DiaryAppRequests::List(opts) => {
@@ -159,7 +158,7 @@ impl DiaryAppRequests {
                                 entry.id,
                                 date,
                                 datetime.format("%Y-%m-%dT%H:%M:%S%.fZ"),
-                            ).into(),
+                            ),
                             "add" => format_sstr!(
                                 r#"<textarea style="color:Blue;" cols=100 rows={}
                                    >{}</textarea>
@@ -170,8 +169,8 @@ impl DiaryAppRequests {
                                 entry.id,
                                 date,
                                 datetime.format("%Y-%m-%dT%H:%M:%S%.fZ"),
-                            ).into(),
-                            _ => format_sstr!("<textarea cols=100 rows={}>{}</textarea><br>", nlines, entry.diff_text).into(),
+                            ),
+                            _ => format_sstr!("<textarea cols=100 rows={}>{}</textarea><br>", nlines, entry.diff_text),
                         }
                     })
                     .collect();
@@ -179,7 +178,7 @@ impl DiaryAppRequests {
             }
             DiaryAppRequests::RemoveConflict(datetime) => {
                 DiaryConflict::remove_by_datetime(datetime, &dapp.pool).await?;
-                let body: StackString = format_sstr!("remove {}", datetime).into();
+                let body: StackString = format_sstr!("remove {}", datetime);
                 Ok(vec![body].into())
             }
             DiaryAppRequests::CleanConflicts(date) => {
@@ -190,7 +189,7 @@ impl DiaryAppRequests {
                         let pool = dapp.pool.clone();
                         async move {
                             DiaryConflict::remove_by_datetime(datetime, &pool).await?;
-                            Ok(format_sstr!("remove {}", datetime).into())
+                            Ok(format_sstr!("remove {}", datetime))
                         }
                     });
                 let results: Result<Vec<StackString>, Error> = try_join_all(futures).await;
@@ -231,8 +230,7 @@ impl DiaryAppRequests {
                     })
                     .join("\n");
                 let (entry, _) = dapp.replace_text(date, &additions).await?;
-                let body: StackString =
-                    format_sstr!("{}\n{}", entry.diary_date, entry.diary_text).into();
+                let body = format_sstr!("{}\n{}", entry.diary_date, entry.diary_text);
                 Ok(vec![body].into())
             }
         }
