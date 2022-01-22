@@ -130,7 +130,7 @@ impl DiaryAppOpts {
                     dap: &DiaryAppInterface,
                     datetime: DateTime<Utc>,
                 ) -> Result<(), Error> {
-                    dap.stdout.send(format!("datetime {}", datetime));
+                    dap.stdout.send(format!("datetime {datetime}"));
                     let conflicts: Vec<_> = DiaryConflict::get_by_datetime(datetime, &dap.pool)
                         .await?
                         .into_iter()

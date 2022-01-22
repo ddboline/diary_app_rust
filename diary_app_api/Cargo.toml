@@ -31,10 +31,10 @@ derive_more = "0.99"
 uuid = "0.8"
 rweb-helper = { git = "https://github.com/ddboline/rweb_helper.git", tag="0.4.3" }
 stack-string = { version="0.5", features=["postgres_types", "rweb-openapi"] }
-authorized_users = { git = "https://github.com/ddboline/auth_server_rust.git", tag="0.7.21"}
+authorized_users = { git = "https://github.com/ddboline/auth_server_rust.git", tag="0.7.23"}
 
 [dev-dependencies]
 reqwest = {version="0.11", features=["cookies", "json", "rustls-tls", "stream"]}
-auth_server_http = { git = "https://github.com/ddboline/auth_server_rust.git", tag="0.7.21"}
-auth_server_lib = { git = "https://github.com/ddboline/auth_server_rust.git", tag="0.7.21"}
+auth_server_http = { git = "https://github.com/ddboline/auth_server_rust.git", tag="0.7.23"}
+auth_server_lib = { git = "https://github.com/ddboline/auth_server_rust.git", tag="0.7.23"}
 env_logger = "0.9"

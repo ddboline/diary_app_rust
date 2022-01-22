@@ -163,7 +163,7 @@ impl S3Interface {
     }
 
     pub async fn download_entry(&self, date: NaiveDate) -> Result<Option<DiaryEntries>, Error> {
-        let key = format_sstr!("{}.txt", date);
+        let key = format_sstr!("{date}.txt");
         let (text, last_modified) = self
             .s3_client
             .download_to_string(&self.config.diary_bucket, &key)
@@ -252,7 +252,7 @@ impl S3Interface {
             async move {
                 let entry = DiaryEntries::get_by_date(*date, &pool)
                     .await?
-                    .ok_or_else(|| format_err!("Date should exist {}", date))?;
+                    .ok_or_else(|| format_err!("Date should exist {date}"))?;
                 let diary_len = entry.diary_text.len();
                 if diary_len == *backup_len {
                     Ok(None)

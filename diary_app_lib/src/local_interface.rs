@@ -52,14 +52,14 @@ impl LocalInterface {
                 let filepath = self
                     .config
                     .diary_path
-                    .join(format_sstr!("diary_{}.txt", year));
+                    .join(format_sstr!("diary_{year}.txt"));
                 if filepath.exists() {
                     if let Ok(metadata) = filepath.metadata() {
                         if let Ok(modified) = metadata.modified() {
                             let modified: DateTime<Utc> = modified.into();
                             if let Some(maxmod) = year_mod_map.get(&year) {
                                 if modified >= *maxmod {
-                                    return Ok(format_sstr!("{} 0", year));
+                                    return Ok(format_sstr!("{year} 0"));
                                 }
                             }
                         }
@@ -70,11 +70,11 @@ impl LocalInterface {
                 for date in &date_list {
                     let entry = DiaryEntries::get_by_date(*date, &self.pool)
                         .await?
-                        .ok_or_else(|| format_err!("Date should exist {}", date))?;
-                    f.write_all(format_sstr!("{}\n\n{}\n\n", date, entry.diary_text).as_bytes())
+                        .ok_or_else(|| format_err!("Date should exist {date}"))?;
+                    f.write_all(format_sstr!("{date}\n\n{t}\n\n", t = entry.diary_text).as_bytes())
                         .await?;
                 }
-                Ok(format_sstr!("{} {}", year, date_list.len()))
+                Ok(format_sstr!("{year} {l}", l = date_list.len()))
             }
         });
         let output: Result<Vec<_>, Error> = try_join_all(futures).await;

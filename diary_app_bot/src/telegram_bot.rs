@@ -112,7 +112,7 @@ async fn bot_handler(dapp_interface: DiaryAppInterface) -> Result<(), Error> {
                         Some(":insert" | ":i") => {
                             let insert_text = data.trim_start_matches(first_word.unwrap()).trim();
                             if let Ok(cache_entry) = dapp_interface.cache_text(insert_text).await {
-                                let reply = format_sstr!("cached entry {:?}", cache_entry);
+                                let reply = format_sstr!("cached entry {cache_entry:?}");
                                 api.send(message.text_reply(reply.as_str())).await?;
                             } else {
                                 api.send(message.text_reply("failed to cache entry"))
@@ -122,7 +122,7 @@ async fn bot_handler(dapp_interface: DiaryAppInterface) -> Result<(), Error> {
                         }
                         _ => {
                             if let Ok(cache_entry) = dapp_interface.cache_text(data).await {
-                                let reply = format_sstr!("cached entry {:?}", cache_entry);
+                                let reply = format_sstr!("cached entry {cache_entry:?}");
                                 api.send(message.text_reply(reply.as_str())).await?;
                             } else {
                                 api.send(message.text_reply("failed to cache entry"))
@@ -134,10 +134,9 @@ async fn bot_handler(dapp_interface: DiaryAppInterface) -> Result<(), Error> {
                 } else {
                     // Answer message with "Hi".
                     let reply = format_sstr!(
-                        "Hi, {}, user_id {}! You just wrote '{}'",
-                        &message.from.first_name,
-                        &message.from.id,
-                        data
+                        "Hi, {n}, user_id {i}! You just wrote '{data}'",
+                        n = message.from.first_name,
+                        i = message.from.id,
                     );
                     api.send(message.text_reply(reply.as_str())).await?;
                 }

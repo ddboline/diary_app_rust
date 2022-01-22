@@ -7,8 +7,8 @@ use rweb_helper::{
     html_response::HtmlResponse as HtmlBase, json_response::JsonResponse as JsonBase, RwebResponse,
 };
 use serde::{Deserialize, Serialize};
-use stack_string::StackString;
-use std::collections::HashSet;
+use stack_string::{format_sstr, StackString};
+use std::{collections::HashSet, fmt::Write};
 
 use diary_app_lib::models::DiaryCache;
 
@@ -54,7 +54,7 @@ async fn search_api_body(query: SearchOptions, state: AppState) -> HttpResult<Ve
 
 #[derive(RwebResponse)]
 #[response(description = "Search Output", content = "html")]
-struct SearchResponse(HtmlBase<String, Error>);
+struct SearchResponse(HtmlBase<StackString, Error>);
 
 #[get("/api/search")]
 pub async fn search(
@@ -64,7 +64,7 @@ pub async fn search(
 ) -> WarpResult<SearchResponse> {
     let query = query.into_inner();
     let body = search_body(query, state).await?;
-    let body = format!(
+    let body = format_sstr!(
         r#"<textarea autofocus readonly="readonly"
             name="message" id="diary_editor_form"
             rows=50 cols=100>{}</textarea>"#,
@@ -121,7 +121,7 @@ async fn insert_body(data: InsertData, state: AppState) -> HttpResult<Vec<StackS
 
 #[derive(RwebResponse)]
 #[response(description = "Sync Output", content = "html")]
-struct SyncResponse(HtmlBase<String, Error>);
+struct SyncResponse(HtmlBase<StackString, Error>);
 
 #[get("/api/sync")]
 pub async fn sync(
@@ -129,7 +129,7 @@ pub async fn sync(
     #[data] state: AppState,
 ) -> WarpResult<SyncResponse> {
     let body = sync_body(state).await?;
-    let body = format!(
+    let body = format_sstr!(
         r#"<textarea autofocus readonly="readonly" name="message" id="diary_editor_form" rows=50 cols=100>{}</textarea>"#,
         body.join("\n")
     );
@@ -208,11 +208,11 @@ fn _list_string(
     conflicts: &HashSet<NaiveDate>,
     body: impl IntoIterator<Item = NaiveDate>,
     query: ListOptions,
-) -> String {
+) -> StackString {
     let text = body
         .into_iter()
         .map(|t| {
-            format!(
+            format_sstr!(
                 r#"
                     <input type="button"
                         type="submit"
@@ -222,7 +222,7 @@ fn _list_string(
                     <br>"#,
                 t = t,
                 c = if conflicts.contains(&t) {
-                    format!(
+                    format_sstr!(
                         r#"
                             <input type="button"
                                 type="submit"
@@ -233,36 +233,36 @@ fn _list_string(
                         t = t
                     )
                 } else {
-                    "".to_string()
+                    "".into()
                 }
             )
         })
         .join("\n");
     let buttons = if query.start.is_some() {
         vec![
-            format!(
+            format_sstr!(
                 r#"<button type="submit" onclick="gotoEntries({})">Previous</button>"#,
                 -10
             ),
-            format!(
+            format_sstr!(
                 r#"<button type="submit" onclick="gotoEntries({})">Next</button>"#,
                 10
             ),
         ]
         .join("\n")
     } else {
-        vec![format!(
+        vec![format_sstr!(
             r#"<button type="submit" onclick="gotoEntries({})">Next</button>"#,
             10
         )]
         .join("\n")
     };
-    format!("{}\n<br>\n{}", text, buttons)
+    format_sstr!("{text}\n<br>\n{buttons}")
 }
 
 #[derive(RwebResponse)]
 #[response(description = "List Output", content = "html")]
-struct ListResponse(HtmlBase<String, Error>);
+struct ListResponse(HtmlBase<StackString, Error>);
 
 #[get("/api/list")]
 pub async fn list(
@@ -275,7 +275,7 @@ pub async fn list(
     Ok(HtmlBase::new(body).into())
 }
 
-async fn list_body(query: ListOptions, state: &AppState) -> HttpResult<String> {
+async fn list_body(query: ListOptions, state: &AppState) -> HttpResult<StackString> {
     let body = list_api_body(query, state).await?;
     let conflicts = if let DiaryAppOutput::Dates(dates) = DiaryAppRequests::ListConflicts(None)
         .handle(&state.db)
@@ -324,7 +324,7 @@ pub struct EditData {
 
 #[derive(RwebResponse)]
 #[response(description = "Edit Output", content = "html")]
-struct EditResponse(HtmlBase<String, Error>);
+struct EditResponse(HtmlBase<StackString, Error>);
 
 #[get("/api/edit")]
 pub async fn edit(
@@ -337,7 +337,7 @@ pub async fn edit(
     Ok(HtmlBase::new(body).into())
 }
 
-async fn edit_body(query: EditData, state: AppState) -> HttpResult<String> {
+async fn edit_body(query: EditData, state: AppState) -> HttpResult<StackString> {
     let diary_date = query.date;
     let text = if let DiaryAppOutput::Lines(lines) = DiaryAppRequests::Display(diary_date)
         .handle(&state.db)
@@ -347,7 +347,7 @@ async fn edit_body(query: EditData, state: AppState) -> HttpResult<String> {
     } else {
         Vec::new()
     };
-    let body = format!(
+    let body = format_sstr!(
         r#"
         <textarea name="message" id="diary_editor_form" rows=50 cols=100
         form="diary_edit_form">{text}</textarea><br>
@@ -363,7 +363,7 @@ async fn edit_body(query: EditData, state: AppState) -> HttpResult<String> {
 
 #[derive(RwebResponse)]
 #[response(description = "Display Output", content = "html")]
-struct DisplayResponse(HtmlBase<String, Error>);
+struct DisplayResponse(HtmlBase<StackString, Error>);
 
 #[get("/api/display")]
 pub async fn display(
@@ -376,7 +376,7 @@ pub async fn display(
     Ok(HtmlBase::new(body).into())
 }
 
-async fn display_body(query: EditData, state: AppState) -> HttpResult<String> {
+async fn display_body(query: EditData, state: AppState) -> HttpResult<StackString> {
     let diary_date = query.date;
     let text = if let DiaryAppOutput::Lines(lines) = DiaryAppRequests::Display(diary_date)
         .handle(&state.db)
@@ -386,10 +386,10 @@ async fn display_body(query: EditData, state: AppState) -> HttpResult<String> {
     } else {
         Vec::new()
     };
-    let body = format!(
+    let body = format_sstr!(
         r#"<textarea autofocus readonly="readonly" name="message" id="diary_editor_form" rows=50 cols=100>{text}</textarea><br>{editor}"#,
         text = text.join("\n"),
-        editor = format!(
+        editor = format_sstr!(
             r#"<input type="button" name="edit" value="Edit" onclick="switchToEditor('{}')">"#,
             diary_date
         ),
@@ -399,7 +399,7 @@ async fn display_body(query: EditData, state: AppState) -> HttpResult<String> {
 
 #[derive(RwebResponse)]
 #[response(description = "Frontpage", content = "html")]
-struct FrontpageResponse(HtmlBase<String, Error>);
+struct FrontpageResponse(HtmlBase<StackString, Error>);
 
 #[get("/api/index.html")]
 pub async fn diary_frontpage(
@@ -410,7 +410,7 @@ pub async fn diary_frontpage(
     Ok(HtmlBase::new(body).into())
 }
 
-async fn diary_frontpage_body(state: AppState) -> HttpResult<String> {
+async fn diary_frontpage_body(state: AppState) -> HttpResult<StackString> {
     let query = ListOptions {
         limit: Some(10),
         ..ListOptions::default()
@@ -437,7 +437,7 @@ async fn diary_frontpage_body(state: AppState) -> HttpResult<String> {
         "LIST_TEXT" => body.as_str(),
         "DISPLAY_TEXT" => "",
     };
-    let body = state.hb.render("id", &params)?;
+    let body = state.hb.render("id", &params)?.into();
     Ok(body)
 }
 
@@ -451,7 +451,7 @@ pub struct ConflictData {
 
 #[derive(RwebResponse)]
 #[response(description = "List Conflicts", content = "html")]
-struct ListConflictsResponse(HtmlBase<String, Error>);
+struct ListConflictsResponse(HtmlBase<StackString, Error>);
 
 #[get("/api/list_conflicts")]
 pub async fn list_conflicts(
@@ -464,7 +464,7 @@ pub async fn list_conflicts(
     Ok(HtmlBase::new(body).into())
 }
 
-async fn list_conflicts_body(query: ConflictData, state: AppState) -> HttpResult<String> {
+async fn list_conflicts_body(query: ConflictData, state: AppState) -> HttpResult<StackString> {
     let body = if let DiaryAppOutput::Timestamps(dates) =
         DiaryAppRequests::ListConflicts(query.date)
             .handle(&state.db)
@@ -477,18 +477,18 @@ async fn list_conflicts_body(query: ConflictData, state: AppState) -> HttpResult
     let mut buttons = Vec::new();
     if let Some(date) = query.date {
         if !body.is_empty() {
-            buttons.push(format!(
+            buttons.push(format_sstr!(
                 r#"<button type="submit" onclick="cleanConflicts('{}')">Clean</button>"#,
                 date
             ));
         }
     }
-    buttons.push(r#"<button type="submit" onclick="switchToList()">List</button>"#.to_string());
+    buttons.push(r#"<button type="submit" onclick="switchToList()">List</button>"#.into());
 
     let text = body
         .into_iter()
         .map(|t| {
-            format!(
+            format_sstr!(
                 r#"
             <input type="button"
                 type="submit"
@@ -506,13 +506,13 @@ async fn list_conflicts_body(query: ConflictData, state: AppState) -> HttpResult
         })
         .join("\n");
 
-    let body = format!("{}\n<br>\n{}", text, buttons.join("<br>"));
+    let body = format_sstr!("{}\n<br>\n{}", text, buttons.join("<br>"));
     Ok(body)
 }
 
 #[derive(RwebResponse)]
 #[response(description = "Show Conflict", content = "html")]
-struct ShowConflictResponse(HtmlBase<String, Error>);
+struct ShowConflictResponse(HtmlBase<StackString, Error>);
 
 #[get("/api/show_conflict")]
 pub async fn show_conflict(
@@ -525,7 +525,7 @@ pub async fn show_conflict(
     Ok(HtmlBase::new(body).into())
 }
 
-async fn show_conflict_body(query: ConflictData, state: AppState) -> HttpResult<String> {
+async fn show_conflict_body(query: ConflictData, state: AppState) -> HttpResult<StackString> {
     let datetime = query.datetime.unwrap_or_else(Utc::now);
     let diary_date = query
         .date
@@ -538,7 +538,7 @@ async fn show_conflict_body(query: ConflictData, state: AppState) -> HttpResult<
     } else {
         Vec::new()
     };
-    let body = format!(
+    let body = format_sstr!(
         r#"{t}<br>
             <input type="button" name="display" value="Display" onclick="switchToDisplay('{d}')">
             <input type="button" name="commit" value="Commit" onclick="commitConflict('{d}', '{dt}')">
@@ -554,7 +554,7 @@ async fn show_conflict_body(query: ConflictData, state: AppState) -> HttpResult<
 
 #[derive(RwebResponse)]
 #[response(description = "Remove Conflict", content = "html")]
-struct RemoveConflictResponse(HtmlBase<String, Error>);
+struct RemoveConflictResponse(HtmlBase<StackString, Error>);
 
 #[get("/api/remove_conflict")]
 pub async fn remove_conflict(
@@ -567,7 +567,7 @@ pub async fn remove_conflict(
     Ok(HtmlBase::new(body).into())
 }
 
-async fn remove_conflict_body(query: ConflictData, state: AppState) -> HttpResult<String> {
+async fn remove_conflict_body(query: ConflictData, state: AppState) -> HttpResult<StackString> {
     let body = if let Some(datetime) = query.datetime {
         if let DiaryAppOutput::Lines(lines) = DiaryAppRequests::RemoveConflict(datetime)
             .handle(&state.db)
@@ -589,7 +589,7 @@ async fn remove_conflict_body(query: ConflictData, state: AppState) -> HttpResul
     } else {
         String::new()
     };
-    Ok(body)
+    Ok(body.into())
 }
 
 #[derive(Serialize, Deserialize, Schema)]

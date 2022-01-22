@@ -77,7 +77,7 @@ impl Config {
     }
 
     pub fn get_inner(self) -> Result<ConfigInner, Error> {
-        Arc::try_unwrap(self.0).map_err(|e| format_err!("Failed unwrapping {:?}", e))
+        Arc::try_unwrap(self.0).map_err(|e| format_err!("Failed unwrapping {e:?}"))
     }
 
     pub fn from_inner(inner: ConfigInner) -> Self {

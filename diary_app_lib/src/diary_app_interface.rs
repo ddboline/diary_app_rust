@@ -193,7 +193,7 @@ impl DiaryAppInterface {
                 debug!("search date {}", date);
                 let entry = DiaryEntries::get_by_date(date, &self.pool)
                     .await?
-                    .ok_or_else(|| format_err!("Date SHOULD exist {}", date))?;
+                    .ok_or_else(|| format_err!("Date SHOULD exist {date}"))?;
                 let entry = format_sstr!("{}\n{}", entry.diary_date, entry.diary_text);
                 diary_entries.push(entry);
                 let diary_cache_entries: Vec<_> = DiaryCache::get_cache_entries(&self.pool)
@@ -313,7 +313,7 @@ impl DiaryAppInterface {
             let diary_file = self
                 .config
                 .diary_path
-                .join(format_sstr!("{}.txt", entry_date));
+                .join(format_sstr!("{entry_date}.txt"));
 
             async move {
                 let result = if diary_file.exists() {
@@ -325,7 +325,7 @@ impl DiaryAppInterface {
                     DiaryEntries::get_by_date(entry_date, &self.pool).await?
                 {
                     current_entry.diary_text =
-                        format_sstr!("{}\n\n{}", &current_entry.diary_text, entry_string);
+                        format_sstr!("{t}\n\n{entry_string}", t = current_entry.diary_text);
                     self.stdout
                         .send(format_sstr!("update {}", diary_file.to_string_lossy()));
                     current_entry.update_entry(&self.pool, true).await?;
@@ -425,7 +425,7 @@ impl DiaryAppInterface {
             .join("epistle_backup")
             .join("backup");
         if !backup_directory.exists() {
-            return Err(format_err!("{:?} doesn't exist", backup_directory));
+            return Err(format_err!("{backup_directory:?} doesn't exist"));
         }
         let files: Result<Vec<_>, Error> = WalkDir::new(backup_directory)
             .into_iter()
@@ -459,7 +459,7 @@ impl DiaryAppInterface {
             async move {
                 let entry = DiaryEntries::get_by_date(*date, &pool)
                     .await?
-                    .ok_or_else(|| format_err!("Date should exist {}", date))?;
+                    .ok_or_else(|| format_err!("Date should exist {date}"))?;
                 let diary_len = entry.diary_text.len();
                 if diary_len == *backup_len {
                     Ok(None)
@@ -489,7 +489,7 @@ impl DiaryAppInterface {
             let backup_directory = &backup_directory;
             async move {
                 if diary_len > backup_len {
-                    let backup_file = backup_directory.join(&format_sstr!("{}.txt", date));
+                    let backup_file = backup_directory.join(&format_sstr!("{date}.txt"));
                     if backup_file.exists() {
                         remove_file(&backup_file).await?;
                     } else {
@@ -502,10 +502,7 @@ impl DiaryAppInterface {
                     }
                     if self.s3.upload_entry(date).await?.is_some() {
                         return Ok(Some(format_sstr!(
-                            "date {} backup_len {} diary_len {}",
-                            date,
-                            backup_len,
-                            diary_len
+                            "date {date} backup_len {backup_len} diary_len {diary_len}"
                         )));
                     }
                 }

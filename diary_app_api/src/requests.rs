@@ -147,30 +147,23 @@ impl DiaryAppRequests {
                     .into_iter()
                     .map(|entry| {
                         let nlines = entry.diff_text.split('\n').count() + 1;
+                        let id = entry.id;
+                        let diff = &entry.diff_text;
+                        let dt = datetime.format("%Y-%m-%dT%H:%M:%S%.fZ");
                         match entry.diff_type.as_ref() {
                             "rem" => format_sstr!(
-                                r#"<textarea style="color:Red;" cols=100 rows={}
-                                   >{}</textarea>
-                                   <input type="button" name="add" value="Add" onclick="updateConflictAdd({}, '{}', '{}');">
-                                   <br>"#,
-                                nlines,
-                                entry.diff_text,
-                                entry.id,
-                                date,
-                                datetime.format("%Y-%m-%dT%H:%M:%S%.fZ"),
+                                r#"<textarea style="color:Red;" cols=100 rows={nlines}
+                                   >{diff}</textarea>
+                                   <input type="button" name="add" value="Add" onclick="updateConflictAdd({id}, '{date}', '{dt}');">
+                                   <br>"#
                             ),
                             "add" => format_sstr!(
-                                r#"<textarea style="color:Blue;" cols=100 rows={}
-                                   >{}</textarea>
-                                   <input type="button" name="rm" value="Rm" onclick="updateConflictRem({}, '{}', '{}');">
-                                   <br>"#,
-                                nlines,
-                                entry.diff_text,
-                                entry.id,
-                                date,
-                                datetime.format("%Y-%m-%dT%H:%M:%S%.fZ"),
+                                r#"<textarea style="color:Blue;" cols=100 rows={nlines}
+                                   >{diff}</textarea>
+                                   <input type="button" name="rm" value="Rm" onclick="updateConflictRem({id}, '{date}', '{dt}');">
+                                   <br>"#
                             ),
-                            _ => format_sstr!("<textarea cols=100 rows={}>{}</textarea><br>", nlines, entry.diff_text),
+                            _ => format_sstr!("<textarea cols=100 rows={nlines}>{diff}</textarea><br>"),
                         }
                     })
                     .collect();
@@ -178,7 +171,7 @@ impl DiaryAppRequests {
             }
             DiaryAppRequests::RemoveConflict(datetime) => {
                 DiaryConflict::remove_by_datetime(datetime, &dapp.pool).await?;
-                let body: StackString = format_sstr!("remove {}", datetime);
+                let body: StackString = format_sstr!("remove {datetime}");
                 Ok(vec![body].into())
             }
             DiaryAppRequests::CleanConflicts(date) => {
@@ -189,7 +182,7 @@ impl DiaryAppRequests {
                         let pool = dapp.pool.clone();
                         async move {
                             DiaryConflict::remove_by_datetime(datetime, &pool).await?;
-                            Ok(format_sstr!("remove {}", datetime))
+                            Ok(format_sstr!("remove {datetime}"))
                         }
                     });
                 let results: Result<Vec<StackString>, Error> = try_join_all(futures).await;

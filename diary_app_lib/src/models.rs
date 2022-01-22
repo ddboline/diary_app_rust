@@ -399,10 +399,9 @@ impl DiaryEntries {
         let query = format_sstr!(
             r#"
                 SELECT * FROM diary_entries
-                WHERE diary_text like '%{}%'
+                WHERE diary_text like '%{search_text}%'
                 ORDER BY diary_date
-            "#,
-            search_text
+            "#
         );
         let query = query_dyn!(&query)?;
         let conn = pool.get().await?;
@@ -477,9 +476,8 @@ impl DiaryCache {
         let query = format_sstr!(
             r#"
                 SELECT * FROM diary_cache
-                WHERE diary_text like '%{}%'
-            "#,
-            search_text,
+                WHERE diary_text like '%{search_text}%'
+            "#
         );
         let query = query_dyn!(&query)?;
         let conn = pool.get().await?;
