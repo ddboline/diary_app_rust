@@ -3,7 +3,7 @@ openapi: 3.0.1
 info:
   title: Frontend for AWS
   description: Web Frontend for AWS Services
-  version: 0.7.13
+  version: 0.8.8
 paths:
   /api/search:
     get:
