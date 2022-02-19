@@ -84,7 +84,7 @@ impl SSHInstance {
                 results
                     .stdout
                     .split(|c| *c == b'\n')
-                    .map(|s| StackString::from_utf8(s.to_vec()).map_err(Into::into))
+                    .map(|s| StackString::from_utf8(s).map_err(Into::into))
                     .collect()
             }
         } else {
