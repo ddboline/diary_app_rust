@@ -10,6 +10,7 @@
 #![allow(clippy::used_underscore_binding)]
 #![allow(clippy::upper_case_acronyms)]
 #![allow(clippy::default_trait_access)]
+#![allow(clippy::return_self_not_must_use)]
 
 pub mod config;
 pub mod diary_app_interface;

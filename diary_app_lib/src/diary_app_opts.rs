@@ -147,7 +147,7 @@ impl DiaryAppOpts {
                 }
 
                 if let Ok(datetime) =
-                    DateTime::parse_from_rfc3339(&opts.text.join("").replace("Z", "+00:00"))
+                    DateTime::parse_from_rfc3339(&opts.text.join("").replace('Z', "+00:00"))
                         .map(|x| x.with_timezone(&Utc))
                 {
                     show_conflict(&dap, datetime).await?;
@@ -157,7 +157,7 @@ impl DiaryAppOpts {
             }
             DiaryAppCommands::RemoveConflict => {
                 if let Ok(datetime) =
-                    DateTime::parse_from_rfc3339(&opts.text.join("").replace("Z", "+00:00"))
+                    DateTime::parse_from_rfc3339(&opts.text.join("").replace('Z', "+00:00"))
                         .map(|x| x.with_timezone(&Utc))
                 {
                     DiaryConflict::remove_by_datetime(datetime, &dap.pool).await?;
