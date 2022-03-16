@@ -26,6 +26,8 @@ pub struct LoggedUser {
 }
 
 impl LoggedUser {
+    /// # Errors
+    /// Returns error if `session_id` doesn't match `self.session`
     pub fn verify_session_id(&self, session_id: Uuid) -> Result<(), Error> {
         if self.session == session_id {
             Ok(())
@@ -34,6 +36,7 @@ impl LoggedUser {
         }
     }
 
+    #[must_use]
     pub fn filter() -> impl Filter<Extract = (Self,), Error = Rejection> + Copy {
         cookie("session-id")
             .and(cookie("jwt"))
@@ -77,6 +80,8 @@ impl FromStr for LoggedUser {
     }
 }
 
+/// # Errors
+/// Returns error if `get_authorized_users` fails
 pub async fn fill_from_db(pool: &PgPool) -> Result<(), Error> {
     debug!("{:?}", *TRIGGER_DB_UPDATE);
     let users: Vec<_> = if TRIGGER_DB_UPDATE.check() {
@@ -89,9 +94,9 @@ pub async fn fill_from_db(pool: &PgPool) -> Result<(), Error> {
         AUTHORIZED_USERS.get_users()
     };
     if let Ok("true") = var("TESTENV").as_ref().map(String::as_str) {
-        AUTHORIZED_USERS.merge_users(["user@test"])?;
+        AUTHORIZED_USERS.merge_users(["user@test"]);
     }
-    AUTHORIZED_USERS.merge_users(&users)?;
+    AUTHORIZED_USERS.merge_users(&users);
 
     debug!("{:?}", *AUTHORIZED_USERS);
     Ok(())

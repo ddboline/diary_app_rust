@@ -39,6 +39,8 @@ pub struct AppState {
     pub hb: Arc<Handlebars<'static>>,
 }
 
+/// # Errors
+/// Returns error if starting app fails
 pub async fn start_app() -> Result<(), Error> {
     async fn update_db(pool: PgPool) {
         let mut i = interval(Duration::from_secs(60));

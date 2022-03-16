@@ -60,6 +60,7 @@ pub struct S3Interface {
 }
 
 impl S3Interface {
+    #[must_use]
     pub fn new(config: Config, pool: PgPool) -> Self {
         Self {
             s3_client: S3Instance::new(&config.aws_region_name),
@@ -83,6 +84,8 @@ impl S3Interface {
         Ok(())
     }
 
+    /// # Errors
+    /// Return error if s3 api fails
     pub async fn export_to_s3(&self) -> Result<Vec<DiaryEntries>, Error> {
         {
             let key_cache = KEY_CACHE.read().await;
@@ -142,6 +145,8 @@ impl S3Interface {
         Ok(results?.into_iter().flatten().collect())
     }
 
+    /// # Errors
+    /// Return error if s3 api fails
     pub async fn upload_entry(&self, date: NaiveDate) -> Result<Option<DiaryEntries>, Error> {
         let entry = match DiaryEntries::get_by_date(date, &self.pool).await? {
             Some(e) => e,
@@ -162,6 +167,8 @@ impl S3Interface {
         Ok(Some(entry))
     }
 
+    /// # Errors
+    /// Return error if s3 api fails
     pub async fn download_entry(&self, date: NaiveDate) -> Result<Option<DiaryEntries>, Error> {
         let key = format_sstr!("{date}.txt");
         let (text, last_modified) = self
@@ -179,6 +186,8 @@ impl S3Interface {
         Ok(Some(entry))
     }
 
+    /// # Errors
+    /// Return error if s3 api fails
     pub async fn import_from_s3(&self) -> Result<Vec<DiaryEntries>, Error> {
         let existing_map = Arc::new(DiaryEntries::get_modified_map(&self.pool).await?);
 
@@ -237,6 +246,8 @@ impl S3Interface {
         Ok(results?.into_iter().flatten().collect())
     }
 
+    /// # Errors
+    /// Return error if s3 api fails
     pub async fn validate_s3(&self) -> Result<Vec<(NaiveDate, usize, usize)>, Error> {
         self.fill_cache().await?;
         let s3_key_map: HashMap<NaiveDate, usize> = KEY_CACHE

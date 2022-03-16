@@ -38,6 +38,7 @@ pub struct DiaryAppInterface {
 }
 
 impl DiaryAppInterface {
+    #[must_use]
     pub fn new(config: Config, pool: PgPool) -> Self {
         Self {
             local: LocalInterface::new(config.clone(), pool.clone()),
@@ -48,6 +49,8 @@ impl DiaryAppInterface {
         }
     }
 
+    /// # Errors
+    /// Return error if db query fails
     pub async fn cache_text(
         &self,
         diary_text: impl Into<StackString>,
@@ -60,6 +63,8 @@ impl DiaryAppInterface {
         Ok(dc)
     }
 
+    /// # Errors
+    /// Return error if db query fails
     pub async fn replace_text(
         &self,
         diary_date: NaiveDate,
@@ -70,6 +75,8 @@ impl DiaryAppInterface {
         Ok((de, output))
     }
 
+    /// # Errors
+    /// Return error if db query fails
     pub async fn get_list_of_dates(
         &self,
         min_date: Option<NaiveDate>,
@@ -160,6 +167,8 @@ impl DiaryAppInterface {
         Ok(dates)
     }
 
+    /// # Errors
+    /// Return error if db query fails
     pub async fn search_text(&self, search_text: &str) -> Result<Vec<StackString>, Error> {
         let mod_map = DiaryEntries::get_modified_map(&self.pool).await?;
 
@@ -223,6 +232,8 @@ impl DiaryAppInterface {
         }
     }
 
+    /// # Errors
+    /// Return error if db query fails
     pub async fn sync_everything(&self) -> Result<Vec<StackString>, Error> {
         let mut output = Vec::new();
         output.extend(
@@ -286,6 +297,8 @@ impl DiaryAppInterface {
         Ok(output)
     }
 
+    /// # Errors
+    /// Return error if db query fails
     pub async fn sync_merge_cache_to_entries(&self) -> Result<Vec<DiaryEntries>, Error> {
         let date_entry_map = DiaryCache::get_cache_entries(&self.pool)
             .await?
@@ -347,6 +360,8 @@ impl DiaryAppInterface {
         Ok(entries?.into_iter().flatten().collect())
     }
 
+    /// # Errors
+    /// Return error if db query fails
     pub async fn serialize_cache(&self) -> Result<Vec<StackString>, Error> {
         DiaryCache::get_cache_entries(&self.pool)
             .await?
@@ -363,7 +378,9 @@ impl DiaryAppInterface {
         ssh_url: &Url,
         cache_set: &HashSet<DateTime<Utc>>,
     ) -> Result<Vec<DiaryCache>, Error> {
-        let ssh_inst = SSHInstance::from_url(ssh_url).await?;
+        let ssh_inst = SSHInstance::from_url(ssh_url)
+            .await
+            .ok_or_else(|| format_err!("Failed to parse url"))?;
         let mut entries = Vec::new();
         for line in ssh_inst
             .run_command_stream_stdout("/usr/bin/diary-app-rust ser")
@@ -378,6 +395,8 @@ impl DiaryAppInterface {
         Ok(entries)
     }
 
+    /// # Errors
+    /// Return error if db query fails
     pub async fn sync_ssh(&self) -> Result<Vec<DiaryCache>, Error> {
         let ssh_url = match self
             .config
@@ -408,10 +427,10 @@ impl DiaryAppInterface {
         let inserted_entries: Result<Vec<_>, Error> = try_join_all(futures).await;
         let inserted_entries: Vec<_> = inserted_entries?;
         if !inserted_entries.is_empty() {
-            SSHInstance::from_url(&ssh_url)
-                .await?
-                .run_command_ssh("/usr/bin/diary-app-rust clear")
-                .await?;
+            if let Some(inst) = SSHInstance::from_url(&ssh_url).await {
+                inst.run_command_ssh("/usr/bin/diary-app-rust clear")
+                    .await?;
+            }
         }
         Ok(inserted_entries)
     }
@@ -446,6 +465,8 @@ impl DiaryAppInterface {
         Ok(results)
     }
 
+    /// # Errors
+    /// Return error if db query fails
     pub async fn validate_backup(&self) -> Result<Vec<(NaiveDate, usize, usize)>, Error> {
         let file_date_len_map = {
             let dap = self.clone();
@@ -472,6 +493,8 @@ impl DiaryAppInterface {
         Ok(results?.into_iter().flatten().collect())
     }
 
+    /// # Errors
+    /// Return error if db query fails
     pub async fn cleanup_backup(&self) -> Result<Vec<StackString>, Error> {
         let backup_directory = self
             .config

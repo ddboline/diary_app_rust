@@ -176,6 +176,8 @@ async fn fill_telegram_user_ids(pool: PgPool) -> Result<(), Error> {
     }
 }
 
+/// # Errors
+/// Returns error if config fails or bot fails
 pub async fn run_bot() -> Result<(), Error> {
     let config = Config::init_config()?;
     let pool = PgPool::new(&config.database_url);

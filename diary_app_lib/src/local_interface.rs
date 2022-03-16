@@ -19,10 +19,13 @@ pub struct LocalInterface {
 }
 
 impl LocalInterface {
+    #[must_use]
     pub fn new(config: Config, pool: PgPool) -> Self {
         Self { config, pool }
     }
 
+    /// # Errors
+    /// Return error if db query fails
     pub async fn export_year_to_local(&self) -> Result<Vec<StackString>, Error> {
         let mod_map = DiaryEntries::get_modified_map(&self.pool).await?;
         let year_mod_map: BTreeMap<i32, DateTime<Utc>> =
@@ -83,6 +86,8 @@ impl LocalInterface {
         Ok(output)
     }
 
+    /// # Errors
+    /// Return error if db query fails
     pub async fn cleanup_local(&self) -> Result<Vec<DiaryEntries>, Error> {
         let existing_map = DiaryEntries::get_modified_map(&self.pool).await?;
         let previous_date = (Local::now() - Duration::days(4)).naive_local().date();
@@ -170,6 +175,8 @@ impl LocalInterface {
         Ok(entries)
     }
 
+    /// # Errors
+    /// Return error if db query fails
     pub async fn import_from_local(&self) -> Result<Vec<DiaryEntries>, Error> {
         let existing_map = DiaryEntries::get_modified_map(&self.pool).await?;
         let mut entries = Vec::new();
@@ -222,25 +229,14 @@ mod tests {
     use log::debug;
     use tempdir::TempDir;
 
-    use crate::{
-        config::{Config, ConfigInner},
-        local_interface::LocalInterface,
-        pgpool::PgPool,
-    };
+    use crate::{config::Config, local_interface::LocalInterface, pgpool::PgPool};
 
     fn get_tempdir() -> Result<TempDir, Error> {
         TempDir::new("test_diary").map_err(Into::into)
     }
 
     fn get_li(tempdir: &TempDir) -> Result<LocalInterface, Error> {
-        let config = Config::init_config()?.get_inner()?;
-        let inner = ConfigInner {
-            diary_path: tempdir.path().to_path_buf(),
-            ssh_url: None,
-            ..config
-        };
-        let config = Config::from_inner(inner);
-
+        let config = Config::get_local_config(tempdir.path())?;
         let pool = PgPool::new(&config.database_url);
         Ok(LocalInterface::new(config, pool))
     }

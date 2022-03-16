@@ -32,6 +32,7 @@ impl Default for S3Instance {
 }
 
 impl S3Instance {
+    #[must_use]
     pub fn new(aws_region_name: &str) -> Self {
         let region: Region = aws_region_name.parse().ok().unwrap_or(Region::UsEast1);
         Self {
@@ -40,11 +41,14 @@ impl S3Instance {
         }
     }
 
+    #[must_use]
     pub fn max_keys(mut self, max_keys: usize) -> Self {
         self.max_keys = Some(max_keys);
         self
     }
 
+    /// # Errors
+    /// Return error if s3 api fails
     pub async fn get_list_of_buckets(&self) -> Result<Vec<Bucket>, Error> {
         exponential_retry(|| async move {
             self.s3_client
@@ -56,6 +60,8 @@ impl S3Instance {
         .await
     }
 
+    /// # Errors
+    /// Return error if s3 api fails
     pub async fn upload_from_string(
         &self,
         input_str: &str,
@@ -80,6 +86,8 @@ impl S3Instance {
         .await
     }
 
+    /// # Errors
+    /// Return error if s3 api fails
     pub async fn download_to_string(
         &self,
         bucket_name: &str,
@@ -108,6 +116,8 @@ impl S3Instance {
         .await
     }
 
+    /// # Errors
+    /// Return error if s3 api fails
     pub async fn get_list_of_keys(
         &self,
         bucket: &str,

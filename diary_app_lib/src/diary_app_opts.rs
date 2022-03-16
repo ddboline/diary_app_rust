@@ -63,6 +63,8 @@ pub struct DiaryAppOpts {
 }
 
 impl DiaryAppOpts {
+    /// # Errors
+    /// Return error if db query fails
     pub async fn process_args() -> Result<(), Error> {
         let opts = Self::from_args();
 

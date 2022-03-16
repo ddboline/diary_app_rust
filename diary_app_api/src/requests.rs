@@ -71,6 +71,8 @@ impl From<Vec<NaiveDate>> for DiaryAppOutput {
 }
 
 impl DiaryAppRequests {
+    /// # Errors
+    /// Return error if any operation fails
     pub async fn handle(self, dapp: &DiaryAppActor) -> Result<DiaryAppOutput, Error> {
         match self {
             DiaryAppRequests::Search(opts) => {

@@ -45,11 +45,11 @@ impl SSHInstance {
         }
     }
 
-    pub async fn from_url(url: &Url) -> Result<Self, Error> {
-        let host = url.host_str().ok_or_else(|| format_err!("Parse error"))?;
+    pub async fn from_url(url: &Url) -> Option<Self> {
+        let host = url.host_str()?;
         let port = url.port().unwrap_or(22);
         let user = url.username();
-        Ok(Self::new(user, host, port).await)
+        Some(Self::new(user, host, port).await)
     }
 
     pub fn get_ssh_str(&self, path: impl Display) -> StackString {
@@ -60,6 +60,7 @@ impl SSHInstance {
         }
     }
 
+    #[must_use]
     pub fn get_ssh_username_host(&self) -> SmallVec<[StackString; 3]> {
         let user_host = format_sstr!("{}@{}", self.user, self.host);
         if self.port == 22 {
@@ -70,6 +71,8 @@ impl SSHInstance {
         }
     }
 
+    /// # Errors
+    /// Returns error if spawn fails or if output is not utf8
     pub async fn run_command_stream_stdout(&self, cmd: &str) -> Result<Vec<StackString>, Error> {
         if let Some(host_lock) = LOCK_CACHE.read().await.get(&self.host) {
             let _guard = host_lock.lock().await;
@@ -92,6 +95,8 @@ impl SSHInstance {
         }
     }
 
+    /// # Errors
+    /// Returns error if spawn fails or if output is not utf8
     pub async fn run_command_print_stdout(&self, cmd: &str) -> Result<(), Error> {
         if let Some(host_lock) = LOCK_CACHE.read().await.get(&self.host) {
             let _guard = host_lock.lock();
@@ -126,6 +131,8 @@ impl SSHInstance {
         Ok(())
     }
 
+    /// # Errors
+    /// Returns error if spawn fails or if output is not utf8
     pub async fn run_command_ssh(&self, cmd: &str) -> Result<(), Error> {
         let user_host = self.get_ssh_username_host();
         let mut args: SmallVec<[&str; 4]> = user_host.iter().map(StackString::as_str).collect();

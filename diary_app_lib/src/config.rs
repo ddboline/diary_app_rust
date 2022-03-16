@@ -1,4 +1,4 @@
-use anyhow::{format_err, Error};
+use anyhow::Error;
 use serde::Deserialize;
 use std::{
     ops::Deref,
@@ -71,22 +71,10 @@ fn default_secret_path() -> PathBuf {
         .join("secret.bin")
 }
 
-impl Config {
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    pub fn get_inner(self) -> Result<ConfigInner, Error> {
-        Arc::try_unwrap(self.0).map_err(|e| format_err!("Failed unwrapping {e:?}"))
-    }
-
-    pub fn from_inner(inner: ConfigInner) -> Self {
-        Self(Arc::new(inner))
-    }
-
-    pub fn init_config() -> Result<Self, Error> {
+impl ConfigInner {
+    fn from_config() -> Result<Self, Error> {
         let fname = Path::new("config.env");
-        let config_dir = dirs::config_dir().ok_or_else(|| format_err!("No CONFIG directory"))?;
+        let config_dir = dirs::config_dir().unwrap_or_else(|| "./".into());
         let default_fname = config_dir.join("diary_app_rust").join("config.env");
 
         let env_file = if fname.exists() {
@@ -101,8 +89,30 @@ impl Config {
             dotenv::from_path(env_file).ok();
         }
 
-        let conf: ConfigInner = envy::from_env()?;
+        envy::from_env().map_err(Into::into)
+    }
+}
 
+impl Config {
+    #[must_use]
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// # Errors
+    /// Return error if parsing env variables fails
+    pub fn init_config() -> Result<Self, Error> {
+        let conf = ConfigInner::from_config()?;
+
+        Ok(Self(Arc::new(conf)))
+    }
+
+    /// # Errors
+    /// Return error if parsing env variables fails
+    pub fn get_local_config(tempdir: &Path) -> Result<Self, Error> {
+        let mut conf = ConfigInner::from_config()?;
+        conf.diary_path = tempdir.to_path_buf();
+        conf.ssh_url = None;
         Ok(Self(Arc::new(conf)))
     }
 }

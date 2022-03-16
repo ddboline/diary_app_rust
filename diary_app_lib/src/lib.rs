@@ -1,16 +1,9 @@
-#![allow(clippy::must_use_candidate)]
 #![allow(clippy::too_many_lines)]
 #![allow(clippy::module_name_repetitions)]
 #![allow(clippy::cast_precision_loss)]
 #![allow(clippy::cast_sign_loss)]
 #![allow(clippy::cast_possible_truncation)]
 #![allow(clippy::cast_possible_wrap)]
-#![allow(clippy::missing_errors_doc)]
-#![allow(clippy::cognitive_complexity)]
-#![allow(clippy::used_underscore_binding)]
-#![allow(clippy::upper_case_acronyms)]
-#![allow(clippy::default_trait_access)]
-#![allow(clippy::return_self_not_must_use)]
 
 pub mod config;
 pub mod diary_app_interface;
@@ -30,6 +23,8 @@ use rand::{
 use std::future::Future;
 use tokio::time::{sleep, Duration};
 
+/// # Errors
+/// Return error if closure fails
 pub async fn exponential_retry<T, U, F>(f: T) -> Result<U, Error>
 where
     T: Fn() -> F,

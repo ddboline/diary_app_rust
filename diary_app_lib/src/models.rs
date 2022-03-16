@@ -47,6 +47,8 @@ pub struct DiaryConflict {
 }
 
 impl AuthorizedUsers {
+    /// # Errors
+    /// Return error if db query fails
     pub async fn get_authorized_users(pool: &PgPool) -> Result<Vec<Self>, Error> {
         let query = query!("SELECT * FROM authorized_users");
         let conn = pool.get().await?;
@@ -70,6 +72,8 @@ impl DiaryConflict {
         }
     }
 
+    /// # Errors
+    /// Return error if db query fails
     pub async fn get_all_dates(pool: &PgPool) -> Result<Vec<NaiveDate>, Error> {
         #[derive(FromSqlRow, Into)]
         struct Wrap(NaiveDate);
@@ -80,6 +84,8 @@ impl DiaryConflict {
         Ok(result.into_iter().map(Into::into).collect())
     }
 
+    /// # Errors
+    /// Return error if db query fails
     pub async fn get_first_date(pool: &PgPool) -> Result<Option<NaiveDate>, Error> {
         #[derive(FromSqlRow, Into)]
         struct Wrap(NaiveDate);
@@ -91,6 +97,8 @@ impl DiaryConflict {
         Ok(result.map(Into::into))
     }
 
+    /// # Errors
+    /// Return error if db query fails
     pub async fn get_by_date(date: NaiveDate, pool: &PgPool) -> Result<Vec<DateTime<Utc>>, Error> {
         #[derive(FromSqlRow, Into)]
         struct Wrap(DateTime<Utc>);
@@ -109,6 +117,8 @@ impl DiaryConflict {
         Ok(result.into_iter().map(Into::into).collect())
     }
 
+    /// # Errors
+    /// Return error if db query fails
     pub async fn get_first_by_date(
         date: NaiveDate,
         pool: &PgPool,
@@ -131,6 +141,8 @@ impl DiaryConflict {
         Ok(result.map(Into::into))
     }
 
+    /// # Errors
+    /// Return error if db query fails
     pub async fn get_by_datetime(
         datetime: DateTime<Utc>,
         pool: &PgPool,
@@ -143,6 +155,8 @@ impl DiaryConflict {
         query.fetch(&conn).await.map_err(Into::into)
     }
 
+    /// # Errors
+    /// Return error if db query fails
     pub async fn get_first_conflict(pool: &PgPool) -> Result<Option<DateTime<Utc>>, Error> {
         if let Some(first_date) = Self::get_first_date(pool).await? {
             if let Some(first_conflict) = Self::get_first_by_date(first_date, pool).await? {
@@ -152,6 +166,8 @@ impl DiaryConflict {
         Ok(None)
     }
 
+    /// # Errors
+    /// Return error if db query fails
     pub async fn update_by_id(
         id: i32,
         new_diff_type: impl AsRef<str>,
@@ -179,6 +195,8 @@ impl DiaryConflict {
         Ok(())
     }
 
+    /// # Errors
+    /// Return error if db query fails
     pub async fn remove_by_datetime(datetime: DateTime<Utc>, pool: &PgPool) -> Result<(), Error> {
         let conn = pool.get().await?;
         Self::remove_by_datetime_conn(datetime, &conn).await?;
@@ -281,6 +299,8 @@ impl DiaryEntries {
         Ok(())
     }
 
+    /// # Errors
+    /// Return error if db query fails
     pub async fn insert_entry(&self, pool: &PgPool) -> Result<(), Error> {
         let conn = pool.get().await?;
         self._insert_entry(&conn).await?;
@@ -323,6 +343,8 @@ impl DiaryEntries {
         }
     }
 
+    /// # Errors
+    /// Return error if db query fails
     pub async fn update_entry(
         &self,
         pool: &PgPool,
@@ -334,6 +356,8 @@ impl DiaryEntries {
             .map_err(Into::into)
     }
 
+    /// # Errors
+    /// Return error if db query fails
     pub async fn upsert_entry(
         &self,
         pool: &PgPool,
@@ -353,6 +377,8 @@ impl DiaryEntries {
         Ok(output)
     }
 
+    /// # Errors
+    /// Return error if db query fails
     pub async fn get_modified_map(
         pool: &PgPool,
     ) -> Result<HashMap<NaiveDate, DateTime<Utc>>, Error> {
@@ -382,11 +408,15 @@ impl DiaryEntries {
         query.fetch_opt(conn).await.map_err(Into::into)
     }
 
+    /// # Errors
+    /// Return error if db query fails
     pub async fn get_by_date(date: NaiveDate, pool: &PgPool) -> Result<Option<Self>, Error> {
         let conn = pool.get().await?;
         Self::_get_by_date(date, &conn).await.map_err(Into::into)
     }
 
+    /// # Errors
+    /// Return error if db query fails
     pub async fn get_by_text(
         search_text: impl AsRef<str>,
         pool: &PgPool,
@@ -427,11 +457,15 @@ impl DiaryEntries {
         })
     }
 
+    /// # Errors
+    /// Return error if db query fails
     pub async fn get_difference(&self, pool: &PgPool) -> Result<Option<Changeset>, Error> {
         let conn = pool.get().await?;
         self._get_difference(&conn, true).await.map_err(Into::into)
     }
 
+    /// # Errors
+    /// Return error if db query fails
     pub async fn delete_entry(&self, pool: &PgPool) -> Result<(), Error> {
         let query = query!(
             "DELETE FROM diary_entries WHERE diary_date = $diary_date",
@@ -444,6 +478,8 @@ impl DiaryEntries {
 }
 
 impl DiaryCache {
+    /// # Errors
+    /// Return error if db query fails
     pub async fn insert_entry(&self, pool: &PgPool) -> Result<(), Error> {
         let query = query!(
             r#"
@@ -458,12 +494,16 @@ impl DiaryCache {
         Ok(())
     }
 
+    /// # Errors
+    /// Return error if db query fails
     pub async fn get_cache_entries(pool: &PgPool) -> Result<Vec<Self>, Error> {
         let query = query!("SELECT * FROM diary_cache");
         let conn = pool.get().await?;
         query.fetch(&conn).await.map_err(Into::into)
     }
 
+    /// # Errors
+    /// Return error if db query fails
     pub async fn get_by_text(
         search_text: impl AsRef<str>,
         pool: &PgPool,
@@ -484,6 +524,8 @@ impl DiaryCache {
         query.fetch(&conn).await.map_err(Into::into)
     }
 
+    /// # Errors
+    /// Return error if db query fails
     pub async fn delete_entry(&self, pool: &PgPool) -> Result<(), Error> {
         let query = query!(
             "DELETE FROM diary_cache WHERE diary_datetime = $diary_datetime",
