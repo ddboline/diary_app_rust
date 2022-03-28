@@ -6,7 +6,7 @@ use log::debug;
 use postgres_query::{client::GenericClient, query, query_dyn, FromSqlRow};
 use serde::{Deserialize, Serialize};
 use stack_string::{format_sstr, StackString};
-use std::{collections::HashMap, fmt::Write};
+use std::collections::HashMap;
 use uuid::Uuid;
 
 use crate::pgpool::{PgPool, PgTransaction};

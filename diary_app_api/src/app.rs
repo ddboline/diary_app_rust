@@ -7,7 +7,7 @@ use rweb::{
     Filter, Reply,
 };
 use stack_string::format_sstr;
-use std::{fmt::Write, net::SocketAddr, ops::Deref, sync::Arc, time::Duration};
+use std::{net::SocketAddr, ops::Deref, sync::Arc, time::Duration};
 use tokio::time::interval;
 
 use diary_app_lib::{config::Config, diary_app_interface::DiaryAppInterface, pgpool::PgPool};
@@ -156,10 +156,7 @@ mod tests {
     use anyhow::Error;
     use maplit::hashmap;
     use stack_string::format_sstr;
-    use std::{
-        env::{remove_var, set_var},
-        fmt::Write,
-    };
+    use std::env::{remove_var, set_var};
 
     use auth_server_http::app::run_test_app;
     use auth_server_lib::get_random_string;

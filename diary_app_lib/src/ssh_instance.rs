@@ -2,11 +2,7 @@ use anyhow::{format_err, Error};
 use lazy_static::lazy_static;
 use log::debug;
 use smallvec::{smallvec, SmallVec};
-use std::{
-    collections::HashMap,
-    fmt::{Display, Write},
-    process::Stdio,
-};
+use std::{collections::HashMap, fmt::Display, process::Stdio};
 use tokio::{
     io::{stdout, AsyncBufReadExt, AsyncWriteExt, BufReader},
     process::Command,

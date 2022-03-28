@@ -5,7 +5,7 @@ use itertools::Itertools;
 use rweb::Schema;
 use serde::{Deserialize, Serialize};
 use stack_string::{format_sstr, StackString};
-use std::{collections::BTreeSet, fmt::Write};
+use std::collections::BTreeSet;
 
 use diary_app_lib::models::{DiaryConflict, DiaryEntries};
 

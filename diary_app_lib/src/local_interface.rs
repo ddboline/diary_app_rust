@@ -4,7 +4,7 @@ use futures::future::try_join_all;
 use jwalk::WalkDir;
 use log::debug;
 use stack_string::{format_sstr, StackString};
-use std::{collections::BTreeMap, fmt::Write, fs::metadata, sync::Arc, time::SystemTime};
+use std::{collections::BTreeMap, fs::metadata, sync::Arc, time::SystemTime};
 use tokio::{
     fs::{read_to_string, remove_file, File},
     io::AsyncWriteExt,

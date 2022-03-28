@@ -8,7 +8,6 @@ use stack_string::{format_sstr, StackString};
 use std::{
     collections::HashMap,
     convert::{TryFrom, TryInto},
-    fmt::Write,
     sync::Arc,
 };
 use tokio::sync::RwLock;

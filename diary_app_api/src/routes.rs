@@ -8,7 +8,7 @@ use rweb_helper::{
 };
 use serde::{Deserialize, Serialize};
 use stack_string::{format_sstr, StackString};
-use std::{collections::HashSet, fmt::Write};
+use std::collections::HashSet;
 
 use diary_app_lib::models::DiaryCache;
 

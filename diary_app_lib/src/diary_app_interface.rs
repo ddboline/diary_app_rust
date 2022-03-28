@@ -8,7 +8,6 @@ use regex::Regex;
 use stack_string::{format_sstr, StackString};
 use std::{
     collections::{HashMap, HashSet},
-    fmt::Write,
     sync::Arc,
 };
 use stdout_channel::StdoutChannel;
