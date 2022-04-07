@@ -1,14 +1,16 @@
-use chrono::{DateTime, Local, NaiveDate, Utc};
 use itertools::Itertools;
 use log::debug;
 use maplit::hashmap;
 use rweb::{get, post, Json, Query, Rejection, Schema};
 use rweb_helper::{
-    html_response::HtmlResponse as HtmlBase, json_response::JsonResponse as JsonBase, RwebResponse,
+    html_response::HtmlResponse as HtmlBase, json_response::JsonResponse as JsonBase, DateTimeType,
+    DateType, RwebResponse,
 };
 use serde::{Deserialize, Serialize};
 use stack_string::{format_sstr, StackString};
 use std::collections::HashSet;
+use time::{macros::format_description, Date, OffsetDateTime};
+use time_tz::{timezones::db::UTC, OffsetDateTimeExt};
 
 use diary_app_lib::models::DiaryCache;
 
@@ -166,7 +168,7 @@ pub async fn sync_api(
 #[derive(Serialize, Deserialize, Schema)]
 pub struct ReplaceData {
     #[schema(description = "Replacement Date")]
-    pub date: NaiveDate,
+    pub date: DateType,
     #[schema(description = "Replacement Text")]
     pub text: StackString,
 }
@@ -194,7 +196,7 @@ pub async fn replace(
 
 async fn replace_body(data: ReplaceData, state: AppState) -> HttpResult<Vec<StackString>> {
     let req = DiaryAppRequests::Replace {
-        date: data.date,
+        date: data.date.into(),
         text: data.text,
     };
     if let DiaryAppOutput::Lines(body) = req.handle(&state.db).await? {
@@ -205,32 +207,31 @@ async fn replace_body(data: ReplaceData, state: AppState) -> HttpResult<Vec<Stac
 }
 
 fn _list_string(
-    conflicts: &HashSet<NaiveDate>,
-    body: impl IntoIterator<Item = NaiveDate>,
+    conflicts: &HashSet<DateType>,
+    body: impl IntoIterator<Item = DateType>,
     query: ListOptions,
 ) -> StackString {
     let text = body
         .into_iter()
         .map(|t| {
+            let d: Date = t.into();
             format_sstr!(
                 r#"
                     <input type="button"
                         type="submit"
-                        name="{t}"
-                        value="{t}"
-                        onclick="switchToDate( '{t}' )">{c}
+                        name="{d}"
+                        value="{d}"
+                        onclick="switchToDate( '{d}' )">{c}
                     <br>"#,
-                t = t,
                 c = if conflicts.contains(&t) {
                     format_sstr!(
                         r#"
                             <input type="button"
                                 type="submit"
-                                name="conflict_{t}"
-                                value="Conflict {t}"
-                                onclick="listConflicts( '{t}' )"
+                                name="conflict_{d}"
+                                value="Conflict {d}"
+                                onclick="listConflicts( '{d}' )"
                             >"#,
-                        t = t
                     )
                 } else {
                     "".into()
@@ -281,7 +282,7 @@ async fn list_body(query: ListOptions, state: &AppState) -> HttpResult<StackStri
         .handle(&state.db)
         .await?
     {
-        dates.into_iter().collect()
+        dates.into_iter().map(Into::into).collect()
     } else {
         HashSet::new()
     };
@@ -289,9 +290,9 @@ async fn list_body(query: ListOptions, state: &AppState) -> HttpResult<StackStri
     Ok(body)
 }
 
-async fn list_api_body(query: ListOptions, state: &AppState) -> HttpResult<Vec<NaiveDate>> {
+async fn list_api_body(query: ListOptions, state: &AppState) -> HttpResult<Vec<DateType>> {
     if let DiaryAppOutput::Dates(dates) = DiaryAppRequests::List(query).handle(&state.db).await? {
-        Ok(dates)
+        Ok(dates.into_iter().map(Into::into).collect())
     } else {
         Err(Error::BadRequest("Bad results".into()))
     }
@@ -299,7 +300,7 @@ async fn list_api_body(query: ListOptions, state: &AppState) -> HttpResult<Vec<N
 
 #[derive(Schema, Serialize)]
 struct ListOutput {
-    list: Vec<NaiveDate>,
+    list: Vec<DateType>,
 }
 
 #[derive(RwebResponse)]
@@ -319,7 +320,7 @@ pub async fn list_api(
 
 #[derive(Serialize, Deserialize, Schema)]
 pub struct EditData {
-    pub date: NaiveDate,
+    pub date: DateType,
 }
 
 #[derive(RwebResponse)]
@@ -338,7 +339,7 @@ pub async fn edit(
 }
 
 async fn edit_body(query: EditData, state: AppState) -> HttpResult<StackString> {
-    let diary_date = query.date;
+    let diary_date = query.date.into();
     let text = if let DiaryAppOutput::Lines(lines) = DiaryAppRequests::Display(diary_date)
         .handle(&state.db)
         .await?
@@ -377,7 +378,7 @@ pub async fn display(
 }
 
 async fn display_body(query: EditData, state: AppState) -> HttpResult<StackString> {
-    let diary_date = query.date;
+    let diary_date = query.date.into();
     let text = if let DiaryAppOutput::Lines(lines) = DiaryAppRequests::Display(diary_date)
         .handle(&state.db)
         .await?
@@ -418,7 +419,7 @@ async fn diary_frontpage_body(state: AppState) -> HttpResult<StackString> {
     let body = if let DiaryAppOutput::Dates(dates) =
         DiaryAppRequests::List(query).handle(&state.db).await?
     {
-        dates
+        dates.into_iter().map(Into::into).collect()
     } else {
         Vec::new()
     };
@@ -427,7 +428,7 @@ async fn diary_frontpage_body(state: AppState) -> HttpResult<StackString> {
         .handle(&state.db)
         .await?
     {
-        dates.into_iter().collect()
+        dates.into_iter().map(Into::into).collect()
     } else {
         HashSet::new()
     };
@@ -444,9 +445,9 @@ async fn diary_frontpage_body(state: AppState) -> HttpResult<StackString> {
 #[derive(Serialize, Deserialize, Schema)]
 pub struct ConflictData {
     #[schema(description = "Conflict Date")]
-    pub date: Option<NaiveDate>,
+    pub date: Option<DateType>,
     #[schema(description = "Conflict DateTime")]
-    pub datetime: Option<DateTime<Utc>>,
+    pub datetime: Option<DateTimeType>,
 }
 
 #[derive(RwebResponse)]
@@ -477,6 +478,7 @@ async fn list_conflicts_body(query: ConflictData, state: AppState) -> HttpResult
     let mut buttons = Vec::new();
     if let Some(date) = query.date {
         if !body.is_empty() {
+            let date: Date = date.into();
             buttons.push(format_sstr!(
                 r#"<button type="submit" onclick="cleanConflicts('{}')">Clean</button>"#,
                 date
@@ -485,6 +487,7 @@ async fn list_conflicts_body(query: ConflictData, state: AppState) -> HttpResult
     }
     buttons.push(r#"<button type="submit" onclick="switchToList()">List</button>"#.into());
 
+    let local = time_tz::system::get_timezone().unwrap_or(UTC);
     let text = body
         .into_iter()
         .map(|t| {
@@ -500,7 +503,7 @@ async fn list_conflicts_body(query: ConflictData, state: AppState) -> HttpResult
                 t = t,
                 d = query
                     .date
-                    .unwrap_or_else(|| Local::today().naive_local())
+                    .unwrap_or_else(|| OffsetDateTime::now_utc().to_timezone(local).date().into())
                     .to_string(),
             )
         })
@@ -526,10 +529,15 @@ pub async fn show_conflict(
 }
 
 async fn show_conflict_body(query: ConflictData, state: AppState) -> HttpResult<StackString> {
-    let datetime = query.datetime.unwrap_or_else(Utc::now);
-    let diary_date = query
+    let local = time_tz::system::get_timezone().unwrap_or(UTC);
+    let datetime: OffsetDateTime = query
+        .datetime
+        .unwrap_or_else(|| OffsetDateTime::now_utc().into())
+        .into();
+    let diary_date: Date = query
         .date
-        .unwrap_or_else(|| datetime.with_timezone(&Local).naive_local().date());
+        .unwrap_or_else(|| OffsetDateTime::now_utc().to_timezone(local).date().into())
+        .into();
     let text = if let DiaryAppOutput::Lines(lines) = DiaryAppRequests::ShowConflict(datetime)
         .handle(&state.db)
         .await?
@@ -547,7 +555,11 @@ async fn show_conflict_body(query: ConflictData, state: AppState) -> HttpResult<
             "#,
         t = text.join("\n"),
         d = diary_date,
-        dt = datetime.format("%Y-%m-%dT%H:%M:%S%.fZ"),
+        dt = datetime
+            .format(format_description!(
+                "[year]-[month]-[day]T[hour]:[minute]:[second].[subsecond]Z"
+            ))
+            .unwrap_or_else(|_| "".into()),
     );
     Ok(body)
 }
@@ -569,7 +581,7 @@ pub async fn remove_conflict(
 
 async fn remove_conflict_body(query: ConflictData, state: AppState) -> HttpResult<StackString> {
     let body = if let Some(datetime) = query.datetime {
-        if let DiaryAppOutput::Lines(lines) = DiaryAppRequests::RemoveConflict(datetime)
+        if let DiaryAppOutput::Lines(lines) = DiaryAppRequests::RemoveConflict(datetime.into())
             .handle(&state.db)
             .await?
         {
@@ -578,7 +590,7 @@ async fn remove_conflict_body(query: ConflictData, state: AppState) -> HttpResul
             String::new()
         }
     } else if let Some(date) = query.date {
-        if let DiaryAppOutput::Lines(lines) = DiaryAppRequests::CleanConflicts(date)
+        if let DiaryAppOutput::Lines(lines) = DiaryAppRequests::CleanConflicts(date.into())
             .handle(&state.db)
             .await?
         {
@@ -627,7 +639,7 @@ async fn update_conflict_body(query: ConflictUpdateData, state: AppState) -> Htt
 
 #[derive(Serialize, Deserialize, Schema)]
 pub struct CommitConflictData {
-    pub datetime: DateTime<Utc>,
+    pub datetime: DateTimeType,
 }
 
 #[derive(RwebResponse)]
@@ -650,7 +662,7 @@ async fn commit_conflict_body(
     query: CommitConflictData,
     state: AppState,
 ) -> HttpResult<Vec<StackString>> {
-    if let DiaryAppOutput::Lines(lines) = DiaryAppRequests::CommitConflict(query.datetime)
+    if let DiaryAppOutput::Lines(lines) = DiaryAppRequests::CommitConflict(query.datetime.into())
         .handle(&state.db)
         .await?
     {

@@ -1,9 +1,12 @@
 use anyhow::{format_err, Error};
-use chrono::{DateTime, NaiveDate, Utc};
 use refinery::embed_migrations;
 use stack_string::StackString;
 use std::{collections::BTreeSet, str::FromStr};
 use structopt::StructOpt;
+use time::{
+    format_description::well_known::Rfc3339, macros::format_description, Date, OffsetDateTime,
+};
+use time_tz::{timezones::db::UTC, OffsetDateTimeExt};
 
 use crate::{
     config::Config,
@@ -97,21 +100,28 @@ impl DiaryAppOpts {
             DiaryAppCommands::ListConflicts => {
                 async fn get_all_conflicts(
                     dap: &DiaryAppInterface,
-                    date: NaiveDate,
+                    date: Date,
                 ) -> Result<(), Error> {
                     let conflicts: BTreeSet<_> = DiaryConflict::get_by_date(date, &dap.pool)
                         .await?
                         .into_iter()
                         .collect();
                     for entry in conflicts {
-                        let timestamp =
-                            StackString::from_display(entry.format("%Y-%m-%dT%H:%M:%S%.fZ"));
+                        let timestamp: StackString = entry
+                            .format(format_description!(
+                                "[year]-[month]-[day]T[hour]:[minute]:[second].[subsecond]Z"
+                            ))
+                            .unwrap_or_else(|_| "".into())
+                            .into();
                         dap.stdout.send(timestamp);
                     }
                     Ok(())
                 }
 
-                if let Ok(date) = opts.text.join("").parse() {
+                if let Ok(date) = Date::parse(
+                    &opts.text.join(""),
+                    format_description!("[year]-[month]-[day]"),
+                ) {
                     get_all_conflicts(&dap, date).await?;
                 } else {
                     let conflicts = DiaryConflict::get_all_dates(&dap.pool).await?;
@@ -130,7 +140,7 @@ impl DiaryAppOpts {
             DiaryAppCommands::ShowConflict => {
                 async fn show_conflict(
                     dap: &DiaryAppInterface,
-                    datetime: DateTime<Utc>,
+                    datetime: OffsetDateTime,
                 ) -> Result<(), Error> {
                     dap.stdout.send(format!("datetime {datetime}"));
                     let conflicts: Vec<_> = DiaryConflict::get_by_datetime(datetime, &dap.pool)
@@ -149,8 +159,8 @@ impl DiaryAppOpts {
                 }
 
                 if let Ok(datetime) =
-                    DateTime::parse_from_rfc3339(&opts.text.join("").replace('Z', "+00:00"))
-                        .map(|x| x.with_timezone(&Utc))
+                    OffsetDateTime::parse(&opts.text.join("").replace('Z', "+00:00"), &Rfc3339)
+                        .map(|x| x.to_timezone(UTC))
                 {
                     show_conflict(&dap, datetime).await?;
                 } else if let Some(datetime) = DiaryConflict::get_first_conflict(&dap.pool).await? {
@@ -159,8 +169,8 @@ impl DiaryAppOpts {
             }
             DiaryAppCommands::RemoveConflict => {
                 if let Ok(datetime) =
-                    DateTime::parse_from_rfc3339(&opts.text.join("").replace('Z', "+00:00"))
-                        .map(|x| x.with_timezone(&Utc))
+                    OffsetDateTime::parse(&opts.text.join("").replace('Z', "+00:00"), &Rfc3339)
+                        .map(|x| x.to_timezone(UTC))
                 {
                     DiaryConflict::remove_by_datetime(datetime, &dap.pool).await?;
                 } else if let Some(datetime) = DiaryConflict::get_first_conflict(&dap.pool).await? {

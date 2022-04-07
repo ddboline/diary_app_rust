@@ -1,11 +1,12 @@
 use anyhow::{format_err, Error};
-use chrono::{DateTime, NaiveDate, Utc};
 use futures::future::try_join_all;
 use itertools::Itertools;
 use rweb::Schema;
+use rweb_helper::DateType;
 use serde::{Deserialize, Serialize};
 use stack_string::{format_sstr, StackString};
 use std::collections::BTreeSet;
+use time::{macros::format_description, Date, OffsetDateTime};
 
 use diary_app_lib::models::{DiaryConflict, DiaryEntries};
 
@@ -16,15 +17,15 @@ pub struct SearchOptions {
     #[schema(description = "Search Text")]
     pub text: Option<StackString>,
     #[schema(description = "Search Date")]
-    pub date: Option<NaiveDate>,
+    pub date: Option<DateType>,
 }
 
 #[derive(Serialize, Deserialize, Default, Copy, Clone, Schema)]
 pub struct ListOptions {
     #[schema(description = "Minimum Date")]
-    pub min_date: Option<NaiveDate>,
+    pub min_date: Option<DateType>,
     #[schema(description = "Maximum Date")]
-    pub max_date: Option<NaiveDate>,
+    pub max_date: Option<DateType>,
     #[schema(description = "Start Index")]
     pub start: Option<usize>,
     #[schema(description = "Limit")]
@@ -35,21 +36,21 @@ pub enum DiaryAppRequests {
     Search(SearchOptions),
     Insert(StackString),
     Sync,
-    Replace { date: NaiveDate, text: StackString },
+    Replace { date: Date, text: StackString },
     List(ListOptions),
-    Display(NaiveDate),
-    ListConflicts(Option<NaiveDate>),
-    ShowConflict(DateTime<Utc>),
-    RemoveConflict(DateTime<Utc>),
-    CleanConflicts(NaiveDate),
+    Display(Date),
+    ListConflicts(Option<DateType>),
+    ShowConflict(OffsetDateTime),
+    RemoveConflict(OffsetDateTime),
+    CleanConflicts(Date),
     UpdateConflict { id: i32, diff_text: StackString },
-    CommitConflict(DateTime<Utc>),
+    CommitConflict(OffsetDateTime),
 }
 
 pub enum DiaryAppOutput {
     Lines(Vec<StackString>),
-    Timestamps(Vec<DateTime<Utc>>),
-    Dates(Vec<NaiveDate>),
+    Timestamps(Vec<OffsetDateTime>),
+    Dates(Vec<Date>),
 }
 
 impl From<Vec<StackString>> for DiaryAppOutput {
@@ -58,14 +59,14 @@ impl From<Vec<StackString>> for DiaryAppOutput {
     }
 }
 
-impl From<Vec<DateTime<Utc>>> for DiaryAppOutput {
-    fn from(item: Vec<DateTime<Utc>>) -> Self {
+impl From<Vec<OffsetDateTime>> for DiaryAppOutput {
+    fn from(item: Vec<OffsetDateTime>) -> Self {
         Self::Timestamps(item)
     }
 }
 
-impl From<Vec<NaiveDate>> for DiaryAppOutput {
-    fn from(item: Vec<NaiveDate>) -> Self {
+impl From<Vec<Date>> for DiaryAppOutput {
+    fn from(item: Vec<Date>) -> Self {
         Self::Dates(item)
     }
 }
@@ -79,7 +80,7 @@ impl DiaryAppRequests {
                 let body = if let Some(text) = opts.text {
                     let results: Vec<_> = dapp.search_text(&text).await?;
                     results
-                } else if let Some(date) = opts.date {
+                } else if let Some(date) = opts.date.map(Into::into) {
                     let entry = DiaryEntries::get_by_date(date, &dapp.pool)
                         .await?
                         .ok_or_else(|| format_err!("Date should exist {}", date))?;
@@ -126,14 +127,14 @@ impl DiaryAppRequests {
                 Ok(conflicts.into())
             }
             DiaryAppRequests::ListConflicts(Some(date)) => {
-                let mut conflicts = DiaryConflict::get_by_date(date, &dapp.pool).await?;
+                let mut conflicts = DiaryConflict::get_by_date(date.into(), &dapp.pool).await?;
                 conflicts.sort();
                 conflicts.dedup();
                 Ok(conflicts.into())
             }
             DiaryAppRequests::ShowConflict(datetime) => {
                 let conflicts = DiaryConflict::get_by_datetime(datetime, &dapp.pool).await?;
-                let diary_dates: BTreeSet<NaiveDate> =
+                let diary_dates: BTreeSet<Date> =
                     conflicts.iter().map(|entry| entry.diary_date).collect();
                 if diary_dates.len() > 1 {
                     return Err(format_err!(
@@ -151,7 +152,7 @@ impl DiaryAppRequests {
                         let nlines = entry.diff_text.split('\n').count() + 1;
                         let id = entry.id;
                         let diff = &entry.diff_text;
-                        let dt = datetime.format("%Y-%m-%dT%H:%M:%S%.fZ");
+                        let dt = datetime.format(format_description!("[year]-[month]-[second]T[hour]:[month]:[second].[subsecond]Z")).unwrap_or_else(|_| "".into());
                         match entry.diff_type.as_ref() {
                             "rem" => format_sstr!(
                                 r#"<textarea style="color:Red;" cols=100 rows={nlines}
@@ -202,7 +203,7 @@ impl DiaryAppRequests {
             }
             DiaryAppRequests::CommitConflict(datetime) => {
                 let conflicts = DiaryConflict::get_by_datetime(datetime, &dapp.pool).await?;
-                let diary_dates: BTreeSet<NaiveDate> =
+                let diary_dates: BTreeSet<Date> =
                     conflicts.iter().map(|entry| entry.diary_date).collect();
                 if diary_dates.len() > 1 {
                     return Err(format_err!(

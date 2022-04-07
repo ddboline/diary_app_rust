@@ -1,11 +1,12 @@
 use anyhow::{format_err, Error};
-use chrono::{DateTime, Utc};
 use futures::stream::{StreamExt, TryStreamExt};
 use rusoto_core::Region;
 use rusoto_s3::{Bucket, GetObjectRequest, Object, PutObjectRequest, S3Client, S3};
 use s3_ext::S3Ext;
 use std::{convert::Into, fmt};
 use sts_profile_auth::get_client_sts;
+use time::{format_description::well_known::Rfc3339, OffsetDateTime};
+use time_tz::{timezones::db::UTC, OffsetDateTimeExt};
 use tokio::io::AsyncReadExt;
 
 use crate::exponential_retry;
@@ -92,7 +93,7 @@ impl S3Instance {
         &self,
         bucket_name: &str,
         key_name: &str,
-    ) -> Result<(String, DateTime<Utc>), Error> {
+    ) -> Result<(String, OffsetDateTime), Error> {
         exponential_retry(|| {
             let source = GetObjectRequest {
                 bucket: bucket_name.into(),
@@ -108,8 +109,8 @@ impl S3Instance {
                 let last_modified = resp
                     .last_modified
                     .as_ref()
-                    .and_then(|lm| DateTime::parse_from_rfc3339(lm).ok())
-                    .map_or_else(Utc::now, |d| d.with_timezone(&Utc));
+                    .and_then(|lm| OffsetDateTime::parse(lm, &Rfc3339).ok())
+                    .map_or_else(OffsetDateTime::now_utc, |d| d.to_timezone(UTC));
                 Ok((buf, last_modified))
             }
         })

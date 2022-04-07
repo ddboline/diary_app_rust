@@ -1,5 +1,4 @@
 use anyhow::{format_err, Error};
-use chrono::{DateTime, Datelike, Local, NaiveDate, Utc};
 use futures::future::try_join_all;
 use jwalk::WalkDir;
 use log::{debug, info};
@@ -11,6 +10,8 @@ use std::{
     sync::Arc,
 };
 use stdout_channel::StdoutChannel;
+use time::{macros::format_description, Date, OffsetDateTime};
+use time_tz::OffsetDateTimeExt;
 use tokio::{
     fs::{remove_file, OpenOptions},
     io::AsyncWriteExt,
@@ -55,7 +56,7 @@ impl DiaryAppInterface {
         diary_text: impl Into<StackString>,
     ) -> Result<DiaryCache, Error> {
         let dc = DiaryCache {
-            diary_datetime: Utc::now(),
+            diary_datetime: OffsetDateTime::now_utc(),
             diary_text: diary_text.into(),
         };
         dc.insert_entry(&self.pool).await?;
@@ -66,9 +67,9 @@ impl DiaryAppInterface {
     /// Return error if db query fails
     pub async fn replace_text(
         &self,
-        diary_date: NaiveDate,
+        diary_date: Date,
         diary_text: impl Into<StackString>,
-    ) -> Result<(DiaryEntries, Option<DateTime<Utc>>), Error> {
+    ) -> Result<(DiaryEntries, Option<OffsetDateTime>), Error> {
         let de = DiaryEntries::new(diary_date, diary_text);
         let output = de.upsert_entry(&self.pool, true).await?;
         Ok((de, output))
@@ -78,11 +79,11 @@ impl DiaryAppInterface {
     /// Return error if db query fails
     pub async fn get_list_of_dates(
         &self,
-        min_date: Option<NaiveDate>,
-        max_date: Option<NaiveDate>,
+        min_date: Option<Date>,
+        max_date: Option<Date>,
         start: Option<usize>,
         limit: Option<usize>,
-    ) -> Result<Vec<NaiveDate>, Error> {
+    ) -> Result<Vec<Date>, Error> {
         let mut dates: Vec<_> = DiaryEntries::get_modified_map(&self.pool)
             .await?
             .into_iter()
@@ -114,18 +115,19 @@ impl DiaryAppInterface {
     }
 
     fn get_matching_dates(
-        mod_map: &HashMap<NaiveDate, DateTime<Utc>>,
+        mod_map: &HashMap<Date, OffsetDateTime>,
         year: Option<i32>,
         month: Option<u32>,
         day: Option<u32>,
-    ) -> Vec<NaiveDate> {
+    ) -> Vec<Date> {
         mod_map
             .iter()
             .map(|(d, _)| *d)
             .filter(|date| {
                 year.map_or(false, |y| {
                     month.map_or(true, |m| {
-                        day.map_or(true, |d| d == date.day()) && (m == date.month())
+                        day.map_or(true, |d| d as u8 == date.day())
+                            && (m as u8 == u8::from(date.month()))
                     }) && (y == date.year())
                 })
             })
@@ -133,16 +135,17 @@ impl DiaryAppInterface {
     }
 
     fn get_dates_from_search_text(
-        mod_map: &HashMap<NaiveDate, DateTime<Utc>>,
+        mod_map: &HashMap<Date, OffsetDateTime>,
         search_text: &str,
-    ) -> Result<Vec<NaiveDate>, Error> {
+    ) -> Result<Vec<Date>, Error> {
+        let local = time_tz::system::get_timezone()?;
         let year_month_day_regex = Regex::new(r"(?P<year>\d{4})-(?P<month>\d{2})-(?P<day>\d{2})")?;
         let year_month_regex = Regex::new(r"(?P<year>\d{4})-(?P<month>\d{2})")?;
         let year_regex = Regex::new(r"(?P<year>\d{4})")?;
 
         let mut dates = Vec::new();
         if search_text.trim().to_lowercase() == "today" {
-            dates.push(Local::now().naive_local().date());
+            dates.push(OffsetDateTime::now_utc().to_timezone(local).date());
         }
         if year_month_day_regex.is_match(search_text) {
             for cap in year_month_day_regex.captures_iter(search_text) {
@@ -169,6 +172,7 @@ impl DiaryAppInterface {
     /// # Errors
     /// Return error if db query fails
     pub async fn search_text(&self, search_text: &str) -> Result<Vec<StackString>, Error> {
+        let local = time_tz::system::get_timezone()?;
         let mod_map = DiaryEntries::get_modified_map(&self.pool).await?;
 
         let mut dates = Self::get_dates_from_search_text(&mod_map, search_text)?;
@@ -188,7 +192,12 @@ impl DiaryAppInterface {
                 .map(|entry| {
                     format_sstr!(
                         "{}\n{}",
-                        entry.diary_datetime.format("%Y-%m-%dT%H:%M:%SZ"),
+                        entry
+                            .diary_datetime
+                            .format(format_description!(
+                                "[year]-[month]-[day]T[hour]:[minute]:[second]Z"
+                            ))
+                            .unwrap_or_else(|_| "".into()),
                         entry.diary_text
                     )
                 })
@@ -208,13 +217,7 @@ impl DiaryAppInterface {
                     .await?
                     .into_iter()
                     .filter_map(|entry| {
-                        if entry
-                            .diary_datetime
-                            .with_timezone(&Local)
-                            .naive_local()
-                            .date()
-                            == date
-                        {
+                        if entry.diary_datetime.to_timezone(local).date() == date {
                             Some(format_sstr!(
                                 "{}\n{}",
                                 entry.diary_datetime,
@@ -299,15 +302,12 @@ impl DiaryAppInterface {
     /// # Errors
     /// Return error if db query fails
     pub async fn sync_merge_cache_to_entries(&self) -> Result<Vec<DiaryEntries>, Error> {
+        let local = time_tz::system::get_timezone()?;
         let date_entry_map = DiaryCache::get_cache_entries(&self.pool)
             .await?
             .into_iter()
             .fold(HashMap::new(), |mut acc, entry| {
-                let entry_date = entry
-                    .diary_datetime
-                    .with_timezone(&Local)
-                    .naive_local()
-                    .date();
+                let entry_date = entry.diary_datetime.to_timezone(local).date();
                 acc.entry(entry_date).or_insert_with(Vec::new).push(entry);
                 acc
             });
@@ -316,7 +316,7 @@ impl DiaryAppInterface {
             let entry_string: Vec<_> = entry_list
                 .iter()
                 .map(|entry| {
-                    let entry_datetime = entry.diary_datetime.with_timezone(&Local);
+                    let entry_datetime = entry.diary_datetime.to_timezone(local);
                     format_sstr!("{}\n{}", entry_datetime, entry.diary_text)
                 })
                 .collect();
@@ -375,7 +375,7 @@ impl DiaryAppInterface {
 
     async fn process_ssh(
         ssh_url: &Url,
-        cache_set: &HashSet<DateTime<Utc>>,
+        cache_set: &HashSet<OffsetDateTime>,
     ) -> Result<Vec<DiaryCache>, Error> {
         let ssh_inst = SSHInstance::from_url(ssh_url)
             .await
@@ -434,7 +434,7 @@ impl DiaryAppInterface {
         Ok(inserted_entries)
     }
 
-    fn get_file_date_len_map(&self) -> Result<HashMap<NaiveDate, usize>, Error> {
+    fn get_file_date_len_map(&self) -> Result<HashMap<Date, usize>, Error> {
         let backup_directory = self
             .config
             .home_dir
@@ -456,9 +456,12 @@ impl DiaryAppInterface {
         let results: HashMap<_, _> = files?
             .into_par_iter()
             .filter_map(|(filename, backup_size)| {
-                NaiveDate::parse_from_str(&filename.to_string_lossy(), "%Y-%m-%d.txt")
-                    .ok()
-                    .map(|date| (date, backup_size))
+                Date::parse(
+                    &filename.to_string_lossy(),
+                    format_description!("[year]-[month]-[day].txt"),
+                )
+                .ok()
+                .map(|date| (date, backup_size))
             })
             .collect();
         Ok(results)
@@ -466,7 +469,7 @@ impl DiaryAppInterface {
 
     /// # Errors
     /// Return error if db query fails
-    pub async fn validate_backup(&self) -> Result<Vec<(NaiveDate, usize, usize)>, Error> {
+    pub async fn validate_backup(&self) -> Result<Vec<(Date, usize, usize)>, Error> {
         let file_date_len_map = {
             let dap = self.clone();
             spawn_blocking(move || dap.get_file_date_len_map()).await?
@@ -539,8 +542,8 @@ impl DiaryAppInterface {
 #[cfg(test)]
 mod tests {
     use anyhow::Error;
-    use chrono::NaiveDate;
     use log::debug;
+    use time::macros::{date, datetime, format_description};
 
     use crate::{
         config::Config,
@@ -558,8 +561,7 @@ mod tests {
     #[tokio::test(flavor = "multi_thread")]
     async fn test_search_text() -> Result<(), Error> {
         let dap = get_dap()?;
-
-        let test_date: NaiveDate = "2011-05-23".parse()?;
+        let test_date = date!(2011 - 05 - 23);
         let original_text = DiaryEntries::get_by_date(test_date, &dap.pool).await?;
         if original_text.is_none() {
             let test_entry = DiaryEntries::new(test_date, "test_text");
@@ -591,8 +593,8 @@ mod tests {
 
         let results = dap
             .get_list_of_dates(
-                Some(NaiveDate::from_ymd(2011, 5, 23)),
-                Some(NaiveDate::from_ymd(2012, 1, 1)),
+                Some(date!(2011 - 05 - 23)),
+                Some(date!(2012 - 01 - 01)),
                 None,
                 None,
             )
@@ -601,8 +603,8 @@ mod tests {
 
         let results = dap
             .get_list_of_dates(
-                Some(NaiveDate::from_ymd(2011, 5, 23)),
-                Some(NaiveDate::from_ymd(2012, 1, 1)),
+                Some(date!(2011 - 05 - 23)),
+                Some(date!(2012 - 01 - 01)),
                 None,
                 Some(10),
             )
@@ -646,7 +648,7 @@ mod tests {
     #[tokio::test(flavor = "multi_thread")]
     async fn test_replace_text() -> Result<(), Error> {
         let dap = get_dap()?;
-        let test_date = NaiveDate::from_ymd(1950, 1, 1);
+        let test_date = date!(1950 - 01 - 01);
         let test_text = "Test text";
 
         let (result, conflict) = dap.replace_text(test_date, test_text).await?;
@@ -680,6 +682,17 @@ mod tests {
             );
         }
         assert!(results.is_empty());
+        Ok(())
+    }
+
+    #[test]
+    fn test_time_subsecond() -> Result<(), Error> {
+        let d = datetime!(2022-01-01 01:02:03.12341 +00:00);
+        let f = d.format(format_description!(
+            "[year]-[month]-[day]T[hour]:[minute]:[second].[subsecond]Z"
+        ))?;
+        println!("{f}");
+        assert_eq!(&f, "2022-01-01T01:02:03.12341Z");
         Ok(())
     }
 }

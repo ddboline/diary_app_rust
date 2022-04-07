@@ -1,5 +1,4 @@
 use anyhow::{format_err, Error};
-use chrono::{DateTime, NaiveDate, Utc};
 use derive_more::Into;
 use difference::{Changeset, Difference};
 use log::debug;
@@ -7,27 +6,28 @@ use postgres_query::{client::GenericClient, query, query_dyn, FromSqlRow};
 use serde::{Deserialize, Serialize};
 use stack_string::{format_sstr, StackString};
 use std::collections::HashMap;
+use time::{Date, OffsetDateTime};
 use uuid::Uuid;
 
 use crate::pgpool::{PgPool, PgTransaction};
 
 #[derive(FromSqlRow, Clone, Debug)]
 pub struct DiaryEntries {
-    pub diary_date: NaiveDate,
+    pub diary_date: Date,
     pub diary_text: StackString,
-    pub last_modified: DateTime<Utc>,
+    pub last_modified: OffsetDateTime,
 }
 
 #[derive(FromSqlRow, Clone, Debug, Serialize, Deserialize)]
 pub struct DiaryCache {
-    pub diary_datetime: DateTime<Utc>,
+    pub diary_datetime: OffsetDateTime,
     pub diary_text: StackString,
 }
 
 impl PartialEq for DiaryCache {
     fn eq(&self, other: &Self) -> bool {
         (self.diary_text == other.diary_text)
-            && ((self.diary_datetime - other.diary_datetime).num_milliseconds() == 0)
+            && ((self.diary_datetime - other.diary_datetime).whole_milliseconds() == 0)
     }
 }
 
@@ -40,8 +40,8 @@ pub struct AuthorizedUsers {
 #[derive(FromSqlRow, Clone, Debug, Serialize, Deserialize)]
 pub struct DiaryConflict {
     pub id: Uuid,
-    pub sync_datetime: DateTime<Utc>,
-    pub diary_date: NaiveDate,
+    pub sync_datetime: OffsetDateTime,
+    pub diary_date: Date,
     pub diff_type: StackString,
     pub diff_text: StackString,
 }
@@ -58,8 +58,8 @@ impl AuthorizedUsers {
 
 impl DiaryConflict {
     pub fn new(
-        sync_datetime: DateTime<Utc>,
-        diary_date: NaiveDate,
+        sync_datetime: OffsetDateTime,
+        diary_date: Date,
         diff_type: impl Into<StackString>,
         diff_text: impl Into<StackString>,
     ) -> Self {
@@ -74,9 +74,9 @@ impl DiaryConflict {
 
     /// # Errors
     /// Return error if db query fails
-    pub async fn get_all_dates(pool: &PgPool) -> Result<Vec<NaiveDate>, Error> {
+    pub async fn get_all_dates(pool: &PgPool) -> Result<Vec<Date>, Error> {
         #[derive(FromSqlRow, Into)]
-        struct Wrap(NaiveDate);
+        struct Wrap(Date);
 
         let query = query!("SELECT distinct diary_date FROM diary_conflict ORDER BY diary_date");
         let conn = pool.get().await?;
@@ -86,9 +86,9 @@ impl DiaryConflict {
 
     /// # Errors
     /// Return error if db query fails
-    pub async fn get_first_date(pool: &PgPool) -> Result<Option<NaiveDate>, Error> {
+    pub async fn get_first_date(pool: &PgPool) -> Result<Option<Date>, Error> {
         #[derive(FromSqlRow, Into)]
-        struct Wrap(NaiveDate);
+        struct Wrap(Date);
 
         let query =
             query!("SELECT distinct diary_date FROM diary_conflict ORDER BY diary_date LIMIT 1");
@@ -99,9 +99,9 @@ impl DiaryConflict {
 
     /// # Errors
     /// Return error if db query fails
-    pub async fn get_by_date(date: NaiveDate, pool: &PgPool) -> Result<Vec<DateTime<Utc>>, Error> {
+    pub async fn get_by_date(date: Date, pool: &PgPool) -> Result<Vec<OffsetDateTime>, Error> {
         #[derive(FromSqlRow, Into)]
-        struct Wrap(DateTime<Utc>);
+        struct Wrap(OffsetDateTime);
 
         let query = query!(
             r#"
@@ -120,11 +120,11 @@ impl DiaryConflict {
     /// # Errors
     /// Return error if db query fails
     pub async fn get_first_by_date(
-        date: NaiveDate,
+        date: Date,
         pool: &PgPool,
-    ) -> Result<Option<DateTime<Utc>>, Error> {
+    ) -> Result<Option<OffsetDateTime>, Error> {
         #[derive(FromSqlRow, Into)]
-        struct Wrap(DateTime<Utc>);
+        struct Wrap(OffsetDateTime);
 
         let query = query!(
             r#"
@@ -144,7 +144,7 @@ impl DiaryConflict {
     /// # Errors
     /// Return error if db query fails
     pub async fn get_by_datetime(
-        datetime: DateTime<Utc>,
+        datetime: OffsetDateTime,
         pool: &PgPool,
     ) -> Result<Vec<Self>, Error> {
         let query = query!(
@@ -157,7 +157,7 @@ impl DiaryConflict {
 
     /// # Errors
     /// Return error if db query fails
-    pub async fn get_first_conflict(pool: &PgPool) -> Result<Option<DateTime<Utc>>, Error> {
+    pub async fn get_first_conflict(pool: &PgPool) -> Result<Option<OffsetDateTime>, Error> {
         if let Some(first_date) = Self::get_first_date(pool).await? {
             if let Some(first_conflict) = Self::get_first_by_date(first_date, pool).await? {
                 return Ok(Some(first_conflict));
@@ -197,13 +197,13 @@ impl DiaryConflict {
 
     /// # Errors
     /// Return error if db query fails
-    pub async fn remove_by_datetime(datetime: DateTime<Utc>, pool: &PgPool) -> Result<(), Error> {
+    pub async fn remove_by_datetime(datetime: OffsetDateTime, pool: &PgPool) -> Result<(), Error> {
         let conn = pool.get().await?;
         Self::remove_by_datetime_conn(datetime, &conn).await?;
         Ok(())
     }
 
-    async fn remove_by_datetime_conn<C>(datetime: DateTime<Utc>, conn: &C) -> Result<(), Error>
+    async fn remove_by_datetime_conn<C>(datetime: OffsetDateTime, conn: &C) -> Result<(), Error>
     where
         C: GenericClient + Sync,
     {
@@ -238,14 +238,14 @@ impl DiaryConflict {
     }
 
     async fn insert_from_changeset<C>(
-        diary_date: NaiveDate,
+        diary_date: Date,
         changeset: Changeset,
         conn: &C,
-    ) -> Result<Option<DateTime<Utc>>, Error>
+    ) -> Result<Option<OffsetDateTime>, Error>
     where
         C: GenericClient + Sync,
     {
-        let sync_datetime = Utc::now();
+        let sync_datetime = OffsetDateTime::now_utc();
         let removed_lines: Vec<_> = changeset
             .diffs
             .into_iter()
@@ -275,11 +275,11 @@ impl DiaryConflict {
 }
 
 impl DiaryEntries {
-    pub fn new(diary_date: NaiveDate, diary_text: impl Into<StackString>) -> Self {
+    pub fn new(diary_date: Date, diary_text: impl Into<StackString>) -> Self {
         Self {
             diary_date,
             diary_text: diary_text.into(),
-            last_modified: Utc::now(),
+            last_modified: OffsetDateTime::now_utc(),
         }
     }
 
@@ -311,7 +311,7 @@ impl DiaryEntries {
         &self,
         conn: &C,
         insert_new: bool,
-    ) -> Result<Option<DateTime<Utc>>, Error>
+    ) -> Result<Option<OffsetDateTime>, Error>
     where
         C: GenericClient + Sync,
     {
@@ -349,7 +349,7 @@ impl DiaryEntries {
         &self,
         pool: &PgPool,
         insert_new: bool,
-    ) -> Result<Option<DateTime<Utc>>, Error> {
+    ) -> Result<Option<OffsetDateTime>, Error> {
         let conn = pool.get().await?;
         self._update_entry(&conn, insert_new)
             .await
@@ -362,7 +362,7 @@ impl DiaryEntries {
         &self,
         pool: &PgPool,
         insert_new: bool,
-    ) -> Result<Option<DateTime<Utc>>, Error> {
+    ) -> Result<Option<OffsetDateTime>, Error> {
         let mut conn = pool.get().await?;
         let tran = conn.transaction().await?;
         let conn: &PgTransaction = &tran;
@@ -379,13 +379,11 @@ impl DiaryEntries {
 
     /// # Errors
     /// Return error if db query fails
-    pub async fn get_modified_map(
-        pool: &PgPool,
-    ) -> Result<HashMap<NaiveDate, DateTime<Utc>>, Error> {
+    pub async fn get_modified_map(pool: &PgPool) -> Result<HashMap<Date, OffsetDateTime>, Error> {
         #[derive(FromSqlRow)]
         struct Wrap {
-            diary_date: NaiveDate,
-            last_modified: DateTime<Utc>,
+            diary_date: Date,
+            last_modified: OffsetDateTime,
         }
 
         let query = query!("SELECT diary_date, last_modified FROM diary_entries");
@@ -397,7 +395,7 @@ impl DiaryEntries {
             .collect())
     }
 
-    async fn _get_by_date<C>(date: NaiveDate, conn: &C) -> Result<Option<Self>, Error>
+    async fn _get_by_date<C>(date: Date, conn: &C) -> Result<Option<Self>, Error>
     where
         C: GenericClient + Sync,
     {
@@ -410,7 +408,7 @@ impl DiaryEntries {
 
     /// # Errors
     /// Return error if db query fails
-    pub async fn get_by_date(date: NaiveDate, pool: &PgPool) -> Result<Option<Self>, Error> {
+    pub async fn get_by_date(date: Date, pool: &PgPool) -> Result<Option<Self>, Error> {
         let conn = pool.get().await?;
         Self::_get_by_date(date, &conn).await.map_err(Into::into)
     }
