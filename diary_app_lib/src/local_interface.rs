@@ -1,10 +1,14 @@
 use anyhow::{format_err, Error};
-use chrono::{DateTime, Datelike, Duration, Local, NaiveDate, TimeZone, Utc};
 use futures::future::try_join_all;
 use jwalk::WalkDir;
 use log::debug;
 use stack_string::{format_sstr, StackString};
 use std::{collections::BTreeMap, fs::metadata, sync::Arc, time::SystemTime};
+use time::{
+    macros::{datetime, format_description},
+    Date, Duration, OffsetDateTime,
+};
+use time_tz::OffsetDateTimeExt;
 use tokio::{
     fs::{read_to_string, remove_file, File},
     io::AsyncWriteExt,
@@ -28,12 +32,12 @@ impl LocalInterface {
     /// Return error if db query fails
     pub async fn export_year_to_local(&self) -> Result<Vec<StackString>, Error> {
         let mod_map = DiaryEntries::get_modified_map(&self.pool).await?;
-        let year_mod_map: BTreeMap<i32, DateTime<Utc>> =
+        let year_mod_map: BTreeMap<i32, OffsetDateTime> =
             mod_map.iter().fold(BTreeMap::new(), |mut acc, (k, v)| {
                 let year = k.year();
                 let current_timestamp = acc
                     .insert(year, *v)
-                    .unwrap_or_else(|| Utc.ymd(0, 1, 1).and_hms(0, 0, 0));
+                    .unwrap_or_else(|| datetime!(0000-01-01 00:00:00).assume_utc());
                 if *v < current_timestamp {
                     acc.insert(year, current_timestamp);
                 }
@@ -59,7 +63,7 @@ impl LocalInterface {
                 if filepath.exists() {
                     if let Ok(metadata) = filepath.metadata() {
                         if let Ok(modified) = metadata.modified() {
-                            let modified: DateTime<Utc> = modified.into();
+                            let modified: OffsetDateTime = modified.into();
                             if let Some(maxmod) = year_mod_map.get(&year) {
                                 if modified >= *maxmod {
                                     return Ok(format_sstr!("{year} 0"));
@@ -89,8 +93,11 @@ impl LocalInterface {
     /// # Errors
     /// Return error if db query fails
     pub async fn cleanup_local(&self) -> Result<Vec<DiaryEntries>, Error> {
+        let local = time_tz::system::get_timezone()?;
         let existing_map = DiaryEntries::get_modified_map(&self.pool).await?;
-        let previous_date = (Local::now() - Duration::days(4)).naive_local().date();
+        let previous_date = (OffsetDateTime::now_utc() - Duration::days(4))
+            .to_timezone(local)
+            .date();
 
         let futures = WalkDir::new(&self.config.diary_path)
             .sort(true)
@@ -98,7 +105,9 @@ impl LocalInterface {
             .map(|entry| async move {
                 let entry = entry?;
                 let filename = entry.file_name.to_string_lossy();
-                if let Ok(date) = NaiveDate::parse_from_str(&filename, "%Y-%m-%d.txt") {
+                if let Ok(date) =
+                    Date::parse(&filename, format_description!("[year]-[month]-[day].txt"))
+                {
                     let filepath = self.config.diary_path.join(filename.as_ref());
                     if date <= previous_date {
                         debug!("{:?}\n", filepath);
@@ -110,7 +119,7 @@ impl LocalInterface {
                             .modified()?
                             .duration_since(SystemTime::UNIX_EPOCH)?
                             .as_secs() as i64;
-                        let modified = Utc.timestamp(modified_secs, 0);
+                        let modified = OffsetDateTime::from_unix_timestamp(modified_secs)?;
                         return Ok(Some((date, (modified, size))));
                     }
                 }
@@ -119,7 +128,7 @@ impl LocalInterface {
         let results: Result<Vec<_>, Error> = try_join_all(futures).await;
         let dates: BTreeMap<_, _> = results?.into_iter().flatten().collect();
 
-        let current_date = Local::now().naive_local().date();
+        let current_date = OffsetDateTime::now_utc().to_timezone(local).date();
 
         let mut entries = Vec::new();
         for current_date in (0..4).map(|i| (current_date - Duration::days(i))) {
@@ -183,12 +192,16 @@ impl LocalInterface {
         for entry in WalkDir::new(&self.config.diary_path).sort(true) {
             let entry = entry?;
             let filename = entry.file_name.to_string_lossy();
-            let entry = if let Ok(date) = NaiveDate::parse_from_str(&filename, "%Y-%m-%d.txt") {
+            let entry = if let Ok(date) =
+                Date::parse(&filename, format_description!("[year]-[month]-[day].txt"))
+            {
                 if let Ok(metadata) = entry.metadata() {
                     let filepath = self.config.diary_path.join(filename.as_ref());
-                    let modified: DateTime<Utc> = metadata.modified()?.into();
+                    let modified: OffsetDateTime = metadata.modified()?.into();
                     let should_modify = match existing_map.get(&date) {
-                        Some(current_modified) => (*current_modified - modified).num_seconds() < -1,
+                        Some(current_modified) => {
+                            (*current_modified - modified).whole_seconds() < -1
+                        }
                         None => true,
                     };
 

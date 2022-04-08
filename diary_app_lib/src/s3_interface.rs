@@ -1,5 +1,4 @@
 use anyhow::{format_err, Error};
-use chrono::{DateTime, NaiveDate, Utc};
 use futures::future::try_join_all;
 use lazy_static::lazy_static;
 use log::debug;
@@ -10,6 +9,10 @@ use std::{
     convert::{TryFrom, TryInto},
     sync::Arc,
 };
+use time::{
+    format_description::well_known::Rfc3339, macros::format_description, Date, OffsetDateTime,
+};
+use time_tz::{timezones::db::UTC, OffsetDateTimeExt};
 use tokio::sync::RwLock;
 
 use crate::{config::Config, models::DiaryEntries, pgpool::PgPool, s3_instance::S3Instance};
@@ -17,14 +20,14 @@ use crate::{config::Config, models::DiaryEntries, pgpool::PgPool, s3_instance::S
 const TIME_BUFFER: i64 = 60;
 
 lazy_static! {
-    static ref KEY_CACHE: RwLock<(DateTime<Utc>, Arc<[KeyMetaData]>)> =
-        RwLock::new((Utc::now(), Arc::new([])));
+    static ref KEY_CACHE: RwLock<(OffsetDateTime, Arc<[KeyMetaData]>)> =
+        RwLock::new((OffsetDateTime::now_utc(), Arc::new([])));
 }
 
 #[derive(Debug, Clone)]
 struct KeyMetaData {
-    date: NaiveDate,
-    last_modified: DateTime<Utc>,
+    date: Date,
+    last_modified: OffsetDateTime,
     size: i64,
 }
 
@@ -36,12 +39,12 @@ impl TryFrom<Object> for KeyMetaData {
             .as_ref()
             .ok_or_else(|| format_err!("No Key"))?
             .into();
-        let date = NaiveDate::parse_from_str(&key, "%Y-%m-%d.txt")?;
+        let date = Date::parse(&key, format_description!("[year]-[month]-[day].txt"))?;
         let last_modified = obj
             .last_modified
             .as_ref()
-            .and_then(|lm| DateTime::parse_from_rfc3339(lm).ok())
-            .map_or_else(Utc::now, |d| d.with_timezone(&Utc));
+            .and_then(|lm| OffsetDateTime::parse(lm, &Rfc3339).ok())
+            .map_or_else(OffsetDateTime::now_utc, |d| d.to_timezone(UTC));
         let size = obj.size.unwrap_or(0);
         Ok(Self {
             date,
@@ -74,7 +77,7 @@ impl S3Interface {
             .get_list_of_keys(&self.config.diary_bucket, None)
             .await?;
         *KEY_CACHE.write().await = (
-            Utc::now(),
+            OffsetDateTime::now_utc(),
             list_of_keys
                 .into_iter()
                 .filter_map(|obj| obj.try_into().ok())
@@ -88,11 +91,11 @@ impl S3Interface {
     pub async fn export_to_s3(&self) -> Result<Vec<DiaryEntries>, Error> {
         {
             let key_cache = KEY_CACHE.read().await;
-            if (Utc::now() - key_cache.0).num_seconds() > 5 * TIME_BUFFER {
+            if (OffsetDateTime::now_utc() - key_cache.0).whole_seconds() > 5 * TIME_BUFFER {
                 self.fill_cache().await?;
             }
         }
-        let s3_key_map: HashMap<NaiveDate, (DateTime<Utc>, i64)> = KEY_CACHE
+        let s3_key_map: HashMap<Date, (OffsetDateTime, i64)> = KEY_CACHE
             .read()
             .await
             .1
@@ -113,7 +116,7 @@ impl S3Interface {
                 async move {
                     let should_update = match s3_key_map.get(&diary_date) {
                         Some((lm, s3_size)) => {
-                            if (last_modified - *lm).num_seconds() > 0 {
+                            if (last_modified - *lm).whole_seconds() > 0 {
                                 if let Some(entry) =
                                     DiaryEntries::get_by_date(diary_date, &self.pool).await?
                                 {
@@ -129,7 +132,7 @@ impl S3Interface {
                                     false
                                 }
                             } else {
-                                (last_modified - *lm).num_seconds() > 0
+                                (last_modified - *lm).whole_seconds() > 0
                             }
                         }
                         None => true,
@@ -146,7 +149,7 @@ impl S3Interface {
 
     /// # Errors
     /// Return error if s3 api fails
-    pub async fn upload_entry(&self, date: NaiveDate) -> Result<Option<DiaryEntries>, Error> {
+    pub async fn upload_entry(&self, date: Date) -> Result<Option<DiaryEntries>, Error> {
         let entry = match DiaryEntries::get_by_date(date, &self.pool).await? {
             Some(e) => e,
             None => return Ok(None),
@@ -168,7 +171,7 @@ impl S3Interface {
 
     /// # Errors
     /// Return error if s3 api fails
-    pub async fn download_entry(&self, date: NaiveDate) -> Result<Option<DiaryEntries>, Error> {
+    pub async fn download_entry(&self, date: Date) -> Result<Option<DiaryEntries>, Error> {
         let key = format_sstr!("{date}.txt");
         let (text, last_modified) = self
             .s3_client
@@ -201,8 +204,8 @@ impl S3Interface {
                 let mut insert_new = true;
                 let should_modify = match existing_map.get(&obj.date) {
                     Some(current_modified) => {
-                        insert_new = (*current_modified - obj.last_modified).num_seconds() < 0;
-                        if (*current_modified - obj.last_modified).num_seconds() < 0 {
+                        insert_new = (*current_modified - obj.last_modified).whole_seconds() < 0;
+                        if (*current_modified - obj.last_modified).whole_seconds() < 0 {
                             if let Some(entry) =
                                 DiaryEntries::get_by_date(obj.date, &self.pool).await?
                             {
@@ -222,7 +225,7 @@ impl S3Interface {
                                 false
                             }
                         } else {
-                            (*current_modified - obj.last_modified).num_seconds() < 0
+                            (*current_modified - obj.last_modified).whole_seconds() < 0
                         }
                     }
                     None => true,
@@ -247,9 +250,9 @@ impl S3Interface {
 
     /// # Errors
     /// Return error if s3 api fails
-    pub async fn validate_s3(&self) -> Result<Vec<(NaiveDate, usize, usize)>, Error> {
+    pub async fn validate_s3(&self) -> Result<Vec<(Date, usize, usize)>, Error> {
         self.fill_cache().await?;
-        let s3_key_map: HashMap<NaiveDate, usize> = KEY_CACHE
+        let s3_key_map: HashMap<Date, usize> = KEY_CACHE
             .read()
             .await
             .1

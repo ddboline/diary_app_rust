@@ -1,6 +1,6 @@
 use anyhow::{format_err, Error};
-use chrono::NaiveDate;
 use std::{collections::HashSet, fs::read_to_string, path::Path};
+use time::{macros::format_description, Date};
 
 use diary_app_lib::{config::Config, models::DiaryEntries, pgpool::PgPool};
 
@@ -64,12 +64,14 @@ async fn main() -> Result<(), Error> {
     Ok(())
 }
 
-fn extract_dates(path: &Path) -> Result<HashSet<NaiveDate>, Error> {
+fn extract_dates(path: &Path) -> Result<HashSet<Date>, Error> {
     path.read_dir()?
         .map(|entry| {
             if let Some(filename) = entry?.path().file_name() {
-                let filename = filename.to_string_lossy().replace(".txt", "");
-                let date: NaiveDate = filename.parse()?;
+                let date = Date::parse(
+                    &filename.to_string_lossy(),
+                    format_description!("[year]-[month]-[day].txt"),
+                )?;
                 Ok(Some(date))
             } else {
                 Ok(None)
