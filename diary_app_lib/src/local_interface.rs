@@ -209,7 +209,7 @@ impl LocalInterface {
                         DiaryEntries {
                             diary_date: date,
                             diary_text: read_to_string(&filepath).await?.into(),
-                            last_modified: modified,
+                            last_modified: modified.into(),
                         }
                     } else {
                         continue;

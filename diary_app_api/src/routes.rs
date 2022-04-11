@@ -3,8 +3,8 @@ use log::debug;
 use maplit::hashmap;
 use rweb::{get, post, Json, Query, Rejection, Schema};
 use rweb_helper::{
-    html_response::HtmlResponse as HtmlBase, json_response::JsonResponse as JsonBase, DateTimeType,
-    DateType, RwebResponse,
+    html_response::HtmlResponse as HtmlBase, json_response::JsonResponse as JsonBase, DateType,
+    RwebResponse,
 };
 use serde::{Deserialize, Serialize};
 use stack_string::{format_sstr, StackString};
@@ -19,7 +19,7 @@ use super::{
     errors::ServiceError as Error,
     logged_user::LoggedUser,
     requests::{DiaryAppOutput, DiaryAppRequests, ListOptions, SearchOptions},
-    DiaryCacheWrapper,
+    CommitConflictData, ConflictData, DiaryCacheWrapper,
 };
 
 pub type WarpResult<T> = Result<T, Rejection>;
@@ -442,14 +442,6 @@ async fn diary_frontpage_body(state: AppState) -> HttpResult<StackString> {
     Ok(body)
 }
 
-#[derive(Serialize, Deserialize, Schema)]
-pub struct ConflictData {
-    #[schema(description = "Conflict Date")]
-    pub date: Option<DateType>,
-    #[schema(description = "Conflict DateTime")]
-    pub datetime: Option<DateTimeType>,
-}
-
 #[derive(RwebResponse)]
 #[response(description = "List Conflicts", content = "html")]
 struct ListConflictsResponse(HtmlBase<StackString, Error>);
@@ -530,10 +522,9 @@ pub async fn show_conflict(
 
 async fn show_conflict_body(query: ConflictData, state: AppState) -> HttpResult<StackString> {
     let local = time_tz::system::get_timezone().unwrap_or(UTC);
-    let datetime: OffsetDateTime = query
+    let datetime = query
         .datetime
-        .unwrap_or_else(|| OffsetDateTime::now_utc().into())
-        .into();
+        .unwrap_or_else(|| OffsetDateTime::now_utc().into());
     let diary_date: Date = query
         .date
         .unwrap_or_else(|| OffsetDateTime::now_utc().to_timezone(local).date().into())
@@ -581,7 +572,7 @@ pub async fn remove_conflict(
 
 async fn remove_conflict_body(query: ConflictData, state: AppState) -> HttpResult<StackString> {
     let body = if let Some(datetime) = query.datetime {
-        if let DiaryAppOutput::Lines(lines) = DiaryAppRequests::RemoveConflict(datetime.into())
+        if let DiaryAppOutput::Lines(lines) = DiaryAppRequests::RemoveConflict(datetime)
             .handle(&state.db)
             .await?
         {
@@ -637,11 +628,6 @@ async fn update_conflict_body(query: ConflictUpdateData, state: AppState) -> Htt
     Ok(())
 }
 
-#[derive(Serialize, Deserialize, Schema)]
-pub struct CommitConflictData {
-    pub datetime: DateTimeType,
-}
-
 #[derive(RwebResponse)]
 #[response(description = "Commit Conflict")]
 struct ConflictResponse(JsonBase<ReplaceOutput, Error>);
@@ -662,7 +648,7 @@ async fn commit_conflict_body(
     query: CommitConflictData,
     state: AppState,
 ) -> HttpResult<Vec<StackString>> {
-    if let DiaryAppOutput::Lines(lines) = DiaryAppRequests::CommitConflict(query.datetime.into())
+    if let DiaryAppOutput::Lines(lines) = DiaryAppRequests::CommitConflict(query.datetime)
         .handle(&state.db)
         .await?
     {

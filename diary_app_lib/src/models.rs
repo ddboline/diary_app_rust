@@ -9,25 +9,30 @@ use std::collections::HashMap;
 use time::{Date, OffsetDateTime};
 use uuid::Uuid;
 
-use crate::pgpool::{PgPool, PgTransaction};
+use crate::{
+    date_time_wrapper::DateTimeWrapper,
+    pgpool::{PgPool, PgTransaction},
+};
 
 #[derive(FromSqlRow, Clone, Debug)]
 pub struct DiaryEntries {
     pub diary_date: Date,
     pub diary_text: StackString,
-    pub last_modified: OffsetDateTime,
+    pub last_modified: DateTimeWrapper,
 }
 
 #[derive(FromSqlRow, Clone, Debug, Serialize, Deserialize)]
 pub struct DiaryCache {
-    pub diary_datetime: OffsetDateTime,
+    pub diary_datetime: DateTimeWrapper,
     pub diary_text: StackString,
 }
 
 impl PartialEq for DiaryCache {
     fn eq(&self, other: &Self) -> bool {
+        let self_datetime: OffsetDateTime = self.diary_datetime.into();
+        let other_datetime: OffsetDateTime = other.diary_datetime.into();
         (self.diary_text == other.diary_text)
-            && ((self.diary_datetime - other.diary_datetime).whole_milliseconds() == 0)
+            && ((self_datetime - other_datetime).whole_milliseconds() == 0)
     }
 }
 
@@ -40,7 +45,7 @@ pub struct AuthorizedUsers {
 #[derive(FromSqlRow, Clone, Debug, Serialize, Deserialize)]
 pub struct DiaryConflict {
     pub id: Uuid,
-    pub sync_datetime: OffsetDateTime,
+    pub sync_datetime: DateTimeWrapper,
     pub diary_date: Date,
     pub diff_type: StackString,
     pub diff_text: StackString,
@@ -65,7 +70,7 @@ impl DiaryConflict {
     ) -> Self {
         Self {
             id: Uuid::new_v4(),
-            sync_datetime,
+            sync_datetime: sync_datetime.into(),
             diary_date,
             diff_type: diff_type.into(),
             diff_text: diff_text.into(),
@@ -99,9 +104,9 @@ impl DiaryConflict {
 
     /// # Errors
     /// Return error if db query fails
-    pub async fn get_by_date(date: Date, pool: &PgPool) -> Result<Vec<OffsetDateTime>, Error> {
+    pub async fn get_by_date(date: Date, pool: &PgPool) -> Result<Vec<DateTimeWrapper>, Error> {
         #[derive(FromSqlRow, Into)]
-        struct Wrap(OffsetDateTime);
+        struct Wrap(DateTimeWrapper);
 
         let query = query!(
             r#"
@@ -144,7 +149,7 @@ impl DiaryConflict {
     /// # Errors
     /// Return error if db query fails
     pub async fn get_by_datetime(
-        datetime: OffsetDateTime,
+        datetime: DateTimeWrapper,
         pool: &PgPool,
     ) -> Result<Vec<Self>, Error> {
         let query = query!(
@@ -197,13 +202,13 @@ impl DiaryConflict {
 
     /// # Errors
     /// Return error if db query fails
-    pub async fn remove_by_datetime(datetime: OffsetDateTime, pool: &PgPool) -> Result<(), Error> {
+    pub async fn remove_by_datetime(datetime: DateTimeWrapper, pool: &PgPool) -> Result<(), Error> {
         let conn = pool.get().await?;
         Self::remove_by_datetime_conn(datetime, &conn).await?;
         Ok(())
     }
 
-    async fn remove_by_datetime_conn<C>(datetime: OffsetDateTime, conn: &C) -> Result<(), Error>
+    async fn remove_by_datetime_conn<C>(datetime: DateTimeWrapper, conn: &C) -> Result<(), Error>
     where
         C: GenericClient + Sync,
     {
@@ -279,7 +284,7 @@ impl DiaryEntries {
         Self {
             diary_date,
             diary_text: diary_text.into(),
-            last_modified: OffsetDateTime::now_utc(),
+            last_modified: DateTimeWrapper::now(),
         }
     }
 

@@ -1,6 +1,6 @@
 [package]
 name = "diary_app_api"
-version = "0.8.13"
+version = "0.8.14"
 authors = ["Daniel Boline <ddboline@gmail.com>"]
 edition = "2018"
 
@@ -32,10 +32,10 @@ time = {version="0.3", features=["serde-human-readable", "macros", "formatting"]
 time-tz = {version="0.5", features=["system"]}
 rweb-helper = { git = "https://github.com/ddboline/rweb_helper.git", tag="0.4.9" }
 stack-string = { version="0.7", features=["postgres_types", "rweb-openapi"] }
-authorized_users = { git = "https://github.com/ddboline/auth_server_rust.git", tag="0.8.0"}
+authorized_users = { git = "https://github.com/ddboline/auth_server_rust.git", tag="0.8.1"}
 
 [dev-dependencies]
 reqwest = {version="0.11", features=["cookies", "json", "rustls-tls", "stream"]}
-auth_server_http = { git = "https://github.com/ddboline/auth_server_rust.git", tag="0.8.0"}
-auth_server_lib = { git = "https://github.com/ddboline/auth_server_rust.git", tag="0.8.0"}
+auth_server_http = { git = "https://github.com/ddboline/auth_server_rust.git", tag="0.8.1"}
+auth_server_lib = { git = "https://github.com/ddboline/auth_server_rust.git", tag="0.8.1"}
 env_logger = "0.9"

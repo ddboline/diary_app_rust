@@ -56,7 +56,7 @@ impl DiaryAppInterface {
         diary_text: impl Into<StackString>,
     ) -> Result<DiaryCache, Error> {
         let dc = DiaryCache {
-            diary_datetime: OffsetDateTime::now_utc(),
+            diary_datetime: OffsetDateTime::now_utc().into(),
             diary_text: diary_text.into(),
         };
         dc.insert_entry(&self.pool).await?;
@@ -413,7 +413,7 @@ impl DiaryAppInterface {
         let cache_set: HashSet<_> = DiaryCache::get_cache_entries(&self.pool)
             .await?
             .into_iter()
-            .map(|entry| entry.diary_datetime)
+            .map(|entry| entry.diary_datetime.into())
             .collect();
         let entries = Self::process_ssh(&ssh_url, &cache_set).await?;
         let futures = entries.into_iter().map(|item| {
@@ -664,9 +664,9 @@ mod tests {
         assert_eq!(result2.diary_text.as_str(), test_text2);
         assert!(conflict2.is_some());
         let conflict2 = conflict2.unwrap();
-        let result3 = DiaryConflict::get_by_datetime(conflict2, &dap.pool).await?;
+        let result3 = DiaryConflict::get_by_datetime(conflict2.into(), &dap.pool).await?;
         assert_eq!(result3.len(), 2);
-        DiaryConflict::remove_by_datetime(conflict2, &dap.pool).await?;
+        DiaryConflict::remove_by_datetime(conflict2.into(), &dap.pool).await?;
         Ok(())
     }
 

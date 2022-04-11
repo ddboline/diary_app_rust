@@ -6,9 +6,12 @@ use rweb_helper::DateType;
 use serde::{Deserialize, Serialize};
 use stack_string::{format_sstr, StackString};
 use std::collections::BTreeSet;
-use time::{macros::format_description, Date, OffsetDateTime};
+use time::{macros::format_description, Date};
 
-use diary_app_lib::models::{DiaryConflict, DiaryEntries};
+use diary_app_lib::{
+    date_time_wrapper::DateTimeWrapper,
+    models::{DiaryConflict, DiaryEntries},
+};
 
 use super::app::DiaryAppActor;
 
@@ -40,16 +43,16 @@ pub enum DiaryAppRequests {
     List(ListOptions),
     Display(Date),
     ListConflicts(Option<DateType>),
-    ShowConflict(OffsetDateTime),
-    RemoveConflict(OffsetDateTime),
+    ShowConflict(DateTimeWrapper),
+    RemoveConflict(DateTimeWrapper),
     CleanConflicts(Date),
     UpdateConflict { id: i32, diff_text: StackString },
-    CommitConflict(OffsetDateTime),
+    CommitConflict(DateTimeWrapper),
 }
 
 pub enum DiaryAppOutput {
     Lines(Vec<StackString>),
-    Timestamps(Vec<OffsetDateTime>),
+    Timestamps(Vec<DateTimeWrapper>),
     Dates(Vec<Date>),
 }
 
@@ -59,8 +62,8 @@ impl From<Vec<StackString>> for DiaryAppOutput {
     }
 }
 
-impl From<Vec<OffsetDateTime>> for DiaryAppOutput {
-    fn from(item: Vec<OffsetDateTime>) -> Self {
+impl From<Vec<DateTimeWrapper>> for DiaryAppOutput {
+    fn from(item: Vec<DateTimeWrapper>) -> Self {
         Self::Timestamps(item)
     }
 }

@@ -143,15 +143,16 @@ impl DiaryAppOpts {
                     datetime: OffsetDateTime,
                 ) -> Result<(), Error> {
                     dap.stdout.send(format!("datetime {datetime}"));
-                    let conflicts: Vec<_> = DiaryConflict::get_by_datetime(datetime, &dap.pool)
-                        .await?
-                        .into_iter()
-                        .map(|entry| match entry.diff_type.as_str() {
-                            "rem" => format!("\x1b[91m{}\x1b[0m", entry.diff_text).into(),
-                            "add" => format!("\x1b[92m{}\x1b[0m", entry.diff_text).into(),
-                            _ => entry.diff_text,
-                        })
-                        .collect();
+                    let conflicts: Vec<_> =
+                        DiaryConflict::get_by_datetime(datetime.into(), &dap.pool)
+                            .await?
+                            .into_iter()
+                            .map(|entry| match entry.diff_type.as_str() {
+                                "rem" => format!("\x1b[91m{}\x1b[0m", entry.diff_text).into(),
+                                "add" => format!("\x1b[92m{}\x1b[0m", entry.diff_text).into(),
+                                _ => entry.diff_text,
+                            })
+                            .collect();
                     for timestamp in conflicts {
                         dap.stdout.send(timestamp);
                     }
@@ -172,9 +173,9 @@ impl DiaryAppOpts {
                     OffsetDateTime::parse(&opts.text.join("").replace('Z', "+00:00"), &Rfc3339)
                         .map(|x| x.to_timezone(UTC))
                 {
-                    DiaryConflict::remove_by_datetime(datetime, &dap.pool).await?;
+                    DiaryConflict::remove_by_datetime(datetime.into(), &dap.pool).await?;
                 } else if let Some(datetime) = DiaryConflict::get_first_conflict(&dap.pool).await? {
-                    DiaryConflict::remove_by_datetime(datetime, &dap.pool).await?;
+                    DiaryConflict::remove_by_datetime(datetime.into(), &dap.pool).await?;
                 }
             }
             DiaryAppCommands::RunMigrations => {

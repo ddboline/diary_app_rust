@@ -6,6 +6,7 @@
 #![allow(clippy::cast_possible_wrap)]
 
 pub mod config;
+pub mod date_time_wrapper;
 pub mod diary_app_interface;
 pub mod diary_app_opts;
 pub mod local_interface;

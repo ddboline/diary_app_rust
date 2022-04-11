@@ -18,7 +18,9 @@ use rweb::Schema;
 use serde::{Deserialize, Serialize};
 use stack_string::StackString;
 
-use rweb_helper::{derive_rweb_schema, DateTimeType};
+use rweb_helper::{derive_rweb_schema, DateTimeType, DateType};
+
+use diary_app_lib::date_time_wrapper::DateTimeWrapper;
 
 #[derive(Deref, Clone, Debug, Serialize, Deserialize, Into, From)]
 pub struct DiaryCacheWrapper(DiaryCache);
@@ -34,14 +36,49 @@ struct _DiaryCacheWrapper {
     diary_text: StackString,
 }
 
+#[derive(Serialize, Deserialize)]
+pub struct ConflictData {
+    pub date: Option<DateType>,
+    pub datetime: Option<DateTimeWrapper>,
+}
+
+derive_rweb_schema!(ConflictData, _ConflictData);
+
+#[allow(dead_code)]
+#[derive(Schema)]
+struct _ConflictData {
+    #[schema(description = "Conflict Date")]
+    pub date: Option<DateType>,
+    #[schema(description = "Conflict DateTime")]
+    pub datetime: Option<DateTimeType>,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct CommitConflictData {
+    pub datetime: DateTimeWrapper,
+}
+
+derive_rweb_schema!(CommitConflictData, _CommitConflictData);
+
+#[allow(dead_code)]
+#[derive(Schema)]
+struct _CommitConflictData {
+    pub datetime: DateTimeType,
+}
+
 #[cfg(test)]
 mod test {
     use rweb_helper::derive_rweb_test;
 
-    use crate::{DiaryCacheWrapper, _DiaryCacheWrapper};
+    use crate::{
+        CommitConflictData, ConflictData, DiaryCacheWrapper, _CommitConflictData, _ConflictData,
+        _DiaryCacheWrapper,
+    };
 
     #[test]
     fn test_type() {
         derive_rweb_test!(DiaryCacheWrapper, _DiaryCacheWrapper);
+        derive_rweb_test!(ConflictData, _ConflictData);
+        derive_rweb_test!(CommitConflictData, _CommitConflictData);
     }
 }

@@ -183,7 +183,7 @@ impl S3Interface {
         let entry = DiaryEntries {
             diary_date: date,
             diary_text: text.into(),
-            last_modified,
+            last_modified: last_modified.into(),
         };
         Ok(Some(entry))
     }
