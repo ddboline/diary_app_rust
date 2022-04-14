@@ -153,7 +153,11 @@ impl DiaryConflict {
         pool: &PgPool,
     ) -> Result<Vec<Self>, Error> {
         let query = query!(
-            "SELECT * FROM diary_conflict WHERE sync_datetime = $datetime ORDER BY id",
+            r#"
+                SELECT * FROM diary_conflict
+                WHERE sync_datetime BETWEEN $datetime AND ($datetime + interval '1 second')
+                ORDER BY id
+            "#,
             datetime = datetime,
         );
         let conn = pool.get().await?;
