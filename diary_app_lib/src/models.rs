@@ -49,6 +49,7 @@ pub struct DiaryConflict {
     pub diary_date: Date,
     pub diff_type: StackString,
     pub diff_text: StackString,
+    pub sequence: i32,
 }
 
 impl AuthorizedUsers {
@@ -67,6 +68,7 @@ impl DiaryConflict {
         diary_date: Date,
         diff_type: impl Into<StackString>,
         diff_text: impl Into<StackString>,
+        sequence: i32,
     ) -> Self {
         Self {
             id: Uuid::new_v4(),
@@ -74,6 +76,7 @@ impl DiaryConflict {
             diary_date,
             diff_type: diff_type.into(),
             diff_text: diff_text.into(),
+            sequence,
         }
     }
 
@@ -113,7 +116,7 @@ impl DiaryConflict {
                 SELECT distinct sync_datetime
                 FROM diary_conflict
                 WHERE diary_date = $date
-                ORDER BY sync_datetime
+                ORDER BY sequence
             "#,
             date = date,
         );
@@ -136,7 +139,7 @@ impl DiaryConflict {
                 SELECT distinct sync_datetime
                 FROM diary_conflict
                 WHERE diary_date = $date
-                ORDER BY sync_datetime
+                ORDER BY sequence
                 LIMIT 1
             "#,
             date = date,
@@ -156,7 +159,7 @@ impl DiaryConflict {
             r#"
                 SELECT * FROM diary_conflict
                 WHERE sync_datetime BETWEEN $datetime AND ($datetime + interval '1 second')
-                ORDER BY id
+                ORDER BY sync_datetime, sequence
             "#,
             datetime = datetime,
         );
@@ -257,11 +260,11 @@ impl DiaryConflict {
         let sync_datetime = OffsetDateTime::now_utc();
         let removed_lines: Vec<_> = changeset
             .diffs
-            .into_iter()
-            .map(|entry| match entry {
-                Difference::Same(s) => DiaryConflict::new(sync_datetime, diary_date, "same", s),
-                Difference::Rem(s) => DiaryConflict::new(sync_datetime, diary_date, "rem", s),
-                Difference::Add(s) => DiaryConflict::new(sync_datetime, diary_date, "add", s),
+            .into_iter().enumerate()
+            .map(|(sequence, entry)| match entry {
+                Difference::Same(s) => DiaryConflict::new(sync_datetime, diary_date, "same", s, sequence as i32),
+                Difference::Rem(s) => DiaryConflict::new(sync_datetime, diary_date, "rem", s, sequence as i32),
+                Difference::Add(s) => DiaryConflict::new(sync_datetime, diary_date, "add", s, sequence as i32),
             })
             .collect();
 

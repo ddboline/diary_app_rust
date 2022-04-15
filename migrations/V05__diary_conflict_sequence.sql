@@ -1,0 +1,1 @@
+ALTER TABLE diary_conflict ADD COLUMN sequence INTEGER NOT NULL

@@ -64,7 +64,7 @@ mod iso8601 {
         datetime
             .to_offset(UtcOffset::UTC)
             .format(format_description!(
-                "[year]-[month]-[day]T[hour]:[minute]:[second]Z"
+                "[year]-[month]-[day]T[hour]:[minute]:[second].[subsecond]Z"
             ))
             .unwrap_or_else(|_| "".into())
             .into()
