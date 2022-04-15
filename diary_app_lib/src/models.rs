@@ -234,9 +234,9 @@ impl DiaryConflict {
         let query = query!(
             r#"
                 INSERT INTO diary_conflict (
-                    id, sync_datetime, diary_date, diff_type, diff_text
+                    id, sync_datetime, diary_date, diff_type, diff_text, sequence
                 ) VALUES (
-                    $id, $sync_datetime, $diary_date, $diff_type, $diff_text
+                    $id, $sync_datetime, $diary_date, $diff_type, $diff_text, $sequence
                 )
             "#,
             id = self.id,
@@ -244,6 +244,7 @@ impl DiaryConflict {
             diary_date = self.diary_date,
             diff_type = self.diff_type,
             diff_text = self.diff_text,
+            sequence = self.sequence,
         );
         query.execute(conn).await?;
         Ok(())
