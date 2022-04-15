@@ -260,11 +260,18 @@ impl DiaryConflict {
         let sync_datetime = OffsetDateTime::now_utc();
         let removed_lines: Vec<_> = changeset
             .diffs
-            .into_iter().enumerate()
+            .into_iter()
+            .enumerate()
             .map(|(sequence, entry)| match entry {
-                Difference::Same(s) => DiaryConflict::new(sync_datetime, diary_date, "same", s, sequence as i32),
-                Difference::Rem(s) => DiaryConflict::new(sync_datetime, diary_date, "rem", s, sequence as i32),
-                Difference::Add(s) => DiaryConflict::new(sync_datetime, diary_date, "add", s, sequence as i32),
+                Difference::Same(s) => {
+                    DiaryConflict::new(sync_datetime, diary_date, "same", s, sequence as i32)
+                }
+                Difference::Rem(s) => {
+                    DiaryConflict::new(sync_datetime, diary_date, "rem", s, sequence as i32)
+                }
+                Difference::Add(s) => {
+                    DiaryConflict::new(sync_datetime, diary_date, "add", s, sequence as i32)
+                }
             })
             .collect();
 
