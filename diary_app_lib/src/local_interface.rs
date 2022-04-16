@@ -14,7 +14,9 @@ use tokio::{
     io::AsyncWriteExt,
 };
 
-use crate::{config::Config, models::DiaryEntries, pgpool::PgPool};
+use crate::{
+    config::Config, date_time_wrapper::DateTimeWrapper, models::DiaryEntries, pgpool::PgPool,
+};
 
 #[derive(Clone, Debug)]
 pub struct LocalInterface {
@@ -93,7 +95,7 @@ impl LocalInterface {
     /// # Errors
     /// Return error if db query fails
     pub async fn cleanup_local(&self) -> Result<Vec<DiaryEntries>, Error> {
-        let local = time_tz::system::get_timezone()?;
+        let local = DateTimeWrapper::local_tz();
         let existing_map = DiaryEntries::get_modified_map(&self.pool).await?;
         let previous_date = (OffsetDateTime::now_utc() - Duration::days(4))
             .to_timezone(local)

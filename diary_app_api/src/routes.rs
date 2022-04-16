@@ -10,9 +10,9 @@ use serde::{Deserialize, Serialize};
 use stack_string::{format_sstr, StackString};
 use std::collections::HashSet;
 use time::{macros::format_description, Date, OffsetDateTime};
-use time_tz::{timezones::db::UTC, OffsetDateTimeExt};
+use time_tz::OffsetDateTimeExt;
 
-use diary_app_lib::models::DiaryCache;
+use diary_app_lib::{date_time_wrapper::DateTimeWrapper, models::DiaryCache};
 
 use super::{
     app::AppState,
@@ -479,7 +479,7 @@ async fn list_conflicts_body(query: ConflictData, state: AppState) -> HttpResult
     }
     buttons.push(r#"<button type="submit" onclick="switchToList()">List</button>"#.into());
 
-    let local = time_tz::system::get_timezone().unwrap_or(UTC);
+    let local = DateTimeWrapper::local_tz();
     let text = body
         .into_iter()
         .map(|t| {
@@ -521,7 +521,7 @@ pub async fn show_conflict(
 }
 
 async fn show_conflict_body(query: ConflictData, state: AppState) -> HttpResult<StackString> {
-    let local = time_tz::system::get_timezone().unwrap_or(UTC);
+    let local = DateTimeWrapper::local_tz();
     let datetime = query
         .datetime
         .unwrap_or_else(|| OffsetDateTime::now_utc().into());

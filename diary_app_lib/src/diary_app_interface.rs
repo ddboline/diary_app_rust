@@ -21,6 +21,7 @@ use url::Url;
 
 use crate::{
     config::Config,
+    date_time_wrapper::DateTimeWrapper,
     local_interface::LocalInterface,
     models::{DiaryCache, DiaryEntries},
     pgpool::PgPool,
@@ -138,7 +139,7 @@ impl DiaryAppInterface {
         mod_map: &HashMap<Date, OffsetDateTime>,
         search_text: &str,
     ) -> Result<Vec<Date>, Error> {
-        let local = time_tz::system::get_timezone()?;
+        let local = DateTimeWrapper::local_tz();
         let year_month_day_regex = Regex::new(r"(?P<year>\d{4})-(?P<month>\d{2})-(?P<day>\d{2})")?;
         let year_month_regex = Regex::new(r"(?P<year>\d{4})-(?P<month>\d{2})")?;
         let year_regex = Regex::new(r"(?P<year>\d{4})")?;
@@ -172,7 +173,7 @@ impl DiaryAppInterface {
     /// # Errors
     /// Return error if db query fails
     pub async fn search_text(&self, search_text: &str) -> Result<Vec<StackString>, Error> {
-        let local = time_tz::system::get_timezone()?;
+        let local = DateTimeWrapper::local_tz();
         let mod_map = DiaryEntries::get_modified_map(&self.pool).await?;
 
         let mut dates = Self::get_dates_from_search_text(&mod_map, search_text)?;
@@ -302,7 +303,7 @@ impl DiaryAppInterface {
     /// # Errors
     /// Return error if db query fails
     pub async fn sync_merge_cache_to_entries(&self) -> Result<Vec<DiaryEntries>, Error> {
-        let local = time_tz::system::get_timezone()?;
+        let local = DateTimeWrapper::local_tz();
         let date_entry_map = DiaryCache::get_cache_entries(&self.pool)
             .await?
             .into_iter()
