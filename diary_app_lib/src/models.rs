@@ -116,7 +116,7 @@ impl DiaryConflict {
                 SELECT distinct sync_datetime
                 FROM diary_conflict
                 WHERE diary_date = $date
-                ORDER BY sequence
+                ORDER BY sync_datetime
             "#,
             date = date,
         );
@@ -139,7 +139,7 @@ impl DiaryConflict {
                 SELECT distinct sync_datetime
                 FROM diary_conflict
                 WHERE diary_date = $date
-                ORDER BY sequence
+                ORDER BY sync_datetime
                 LIMIT 1
             "#,
             date = date,
