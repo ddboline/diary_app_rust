@@ -1,6 +1,6 @@
 [package]
 name = "diary_app_api"
-version = "0.8.18"
+version = "0.8.19"
 authors = ["Daniel Boline <ddboline@gmail.com>"]
 edition = "2018"
 
@@ -8,7 +8,7 @@ edition = "2018"
 
 [dependencies]
 diary_app_lib = {path = "../diary_app_lib"}
-rweb = {version="0.15", features=["openapi", "uuid"], default-features=false}
+rweb = {version="0.15", features=["openapi"], default-features=false}
 http = "0.2"
 futures = "0.3"
 serde = "1.0"
@@ -27,15 +27,15 @@ itertools = "0.10"
 indexmap = "1.6"
 serde_yaml = "0.8"
 derive_more = "0.99"
-uuid = "0.8"
+uuid = "1.0"
 time = {version="0.3", features=["serde-human-readable", "macros", "formatting"]}
 time-tz = {version="1.0", features=["system"]}
-rweb-helper = { git = "https://github.com/ddboline/rweb_helper.git", tag="0.4.9" }
+rweb-helper = { git = "https://github.com/ddboline/rweb_helper.git", tag="0.4.12" }
 stack-string = { version="0.7", features=["postgres_types", "rweb-openapi"] }
-authorized_users = { git = "https://github.com/ddboline/auth_server_rust.git", tag="0.8.1"}
+authorized_users = { git = "https://github.com/ddboline/auth_server_rust.git", tag="0.8.3"}
 
 [dev-dependencies]
 reqwest = {version="0.11", features=["cookies", "json", "rustls-tls", "stream"]}
-auth_server_http = { git = "https://github.com/ddboline/auth_server_rust.git", tag="0.8.1"}
-auth_server_lib = { git = "https://github.com/ddboline/auth_server_rust.git", tag="0.8.1"}
+auth_server_http = { git = "https://github.com/ddboline/auth_server_rust.git", tag="0.8.3"}
+auth_server_lib = { git = "https://github.com/ddboline/auth_server_rust.git", tag="0.8.3"}
 env_logger = "0.9"

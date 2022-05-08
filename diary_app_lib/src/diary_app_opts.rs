@@ -183,6 +183,6 @@ impl DiaryAppOpts {
                 migrations::runner().run_async(&mut **client).await?;
             }
         }
-        dap.stdout.close().await
+        dap.stdout.close().await.map_err(Into::into)
     }
 }

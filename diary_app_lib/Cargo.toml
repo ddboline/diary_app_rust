@@ -1,14 +1,14 @@
 [package]
 name = "diary_app_lib"
-version = "0.8.18"
+version = "0.8.19"
 authors = ["Daniel Boline <ddboline@gmail.com>"]
 edition = "2018"
 
 [dependencies]
-rusoto_core = {version = "0.47", default_features = false, features=["rustls"]}
-rusoto_s3 = {version = "0.47", default_features = false, features=["rustls"]}
-sts_profile_auth = "0.6"
-s3-ext = "0.4"
+rusoto_core = {version = "0.48", default_features = false, features=["rustls"]}
+rusoto_s3 = {version = "0.48", default_features = false, features=["rustls"]}
+sts_profile_auth = "0.7"
+s3-ext = "0.5"
 rand = "0.8"
 log = "0.4"
 url = "2.2"
@@ -34,7 +34,7 @@ derive_more = "0.99"
 envy = "0.4"
 smallvec = "1.6"
 deadqueue = "0.2"
-uuid = "0.8"
+uuid = "1.0"
 itertools = "0.10"
 bytes = "1.1"
 time = {version="0.3", features=["serde-human-readable", "macros", "formatting"]}
@@ -42,7 +42,7 @@ time-tz = {version="1.0", features=["system"]}
 refinery = {version="0.8", features=["tokio-postgres"]}
 deadpool = { version = "0.9", features=["serde", "rt_tokio_1"] }
 deadpool-postgres = { version = "0.10", features=["serde"] }
-tokio-postgres = {version = "0.7", features = ["with-time-0_3", "with-uuid-0_8", "with-serde_json-1"]}
+tokio-postgres = {version = "0.7", features = ["with-time-0_3", "with-uuid-1", "with-serde_json-1"]}
 postgres-types = "0.2"
 postgres_query = {git = "https://github.com/ddboline/rust-postgres-query", tag = "0.3.4", features=["deadpool"]}
 
