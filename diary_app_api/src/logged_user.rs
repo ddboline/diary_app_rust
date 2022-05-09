@@ -30,7 +30,6 @@ impl LoggedUser {
     /// # Errors
     /// Returns error if `session_id` doesn't match `self.session`
     pub fn verify_session_id(&self, session_id: Uuid) -> Result<(), Error> {
-        let session_id = session_id.into();
         if self.session == session_id {
             Ok(())
         } else {
