@@ -4,7 +4,7 @@ use maplit::hashmap;
 use rweb::{get, post, Json, Query, Rejection, Schema};
 use rweb_helper::{
     html_response::HtmlResponse as HtmlBase, json_response::JsonResponse as JsonBase, DateType,
-    RwebResponse,
+    RwebResponse, UuidWrapper,
 };
 use serde::{Deserialize, Serialize};
 use stack_string::{format_sstr, StackString};
@@ -598,7 +598,7 @@ async fn remove_conflict_body(query: ConflictData, state: AppState) -> HttpResul
 #[derive(Serialize, Deserialize, Schema)]
 pub struct ConflictUpdateData {
     #[schema(description = "Conflict ID")]
-    pub id: i32,
+    pub id: UuidWrapper,
     #[schema(description = "Difference Type")]
     pub diff_type: StackString,
 }
@@ -620,7 +620,7 @@ pub async fn update_conflict(
 
 async fn update_conflict_body(query: ConflictUpdateData, state: AppState) -> HttpResult<()> {
     DiaryAppRequests::UpdateConflict {
-        id: query.id,
+        id: query.id.into(),
         diff_text: query.diff_type,
     }
     .handle(&state.db)

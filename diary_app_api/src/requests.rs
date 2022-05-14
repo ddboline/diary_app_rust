@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 use stack_string::{format_sstr, StackString};
 use std::collections::BTreeSet;
 use time::{macros::format_description, Date};
+use uuid::Uuid;
 
 use diary_app_lib::{
     date_time_wrapper::DateTimeWrapper,
@@ -46,7 +47,7 @@ pub enum DiaryAppRequests {
     ShowConflict(DateTimeWrapper),
     RemoveConflict(DateTimeWrapper),
     CleanConflicts(Date),
-    UpdateConflict { id: i32, diff_text: StackString },
+    UpdateConflict { id: Uuid, diff_text: StackString },
     CommitConflict(DateTimeWrapper),
 }
 
@@ -141,12 +142,11 @@ impl DiaryAppRequests {
                     conflicts.iter().map(|entry| entry.diary_date).collect();
                 if diary_dates.len() > 1 {
                     return Err(format_err!(
-                        "Something has gone horribly wrong {:?}",
-                        conflicts
+                        "Something has gone horribly wrong {datetime}, {conflicts:?}"
                     ));
                 }
                 let date = diary_dates.into_iter().next().ok_or_else(|| {
-                    format_err!("Something has gone horribly wrong {:?}", conflicts)
+                    format_err!("Something has gone horribly wrong {datetime} {conflicts:?}")
                 })?;
 
                 let conflicts: Vec<StackString> = conflicts
@@ -155,7 +155,7 @@ impl DiaryAppRequests {
                         let nlines = entry.diff_text.split('\n').count() + 1;
                         let id = entry.id;
                         let diff = &entry.diff_text;
-                        let dt = datetime.format(format_description!("[year]-[month]-[second]T[hour]:[month]:[second].[subsecond]Z")).unwrap_or_else(|_| "".into());
+                        let dt = datetime.format(format_description!("[year]-[month]-[day]T[hour]:[minute]:[second].[subsecond]Z")).unwrap_or_else(|_| "".into());
                         match entry.diff_type.as_ref() {
                             "rem" => format_sstr!(
                                 r#"<textarea style="color:Red;" cols=100 rows={nlines}

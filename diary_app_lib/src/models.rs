@@ -158,7 +158,8 @@ impl DiaryConflict {
         let query = query!(
             r#"
                 SELECT * FROM diary_conflict
-                WHERE sync_datetime BETWEEN $datetime AND ($datetime + interval '1 second')
+                WHERE age(sync_datetime, $datetime)
+                    BETWEEN '-1 second' AND interval '1 second'
                 ORDER BY sync_datetime, sequence
             "#,
             datetime = datetime,
@@ -181,7 +182,7 @@ impl DiaryConflict {
     /// # Errors
     /// Return error if db query fails
     pub async fn update_by_id(
-        id: i32,
+        id: Uuid,
         new_diff_type: impl AsRef<str>,
         pool: &PgPool,
     ) -> Result<(), Error> {
@@ -190,7 +191,7 @@ impl DiaryConflict {
         Ok(())
     }
 
-    async fn update_by_id_conn<C>(id: i32, new_diff_type: &str, conn: &C) -> Result<(), Error>
+    async fn update_by_id_conn<C>(id: Uuid, new_diff_type: &str, conn: &C) -> Result<(), Error>
     where
         C: GenericClient + Sync,
     {
