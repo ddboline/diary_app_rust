@@ -160,13 +160,13 @@ impl DiaryAppRequests {
                             "rem" => format_sstr!(
                                 r#"<textarea style="color:Red;" cols=100 rows={nlines}
                                    >{diff}</textarea>
-                                   <input type="button" name="add" value="Add" onclick="updateConflictAdd({id}, '{date}', '{dt}');">
+                                   <input type="button" name="add" value="Add" onclick="updateConflictAdd('{id}', '{date}', '{dt}');">
                                    <br>"#
                             ),
                             "add" => format_sstr!(
                                 r#"<textarea style="color:Blue;" cols=100 rows={nlines}
                                    >{diff}</textarea>
-                                   <input type="button" name="rm" value="Rm" onclick="updateConflictRem({id}, '{date}', '{dt}');">
+                                   <input type="button" name="rm" value="Rm" onclick="updateConflictRem('{id}', '{date}', '{dt}');">
                                    <br>"#
                             ),
                             _ => format_sstr!("<textarea cols=100 rows={nlines}>{diff}</textarea><br>"),
