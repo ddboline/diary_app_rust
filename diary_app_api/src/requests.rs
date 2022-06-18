@@ -78,7 +78,7 @@ impl From<Vec<Date>> for DiaryAppOutput {
 impl DiaryAppRequests {
     /// # Errors
     /// Return error if any operation fails
-    pub async fn handle(self, dapp: &DiaryAppActor) -> Result<DiaryAppOutput, Error> {
+    pub async fn process(self, dapp: &DiaryAppActor) -> Result<DiaryAppOutput, Error> {
         match self {
             DiaryAppRequests::Search(opts) => {
                 let body = if let Some(text) = opts.text {

@@ -47,7 +47,7 @@ pub async fn search_api(
 }
 
 async fn search_api_body(query: SearchOptions, state: AppState) -> HttpResult<Vec<StackString>> {
-    if let DiaryAppOutput::Lines(body) = DiaryAppRequests::Search(query).handle(&state.db).await? {
+    if let DiaryAppOutput::Lines(body) = DiaryAppRequests::Search(query).process(&state.db).await? {
         Ok(body)
     } else {
         Err(Error::BadRequest("Bad Output".into()))
@@ -76,7 +76,7 @@ pub async fn search(
 }
 
 async fn search_body(query: SearchOptions, state: AppState) -> HttpResult<Vec<StackString>> {
-    if let DiaryAppOutput::Lines(body) = DiaryAppRequests::Search(query).handle(&state.db).await? {
+    if let DiaryAppOutput::Lines(body) = DiaryAppRequests::Search(query).process(&state.db).await? {
         Ok(body)
     } else {
         Err(Error::BadRequest("Bad Output".into()))
@@ -112,7 +112,7 @@ pub async fn insert(
 
 async fn insert_body(data: InsertData, state: AppState) -> HttpResult<Vec<StackString>> {
     if let DiaryAppOutput::Lines(body) = DiaryAppRequests::Insert(data.text)
-        .handle(&state.db)
+        .process(&state.db)
         .await?
     {
         Ok(body)
@@ -139,7 +139,7 @@ pub async fn sync(
 }
 
 async fn sync_body(state: AppState) -> HttpResult<Vec<StackString>> {
-    if let DiaryAppOutput::Lines(body) = DiaryAppRequests::Sync.handle(&state.db).await? {
+    if let DiaryAppOutput::Lines(body) = DiaryAppRequests::Sync.process(&state.db).await? {
         Ok(body)
     } else {
         Err(Error::BadRequest("Bad output".into()))
@@ -199,7 +199,7 @@ async fn replace_body(data: ReplaceData, state: AppState) -> HttpResult<Vec<Stac
         date: data.date.into(),
         text: data.text,
     };
-    if let DiaryAppOutput::Lines(body) = req.handle(&state.db).await? {
+    if let DiaryAppOutput::Lines(body) = req.process(&state.db).await? {
         Ok(body)
     } else {
         Err(Error::BadRequest("Bad output".into()))
@@ -279,7 +279,7 @@ pub async fn list(
 async fn list_body(query: ListOptions, state: &AppState) -> HttpResult<StackString> {
     let body = list_api_body(query, state).await?;
     let conflicts = if let DiaryAppOutput::Dates(dates) = DiaryAppRequests::ListConflicts(None)
-        .handle(&state.db)
+        .process(&state.db)
         .await?
     {
         dates.into_iter().map(Into::into).collect()
@@ -291,7 +291,7 @@ async fn list_body(query: ListOptions, state: &AppState) -> HttpResult<StackStri
 }
 
 async fn list_api_body(query: ListOptions, state: &AppState) -> HttpResult<Vec<DateType>> {
-    if let DiaryAppOutput::Dates(dates) = DiaryAppRequests::List(query).handle(&state.db).await? {
+    if let DiaryAppOutput::Dates(dates) = DiaryAppRequests::List(query).process(&state.db).await? {
         Ok(dates.into_iter().map(Into::into).collect())
     } else {
         Err(Error::BadRequest("Bad results".into()))
@@ -341,7 +341,7 @@ pub async fn edit(
 async fn edit_body(query: EditData, state: AppState) -> HttpResult<StackString> {
     let diary_date = query.date.into();
     let text = if let DiaryAppOutput::Lines(lines) = DiaryAppRequests::Display(diary_date)
-        .handle(&state.db)
+        .process(&state.db)
         .await?
     {
         lines
@@ -380,7 +380,7 @@ pub async fn display(
 async fn display_body(query: EditData, state: AppState) -> HttpResult<StackString> {
     let diary_date = query.date.into();
     let text = if let DiaryAppOutput::Lines(lines) = DiaryAppRequests::Display(diary_date)
-        .handle(&state.db)
+        .process(&state.db)
         .await?
     {
         lines
@@ -417,7 +417,7 @@ async fn diary_frontpage_body(state: AppState) -> HttpResult<StackString> {
         ..ListOptions::default()
     };
     let body = if let DiaryAppOutput::Dates(dates) =
-        DiaryAppRequests::List(query).handle(&state.db).await?
+        DiaryAppRequests::List(query).process(&state.db).await?
     {
         dates.into_iter().map(Into::into).collect()
     } else {
@@ -425,7 +425,7 @@ async fn diary_frontpage_body(state: AppState) -> HttpResult<StackString> {
     };
     debug!("Got list");
     let conflicts = if let DiaryAppOutput::Dates(dates) = DiaryAppRequests::ListConflicts(None)
-        .handle(&state.db)
+        .process(&state.db)
         .await?
     {
         dates.into_iter().map(Into::into).collect()
@@ -460,7 +460,7 @@ pub async fn list_conflicts(
 async fn list_conflicts_body(query: ConflictData, state: AppState) -> HttpResult<StackString> {
     let body = if let DiaryAppOutput::Timestamps(dates) =
         DiaryAppRequests::ListConflicts(query.date)
-            .handle(&state.db)
+            .process(&state.db)
             .await?
     {
         dates
@@ -530,7 +530,7 @@ async fn show_conflict_body(query: ConflictData, state: AppState) -> HttpResult<
         .unwrap_or_else(|| OffsetDateTime::now_utc().to_timezone(local).date().into())
         .into();
     let text = if let DiaryAppOutput::Lines(lines) = DiaryAppRequests::ShowConflict(datetime)
-        .handle(&state.db)
+        .process(&state.db)
         .await?
     {
         lines
@@ -573,7 +573,7 @@ pub async fn remove_conflict(
 async fn remove_conflict_body(query: ConflictData, state: AppState) -> HttpResult<StackString> {
     let body = if let Some(datetime) = query.datetime {
         if let DiaryAppOutput::Lines(lines) = DiaryAppRequests::RemoveConflict(datetime)
-            .handle(&state.db)
+            .process(&state.db)
             .await?
         {
             lines.join("\n")
@@ -582,7 +582,7 @@ async fn remove_conflict_body(query: ConflictData, state: AppState) -> HttpResul
         }
     } else if let Some(date) = query.date {
         if let DiaryAppOutput::Lines(lines) = DiaryAppRequests::CleanConflicts(date.into())
-            .handle(&state.db)
+            .process(&state.db)
             .await?
         {
             lines.join("\n")
@@ -623,7 +623,7 @@ async fn update_conflict_body(query: ConflictUpdateData, state: AppState) -> Htt
         id: query.id.into(),
         diff_text: query.diff_type,
     }
-    .handle(&state.db)
+    .process(&state.db)
     .await?;
     Ok(())
 }
@@ -649,7 +649,7 @@ async fn commit_conflict_body(
     state: AppState,
 ) -> HttpResult<Vec<StackString>> {
     if let DiaryAppOutput::Lines(lines) = DiaryAppRequests::CommitConflict(query.datetime)
-        .handle(&state.db)
+        .process(&state.db)
         .await?
     {
         Ok(lines)
