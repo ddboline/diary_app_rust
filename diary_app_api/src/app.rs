@@ -50,21 +50,12 @@ pub async fn start_app() -> Result<(), Error> {
         }
     }
 
-    async fn hourly_sync(dapp: DiaryAppActor) {
-        let mut i = interval(Duration::from_secs(3600));
-        loop {
-            i.tick().await;
-            dapp.sync_everything().await.map(|_| ()).unwrap_or(());
-        }
-    }
-
     let config = Config::init_config()?;
     get_secrets(&config.secret_path, &config.jwt_secret_path).await?;
     let pool = PgPool::new(&config.database_url);
     let dapp = DiaryAppActor(DiaryAppInterface::new(config.clone(), pool));
 
     tokio::task::spawn(update_db(dapp.pool.clone()));
-    tokio::task::spawn(hourly_sync(dapp.clone()));
 
     run_app(dapp, config.port).await
 }
