@@ -13,6 +13,7 @@ use std::{
     str::FromStr,
 };
 use uuid::Uuid;
+use maplit::hashset;
 
 use diary_app_lib::{models::AuthorizedUsers, pgpool::PgPool};
 
@@ -85,7 +86,7 @@ impl FromStr for LoggedUser {
 /// Returns error if `get_authorized_users` fails
 pub async fn fill_from_db(pool: &PgPool) -> Result<(), Error> {
     debug!("{:?}", *TRIGGER_DB_UPDATE);
-    let users: Vec<_> = if TRIGGER_DB_UPDATE.check() {
+    let users = if TRIGGER_DB_UPDATE.check() {
         AuthorizedUsers::get_authorized_users(pool)
             .await?
             .into_iter()
@@ -95,9 +96,9 @@ pub async fn fill_from_db(pool: &PgPool) -> Result<(), Error> {
         AUTHORIZED_USERS.get_users()
     };
     if let Ok("true") = var("TESTENV").as_ref().map(String::as_str) {
-        AUTHORIZED_USERS.merge_users(["user@test"]);
+        AUTHORIZED_USERS.update_users(hashset!{"user@test".into()});
     }
-    AUTHORIZED_USERS.merge_users(&users);
+    AUTHORIZED_USERS.update_users(users);
 
     debug!("{:?}", *AUTHORIZED_USERS);
     Ok(())
