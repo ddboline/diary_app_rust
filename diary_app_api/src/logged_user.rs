@@ -3,6 +3,7 @@ pub use authorized_users::{
     KEY_LENGTH, SECRET_KEY, TRIGGER_DB_UPDATE,
 };
 use log::debug;
+use maplit::hashset;
 use rweb::{filters::cookie::cookie, Filter, Rejection, Schema};
 use rweb_helper::UuidWrapper;
 use serde::{Deserialize, Serialize};
@@ -13,7 +14,6 @@ use std::{
     str::FromStr,
 };
 use uuid::Uuid;
-use maplit::hashset;
 
 use diary_app_lib::{models::AuthorizedUsers, pgpool::PgPool};
 
@@ -96,7 +96,7 @@ pub async fn fill_from_db(pool: &PgPool) -> Result<(), Error> {
         AUTHORIZED_USERS.get_users()
     };
     if let Ok("true") = var("TESTENV").as_ref().map(String::as_str) {
-        AUTHORIZED_USERS.update_users(hashset!{"user@test".into()});
+        AUTHORIZED_USERS.update_users(hashset! {"user@test".into()});
     }
     AUTHORIZED_USERS.update_users(users);
 
