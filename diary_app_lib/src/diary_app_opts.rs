@@ -2,7 +2,7 @@ use anyhow::{format_err, Error};
 use refinery::embed_migrations;
 use stack_string::StackString;
 use std::{collections::BTreeSet, str::FromStr};
-use structopt::StructOpt;
+use clap::Parser;
 use time::{
     format_description::well_known::Rfc3339, macros::format_description, Date, OffsetDateTime,
 };
@@ -49,15 +49,15 @@ impl FromStr for DiaryAppCommands {
     }
 }
 
-#[derive(StructOpt, Debug, Clone)]
+#[derive(Parser, Debug, Clone)]
 pub struct DiaryAppOpts {
-    #[structopt(parse(try_from_str))]
+    #[clap(parse(try_from_str))]
     /// Available commands are "(s)earch", "(i)nsert", "sync", "serialize,
     /// "clear", "clear_cache", "list", "list_conflicts", "show",
     /// "show_conflict", "remove", "remove_conflict"
     pub command: DiaryAppCommands,
-    #[structopt(
-        short = "t",
+    #[clap(
+        short = 't',
         long = "text",
         required_if("command", "search"),
         required_if("command", "insert")
