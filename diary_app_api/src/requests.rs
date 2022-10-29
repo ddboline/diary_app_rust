@@ -1,5 +1,5 @@
 use anyhow::{format_err, Error};
-use futures::future::try_join_all;
+use futures::TryStreamExt;
 use itertools::Itertools;
 use rweb::Schema;
 use rweb_helper::DateType;
@@ -125,19 +125,28 @@ impl DiaryAppRequests {
                 Ok(vec![entry.diary_text].into())
             }
             DiaryAppRequests::ListConflicts(None) => {
-                let mut conflicts = DiaryConflict::get_all_dates(&dapp.pool).await?;
+                let mut conflicts: Vec<_> = DiaryConflict::get_all_dates(&dapp.pool)
+                    .await?
+                    .try_collect()
+                    .await?;
                 conflicts.sort();
                 conflicts.dedup();
                 Ok(conflicts.into())
             }
             DiaryAppRequests::ListConflicts(Some(date)) => {
-                let mut conflicts = DiaryConflict::get_by_date(date.into(), &dapp.pool).await?;
+                let mut conflicts: Vec<_> = DiaryConflict::get_by_date(date.into(), &dapp.pool)
+                    .await?
+                    .try_collect()
+                    .await?;
                 conflicts.sort();
                 conflicts.dedup();
                 Ok(conflicts.into())
             }
             DiaryAppRequests::ShowConflict(datetime) => {
-                let conflicts = DiaryConflict::get_by_datetime(datetime, &dapp.pool).await?;
+                let conflicts: Vec<_> = DiaryConflict::get_by_datetime(datetime, &dapp.pool)
+                    .await?
+                    .try_collect()
+                    .await?;
                 let diary_dates: BTreeSet<Date> =
                     conflicts.iter().map(|entry| entry.diary_date).collect();
                 if diary_dates.len() > 1 {
@@ -181,18 +190,20 @@ impl DiaryAppRequests {
                 Ok(vec![body].into())
             }
             DiaryAppRequests::CleanConflicts(date) => {
-                let futures = DiaryConflict::get_by_date(date, &dapp.pool)
-                    .await?
-                    .into_iter()
-                    .map(|datetime| {
-                        let pool = dapp.pool.clone();
-                        async move {
-                            DiaryConflict::remove_by_datetime(datetime, &pool).await?;
-                            Ok(format_sstr!("remove {datetime}"))
-                        }
-                    });
-                let results: Result<Vec<StackString>, Error> = try_join_all(futures).await;
-                results.map(Into::into).map_err(Into::into)
+                let results: Result<Vec<StackString>, Error> =
+                    DiaryConflict::get_by_date(date, &dapp.pool)
+                        .await?
+                        .map_err(Into::into)
+                        .and_then(|datetime| {
+                            let pool = dapp.pool.clone();
+                            async move {
+                                DiaryConflict::remove_by_datetime(datetime, &pool).await?;
+                                Ok(format_sstr!("remove {datetime}"))
+                            }
+                        })
+                        .try_collect()
+                        .await;
+                results.map(Into::into)
             }
             DiaryAppRequests::UpdateConflict { id, diff_text } => {
                 let new_diff_type = match diff_text.as_str() {
@@ -205,7 +216,10 @@ impl DiaryAppRequests {
                 Ok(vec![body].into())
             }
             DiaryAppRequests::CommitConflict(datetime) => {
-                let conflicts = DiaryConflict::get_by_datetime(datetime, &dapp.pool).await?;
+                let conflicts: Vec<_> = DiaryConflict::get_by_datetime(datetime, &dapp.pool)
+                    .await?
+                    .try_collect()
+                    .await?;
                 let diary_dates: BTreeSet<Date> =
                     conflicts.iter().map(|entry| entry.diary_date).collect();
                 if diary_dates.len() > 1 {

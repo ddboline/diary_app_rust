@@ -1,3 +1,4 @@
+use futures::TryStreamExt;
 use itertools::Itertools;
 use log::debug;
 use maplit::hashmap;
@@ -676,12 +677,13 @@ pub async fn diary_cache(
     #[filter = "LoggedUser::filter"] _: LoggedUser,
     #[data] state: AppState,
 ) -> WarpResult<DiaryCacheResponse> {
-    let cache_entries: Vec<_> = DiaryCache::get_cache_entries(&state.db.pool)
+    let cache_entries: Vec<DiaryCacheWrapper> = DiaryCache::get_cache_entries(&state.db.pool)
         .await
         .map_err(Into::<Error>::into)?
-        .into_iter()
-        .map(Into::into)
-        .collect();
+        .map_ok(Into::into)
+        .try_collect()
+        .await
+        .map_err(Into::<Error>::into)?;
     Ok(JsonBase::new(cache_entries).into())
 }
 

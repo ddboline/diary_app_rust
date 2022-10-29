@@ -2,6 +2,7 @@ pub use authorized_users::{
     get_random_key, get_secrets, token::Token, AuthorizedUser, AUTHORIZED_USERS, JWT_SECRET,
     KEY_LENGTH, SECRET_KEY, TRIGGER_DB_UPDATE,
 };
+use futures::TryStreamExt;
 use log::debug;
 use maplit::hashset;
 use rweb::{filters::cookie::cookie, Filter, Rejection, Schema};
@@ -89,9 +90,9 @@ pub async fn fill_from_db(pool: &PgPool) -> Result<(), Error> {
     let users = if TRIGGER_DB_UPDATE.check() {
         AuthorizedUsers::get_authorized_users(pool)
             .await?
-            .into_iter()
-            .map(|user| user.email)
-            .collect()
+            .map_ok(|user| user.email)
+            .try_collect()
+            .await?
     } else {
         AUTHORIZED_USERS.get_users()
     };

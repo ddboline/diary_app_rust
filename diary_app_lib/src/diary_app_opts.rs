@@ -1,8 +1,9 @@
 use anyhow::{format_err, Error};
+use clap::Parser;
+use futures::TryStreamExt;
 use refinery::embed_migrations;
 use stack_string::StackString;
 use std::{collections::BTreeSet, str::FromStr};
-use clap::Parser;
 use time::{
     format_description::well_known::Rfc3339, macros::format_description, Date, OffsetDateTime,
 };
@@ -92,7 +93,8 @@ impl DiaryAppOpts {
                 }
             }
             DiaryAppCommands::ClearCache => {
-                for entry in DiaryCache::get_cache_entries(&dap.pool).await? {
+                let mut stream = Box::pin(DiaryCache::get_cache_entries(&dap.pool).await?);
+                while let Some(entry) = stream.try_next().await? {
                     dap.stdout.send(serde_json::to_string(&entry)?);
                     entry.delete_entry(&dap.pool).await?;
                 }
@@ -104,8 +106,8 @@ impl DiaryAppOpts {
                 ) -> Result<(), Error> {
                     let conflicts: BTreeSet<_> = DiaryConflict::get_by_date(date, &dap.pool)
                         .await?
-                        .into_iter()
-                        .collect();
+                        .try_collect()
+                        .await?;
                     for entry in conflicts {
                         let timestamp: StackString = entry
                             .format(format_description!(
@@ -124,7 +126,10 @@ impl DiaryAppOpts {
                 ) {
                     get_all_conflicts(&dap, date).await?;
                 } else {
-                    let conflicts = DiaryConflict::get_all_dates(&dap.pool).await?;
+                    let conflicts: Vec<_> = DiaryConflict::get_all_dates(&dap.pool)
+                        .await?
+                        .try_collect()
+                        .await?;
                     if conflicts.len() > 1 {
                         for date in conflicts {
                             let date = StackString::from_display(date);
@@ -146,13 +151,13 @@ impl DiaryAppOpts {
                     let conflicts: Vec<_> =
                         DiaryConflict::get_by_datetime(datetime.into(), &dap.pool)
                             .await?
-                            .into_iter()
-                            .map(|entry| match entry.diff_type.as_str() {
+                            .map_ok(|entry| match entry.diff_type.as_str() {
                                 "rem" => format!("\x1b[91m{}\x1b[0m", entry.diff_text).into(),
                                 "add" => format!("\x1b[92m{}\x1b[0m", entry.diff_text).into(),
                                 _ => entry.diff_text,
                             })
-                            .collect();
+                            .try_collect()
+                            .await?;
                     for timestamp in conflicts {
                         dap.stdout.send(timestamp);
                     }

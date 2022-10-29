@@ -1,5 +1,5 @@
 use anyhow::{format_err, Error};
-use futures::future::try_join_all;
+use futures::{stream::FuturesUnordered, TryStreamExt};
 use lazy_static::lazy_static;
 use log::debug;
 use rusoto_s3::Object;
@@ -108,7 +108,7 @@ impl S3Interface {
             key_cache.1 = Arc::new([]);
         }
 
-        let futures = DiaryEntries::get_modified_map(&self.pool)
+        let futures: FuturesUnordered<_> = DiaryEntries::get_modified_map(&self.pool)
             .await?
             .into_iter()
             .map(|(diary_date, last_modified)| {
@@ -142,9 +142,12 @@ impl S3Interface {
                     }
                     Ok(None)
                 }
-            });
-        let results: Result<Vec<_>, Error> = try_join_all(futures).await;
-        Ok(results?.into_iter().flatten().collect())
+            })
+            .collect();
+        futures
+            .try_filter_map(|x| async move { Ok(x) })
+            .try_collect()
+            .await
     }
 
     /// # Errors
@@ -198,54 +201,60 @@ impl S3Interface {
 
         let key_cache = KEY_CACHE.read().await.1.clone();
 
-        let futures = key_cache.iter().map(|obj| {
-            let existing_map = existing_map.clone();
-            async move {
-                let mut insert_new = true;
-                let should_modify = match existing_map.get(&obj.date) {
-                    Some(current_modified) => {
-                        insert_new = (*current_modified - obj.last_modified).whole_seconds() < 0;
-                        if (*current_modified - obj.last_modified).whole_seconds() < 0 {
-                            if let Some(entry) =
-                                DiaryEntries::get_by_date(obj.date, &self.pool).await?
-                            {
-                                let db_size = entry.diary_text.len() as i64;
-                                if obj.size != db_size {
-                                    debug!(
-                                        "last_modified {} {} {} {} {}",
-                                        obj.date,
-                                        *current_modified,
-                                        obj.last_modified,
-                                        obj.size,
-                                        db_size
-                                    );
+        let futures: FuturesUnordered<_> = key_cache
+            .iter()
+            .map(|obj| {
+                let existing_map = existing_map.clone();
+                async move {
+                    let mut insert_new = true;
+                    let should_modify = match existing_map.get(&obj.date) {
+                        Some(current_modified) => {
+                            insert_new =
+                                (*current_modified - obj.last_modified).whole_seconds() < 0;
+                            if (*current_modified - obj.last_modified).whole_seconds() < 0 {
+                                if let Some(entry) =
+                                    DiaryEntries::get_by_date(obj.date, &self.pool).await?
+                                {
+                                    let db_size = entry.diary_text.len() as i64;
+                                    if obj.size != db_size {
+                                        debug!(
+                                            "last_modified {} {} {} {} {}",
+                                            obj.date,
+                                            *current_modified,
+                                            obj.last_modified,
+                                            obj.size,
+                                            db_size
+                                        );
+                                    }
+                                    obj.size != db_size
+                                } else {
+                                    false
                                 }
-                                obj.size != db_size
                             } else {
-                                false
+                                (*current_modified - obj.last_modified).whole_seconds() < 0
                             }
-                        } else {
-                            (*current_modified - obj.last_modified).whole_seconds() < 0
+                        }
+                        None => true,
+                    };
+                    if obj.size > 0 && should_modify {
+                        if let Some(entry) = self.download_entry(obj.date).await? {
+                            debug!(
+                                "import s3 date {} lines {}",
+                                entry.diary_date,
+                                entry.diary_text.matches('\n').count()
+                            );
+                            entry.upsert_entry(&self.pool, insert_new).await?;
+                            return Ok(Some(entry));
                         }
                     }
-                    None => true,
-                };
-                if obj.size > 0 && should_modify {
-                    if let Some(entry) = self.download_entry(obj.date).await? {
-                        debug!(
-                            "import s3 date {} lines {}",
-                            entry.diary_date,
-                            entry.diary_text.matches('\n').count()
-                        );
-                        entry.upsert_entry(&self.pool, insert_new).await?;
-                        return Ok(Some(entry));
-                    }
+                    Ok(None)
                 }
-                Ok(None)
-            }
-        });
-        let results: Result<Vec<_>, Error> = try_join_all(futures).await;
-        Ok(results?.into_iter().flatten().collect())
+            })
+            .collect();
+        futures
+            .try_filter_map(|x| async move { Ok(x) })
+            .try_collect()
+            .await
     }
 
     /// # Errors
@@ -260,22 +269,27 @@ impl S3Interface {
             .map(|obj| (obj.date, obj.size as usize))
             .collect();
 
-        let futures = s3_key_map.iter().map(|(date, backup_len)| {
-            let pool = self.pool.clone();
-            async move {
-                let entry = DiaryEntries::get_by_date(*date, &pool)
-                    .await?
-                    .ok_or_else(|| format_err!("Date should exist {date}"))?;
-                let diary_len = entry.diary_text.len();
-                if diary_len == *backup_len {
-                    Ok(None)
-                } else {
-                    Ok(Some((*date, *backup_len, diary_len)))
+        let futures: FuturesUnordered<_> = s3_key_map
+            .iter()
+            .map(|(date, backup_len)| {
+                let pool = self.pool.clone();
+                async move {
+                    let entry = DiaryEntries::get_by_date(*date, &pool)
+                        .await?
+                        .ok_or_else(|| format_err!("Date should exist {date}"))?;
+                    let diary_len = entry.diary_text.len();
+                    if diary_len == *backup_len {
+                        Ok(None)
+                    } else {
+                        Ok(Some((*date, *backup_len, diary_len)))
+                    }
                 }
-            }
-        });
-        let results: Result<Vec<_>, Error> = try_join_all(futures).await;
-        Ok(results?.into_iter().flatten().collect())
+            })
+            .collect();
+        futures
+            .try_filter_map(|x| async move { Ok(x) })
+            .try_collect()
+            .await
     }
 }
 

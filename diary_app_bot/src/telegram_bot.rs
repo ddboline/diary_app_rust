@@ -1,5 +1,5 @@
 use anyhow::Error;
-use futures::{future::join, StreamExt};
+use futures::{future::join, StreamExt, TryStreamExt};
 use lazy_static::lazy_static;
 use log::debug;
 use stack_string::{format_sstr, StackString};
@@ -164,9 +164,9 @@ async fn fill_telegram_user_ids(pool: PgPool) -> Result<(), Error> {
         let p = pool.clone();
         if let Ok(authorized_users) = AuthorizedUsers::get_authorized_users(&p).await {
             let telegram_userid_set: HashSet<_> = authorized_users
-                .into_iter()
-                .filter_map(|user| user.telegram_userid.map(UserId::new))
-                .collect();
+                .try_filter_map(|user| async move { Ok(user.telegram_userid.map(UserId::new)) })
+                .try_collect()
+                .await?;
             *TELEGRAM_USERIDS.write().await = telegram_userid_set;
             FAILURE_COUNT.reset()?;
         } else {

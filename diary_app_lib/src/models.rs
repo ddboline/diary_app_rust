@@ -1,8 +1,9 @@
 use anyhow::{format_err, Error};
 use derive_more::Into;
 use difference::{Changeset, Difference};
+use futures::{Stream, TryStreamExt};
 use log::debug;
-use postgres_query::{client::GenericClient, query, query_dyn, FromSqlRow};
+use postgres_query::{client::GenericClient, query, query_dyn, Error as PqError, FromSqlRow};
 use serde::{Deserialize, Serialize};
 use stack_string::{format_sstr, StackString};
 use std::collections::HashMap;
@@ -55,10 +56,12 @@ pub struct DiaryConflict {
 impl AuthorizedUsers {
     /// # Errors
     /// Return error if db query fails
-    pub async fn get_authorized_users(pool: &PgPool) -> Result<Vec<Self>, Error> {
+    pub async fn get_authorized_users(
+        pool: &PgPool,
+    ) -> Result<impl Stream<Item = Result<Self, PqError>>, Error> {
         let query = query!("SELECT * FROM authorized_users");
         let conn = pool.get().await?;
-        query.fetch(&conn).await.map_err(Into::into)
+        query.fetch_streaming(&conn).await.map_err(Into::into)
     }
 }
 
@@ -82,35 +85,49 @@ impl DiaryConflict {
 
     /// # Errors
     /// Return error if db query fails
-    pub async fn get_all_dates(pool: &PgPool) -> Result<Vec<Date>, Error> {
-        #[derive(FromSqlRow, Into)]
-        struct Wrap(Date);
-
+    pub async fn get_all_dates(
+        pool: &PgPool,
+    ) -> Result<impl Stream<Item = Result<Date, PqError>>, Error> {
         let query = query!("SELECT distinct diary_date FROM diary_conflict ORDER BY diary_date");
         let conn = pool.get().await?;
-        let result: Vec<Wrap> = query.fetch(&conn).await?;
-        Ok(result.into_iter().map(Into::into).collect())
+        query
+            .query_streaming(&conn)
+            .await
+            .map(|stream| {
+                stream.and_then(|row| async move {
+                    let date: Date = row.try_get(0).map_err(PqError::BeginTransaction)?;
+                    Ok(date)
+                })
+            })
+            .map_err(Into::into)
     }
 
     /// # Errors
     /// Return error if db query fails
     pub async fn get_first_date(pool: &PgPool) -> Result<Option<Date>, Error> {
-        #[derive(FromSqlRow, Into)]
-        struct Wrap(Date);
-
         let query =
             query!("SELECT distinct diary_date FROM diary_conflict ORDER BY diary_date LIMIT 1");
         let conn = pool.get().await?;
-        let result: Option<Wrap> = query.fetch_opt(&conn).await?;
-        Ok(result.map(Into::into))
+        query
+            .query_opt(&conn)
+            .await
+            .map_err(Into::into)
+            .and_then(|opt| {
+                if let Some(row) = opt {
+                    let date: Date = row.try_get(0)?;
+                    Ok(Some(date))
+                } else {
+                    Ok(None)
+                }
+            })
     }
 
     /// # Errors
     /// Return error if db query fails
-    pub async fn get_by_date(date: Date, pool: &PgPool) -> Result<Vec<DateTimeWrapper>, Error> {
-        #[derive(FromSqlRow, Into)]
-        struct Wrap(DateTimeWrapper);
-
+    pub async fn get_by_date(
+        date: Date,
+        pool: &PgPool,
+    ) -> Result<impl Stream<Item = Result<DateTimeWrapper, PqError>>, Error> {
         let query = query!(
             r#"
                 SELECT distinct sync_datetime
@@ -121,8 +138,17 @@ impl DiaryConflict {
             date = date,
         );
         let conn = pool.get().await?;
-        let result: Vec<Wrap> = query.fetch(&conn).await?;
-        Ok(result.into_iter().map(Into::into).collect())
+        query
+            .query_streaming(&conn)
+            .await
+            .map_err(Into::into)
+            .map(|stream| {
+                stream.and_then(|row| async move {
+                    let datetime: DateTimeWrapper =
+                        row.try_get(0).map_err(PqError::BeginTransaction)?;
+                    Ok(datetime)
+                })
+            })
     }
 
     /// # Errors
@@ -154,7 +180,7 @@ impl DiaryConflict {
     pub async fn get_by_datetime(
         datetime: DateTimeWrapper,
         pool: &PgPool,
-    ) -> Result<Vec<Self>, Error> {
+    ) -> Result<impl Stream<Item = Result<Self, PqError>>, Error> {
         let query = query!(
             r#"
                 SELECT * FROM diary_conflict
@@ -165,7 +191,7 @@ impl DiaryConflict {
             datetime = datetime,
         );
         let conn = pool.get().await?;
-        query.fetch(&conn).await.map_err(Into::into)
+        query.fetch_streaming(&conn).await.map_err(Into::into)
     }
 
     /// # Errors
@@ -401,19 +427,19 @@ impl DiaryEntries {
     /// # Errors
     /// Return error if db query fails
     pub async fn get_modified_map(pool: &PgPool) -> Result<HashMap<Date, OffsetDateTime>, Error> {
-        #[derive(FromSqlRow)]
-        struct Wrap {
-            diary_date: Date,
-            last_modified: OffsetDateTime,
-        }
-
         let query = query!("SELECT diary_date, last_modified FROM diary_entries");
         let conn = pool.get().await?;
-        let output: Vec<Wrap> = query.fetch(&conn).await?;
-        Ok(output
-            .into_iter()
-            .map(|x| (x.diary_date, x.last_modified))
-            .collect())
+        query
+            .query_streaming(&conn)
+            .await?
+            .map_err(Into::into)
+            .and_then(|row| async move {
+                let diary_date: Date = row.try_get("diary_date")?;
+                let last_modified: OffsetDateTime = row.try_get("last_modified")?;
+                Ok((diary_date, last_modified))
+            })
+            .try_collect()
+            .await
     }
 
     async fn _get_by_date<C>(date: Date, conn: &C) -> Result<Option<Self>, Error>
@@ -439,7 +465,7 @@ impl DiaryEntries {
     pub async fn get_by_text(
         search_text: impl AsRef<str>,
         pool: &PgPool,
-    ) -> Result<Vec<Self>, Error> {
+    ) -> Result<impl Stream<Item = Result<Self, PqError>>, Error> {
         let search_text: StackString = search_text
             .as_ref()
             .chars()
@@ -454,7 +480,7 @@ impl DiaryEntries {
         );
         let query = query_dyn!(&query)?;
         let conn = pool.get().await?;
-        query.fetch(&conn).await.map_err(Into::into)
+        query.fetch_streaming(&conn).await.map_err(Into::into)
     }
 
     async fn _get_difference<C>(
@@ -515,10 +541,12 @@ impl DiaryCache {
 
     /// # Errors
     /// Return error if db query fails
-    pub async fn get_cache_entries(pool: &PgPool) -> Result<Vec<Self>, Error> {
+    pub async fn get_cache_entries(
+        pool: &PgPool,
+    ) -> Result<impl Stream<Item = Result<Self, PqError>>, Error> {
         let query = query!("SELECT * FROM diary_cache");
         let conn = pool.get().await?;
-        query.fetch(&conn).await.map_err(Into::into)
+        query.fetch_streaming(&conn).await.map_err(Into::into)
     }
 
     /// # Errors
@@ -526,7 +554,7 @@ impl DiaryCache {
     pub async fn get_by_text(
         search_text: impl AsRef<str>,
         pool: &PgPool,
-    ) -> Result<Vec<Self>, Error> {
+    ) -> Result<impl Stream<Item = Result<Self, PqError>>, Error> {
         let search_text: StackString = search_text
             .as_ref()
             .chars()
@@ -540,7 +568,7 @@ impl DiaryCache {
         );
         let query = query_dyn!(&query)?;
         let conn = pool.get().await?;
-        query.fetch(&conn).await.map_err(Into::into)
+        query.fetch_streaming(&conn).await.map_err(Into::into)
     }
 
     /// # Errors

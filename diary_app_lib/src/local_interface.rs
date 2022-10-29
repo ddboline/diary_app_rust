@@ -1,5 +1,5 @@
 use anyhow::{format_err, Error};
-use futures::future::try_join_all;
+use futures::{future::try_join_all, stream::FuturesUnordered, TryStreamExt};
 use jwalk::WalkDir;
 use log::debug;
 use stack_string::{format_sstr, StackString};
@@ -101,7 +101,7 @@ impl LocalInterface {
             .to_timezone(local)
             .date();
 
-        let futures = WalkDir::new(&self.config.diary_path)
+        let futures: FuturesUnordered<_> = WalkDir::new(&self.config.diary_path)
             .sort(true)
             .into_iter()
             .map(|entry| async move {
@@ -126,9 +126,13 @@ impl LocalInterface {
                     }
                 }
                 Ok(None)
-            });
-        let results: Result<Vec<_>, Error> = try_join_all(futures).await;
-        let dates: BTreeMap<_, _> = results?.into_iter().flatten().collect();
+            })
+            .collect();
+        let dates: Result<BTreeMap<_, _>, Error> = futures
+            .try_filter_map(|x| async move { Ok(x) })
+            .try_collect()
+            .await;
+        let dates = dates?;
 
         let current_date = OffsetDateTime::now_utc().to_timezone(local).date();
 
