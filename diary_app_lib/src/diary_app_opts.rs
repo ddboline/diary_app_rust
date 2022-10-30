@@ -93,8 +93,8 @@ impl DiaryAppOpts {
                 }
             }
             DiaryAppCommands::ClearCache => {
-                let mut stream = Box::pin(DiaryCache::get_cache_entries(&dap.pool).await?);
-                while let Some(entry) = stream.try_next().await? {
+                let entries: Vec<_> = DiaryCache::get_cache_entries(&dap.pool).await?.try_collect().await?;
+                for entry in entries {
                     dap.stdout.send(serde_json::to_string(&entry)?);
                     entry.delete_entry(&dap.pool).await?;
                 }
