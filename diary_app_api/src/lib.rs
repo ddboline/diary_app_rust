@@ -5,13 +5,14 @@
 #![allow(clippy::cast_possible_truncation)]
 #![allow(clippy::used_underscore_binding)]
 #![allow(clippy::unused_async)]
+#![allow(clippy::implicit_hasher)]
 
 pub mod app;
+pub mod elements;
 pub mod errors;
 pub mod logged_user;
 pub mod requests;
 pub mod routes;
-pub mod elements;
 
 use derive_more::{Deref, From, Into};
 use diary_app_lib::models::DiaryCache;
