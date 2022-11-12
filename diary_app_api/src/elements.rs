@@ -1,16 +1,14 @@
 use dioxus::prelude::{
-    rsx, Scope, Element, inline_props,
-    Props, dioxus_elements, LazyNodes,
-    NodeFactory, VNode, format_args_f,
-    VirtualDom,
+    dioxus_elements, format_args_f, inline_props, rsx, Element, LazyNodes, NodeFactory, Props,
+    Scope, VNode, VirtualDom,
 };
-use time::macros::format_description;
-use time::Date;
-use std::collections::HashSet;
 use rweb_helper::DateType;
+use stack_string::StackString;
+use std::collections::HashSet;
+use time::{macros::format_description, Date, OffsetDateTime};
+use time_tz::OffsetDateTimeExt;
 
-use diary_app_lib::models::DiaryConflict;
-use diary_app_lib::date_time_wrapper::DateTimeWrapper;
+use diary_app_lib::{date_time_wrapper::DateTimeWrapper, models::DiaryConflict};
 
 #[inline_props]
 fn conflict_element(
@@ -24,7 +22,7 @@ fn conflict_element(
             let nlines = entry.diff_text.split('\n').count() + 1;
             let id = entry.id;
             let diff = &entry.diff_text;
-            let dt = datetime.format(format_description!("[year]-[month]-[day]T[hour]:[minute]:[second].[subsecond]Z")).unwrap_or_else(|_| "".into());
+            let dt = datetime.format(format_description!("[year]-[month]-[day]T[hour]:[minute]:[second].[subsecond]Z")).unwrap_or_else(|_| String::new());
             match entry.diff_type.as_ref() {
                 "rem" => rsx! {
                     textarea {
@@ -77,9 +75,7 @@ pub fn index_body() -> String {
     dioxus::ssr::render_vdom(&app)
 }
 
-fn index_element(
-    cx: Scope,
-) -> Element {
+fn index_element(cx: Scope) -> Element {
     cx.render(rsx! {
         head {
             style {[include_str!("../../templates/style.css")]}
@@ -108,21 +104,22 @@ fn index_element(
                     name: "diary_status",
                     id: "diary_status",
                     "&nbsp;",
-                }
-            },
-            form {
-                action: "javascript:searchDate();",
-                input {
-                    "type": "button",
-                    name: "search_date_button",
-                    value: "Date",
-                    "onclick": "searchDate();",
                 },
-                input {
-                    "type": "date",
-                    name: "search_date",
-                    id: "search_date",
-                }
+                "<br>",
+                form {
+                    action: "javascript:searchDate();",
+                    input {
+                        "type": "button",
+                        name: "search_date_button",
+                        value: "Date",
+                        "onclick": "searchDate();",
+                    },
+                    input {
+                        "type": "date",
+                        name: "search_date",
+                        id: "search_date",
+                    }
+                },
             },
             nav {
                 id: "navigation",
@@ -154,7 +151,7 @@ pub fn list_body(
         },
     );
     app.rebuild();
-    dioxus::ssr::render_vdom(&app)    
+    dioxus::ssr::render_vdom(&app)
 }
 
 #[inline_props]
@@ -189,7 +186,7 @@ fn date_list_element(
     cx.render(rsx! {
         dates.iter().enumerate().map(|(idx, t)| {
             let d: Date = (*t).into();
-            let c = if conflicts.contains(&t) {
+            let c = if conflicts.contains(t) {
                 Some(rsx! {
                     input {
                         "type": "submit",
@@ -211,10 +208,202 @@ fn date_list_element(
                         "onclick": "switchToDate( '{d}' )",
                         c
                     },
-                    "<br>",    
+                    "<br>",
                 }
             }
         })
         buttons,
+    })
+}
+
+pub fn list_conflicts_body(date: Option<DateType>, conflicts: Vec<DateTimeWrapper>) -> String {
+    let mut app = VirtualDom::new_with_props(
+        list_conflicts_element,
+        list_conflicts_elementProps { date, conflicts },
+    );
+    app.rebuild();
+    dioxus::ssr::render_vdom(&app)
+}
+
+#[inline_props]
+fn list_conflicts_element(
+    cx: Scope,
+    date: Option<DateType>,
+    conflicts: Vec<DateTimeWrapper>,
+) -> Element {
+    let local = DateTimeWrapper::local_tz();
+    let clean_conflicts = if let Some(date) = date {
+        if conflicts.is_empty() {
+            None
+        } else {
+            let date: Date = (*date).into();
+            Some(rsx! {
+                button {
+                    "type": "submit",
+                    "onclick": "cleanConflicts('{date}')",
+                    "Clean"
+                }
+            })
+        }
+    } else {
+        None
+    };
+    cx.render(rsx! {
+        conflicts.iter().enumerate().map(|(idx, t)| {
+            let d: Date = date.unwrap_or_else(|| OffsetDateTime::now_utc().to_timezone(local).date().into()).into();
+            rsx! {
+                input {
+                    key: "show-key-{idx}",
+                    "type": "button",
+                    name: "show_{t}",
+                    value: "Show {t}",
+                    "onclick": "showConflict( '{d}', '{t}' )",
+                    "<br>",
+                }
+            }
+        }),
+        "<br>",
+        clean_conflicts,
+        button {
+            "type": "submit",
+            "onclick": "switchToList()",
+            "List",
+        },
+        "<br>"
+    })
+}
+
+pub fn search_body(results: Vec<StackString>) -> String {
+    let mut app = VirtualDom::new_with_props(search_element, search_elementProps { results });
+    app.rebuild();
+    dioxus::ssr::render_vdom(&app)
+}
+
+#[inline_props]
+fn search_element(cx: Scope, results: Vec<StackString>) -> Element {
+    let body = results.join("\n");
+    cx.render(rsx! {
+        textarea {
+            "autofocus": "true",
+            readonly: "readonly",
+            name: "message",
+            id: "diary_editor_form",
+            "rows": "50",
+            "cols": "100",
+            "{body}",
+        }
+    })
+}
+
+pub fn edit_body(date: Date, text: Vec<StackString>, do_update: bool) -> String {
+    let mut app = VirtualDom::new_with_props(
+        edit_element,
+        edit_elementProps {
+            date,
+            text,
+            do_update,
+        },
+    );
+    app.rebuild();
+    dioxus::ssr::render_vdom(&app)
+}
+
+#[inline_props]
+fn edit_element(cx: Scope, date: Date, text: Vec<StackString>, do_update: bool) -> Element {
+    let text = text.join("\n");
+    let buttons = if *do_update {
+        rsx! {
+            input {
+                "type": "button",
+                name: "edit",
+                value: "Edit",
+                "onclick": "switchToEditor('{date}')",
+            }
+        }
+    } else {
+        rsx! {
+            form {
+                id: "diary_edit_form",
+                input {
+                    "type": "button",
+                    name: "update",
+                    value: "Update",
+                    "onclick": "submitFormData('{date}')",
+                },
+                input {
+                    "type": "button",
+                    name: "cancel",
+                    value: "Cancel",
+                    "onclick": "switchToDisplay('{date}')",
+                }
+            }
+        }
+    };
+    cx.render(rsx! {
+        textarea {
+            name: "message",
+            id: "diary_editor_form",
+            rows: "50",
+            cols: "100",
+            form: "diary_edit_form",
+            "{text}",
+            buttons,
+        },
+        "<br>",
+    })
+}
+
+pub fn show_conflict_body(date: Date, text: Vec<StackString>, datetime: DateTimeWrapper) -> String {
+    let mut app = VirtualDom::new_with_props(
+        show_conflict_element,
+        show_conflict_elementProps {
+            date,
+            text,
+            datetime,
+        },
+    );
+    app.rebuild();
+    dioxus::ssr::render_vdom(&app)
+}
+
+#[inline_props]
+fn show_conflict_element(
+    cx: Scope,
+    date: Date,
+    text: Vec<StackString>,
+    datetime: DateTimeWrapper,
+) -> Element {
+    let text = text.join("\n");
+    let dt = datetime
+        .format(format_description!(
+            "[year]-[month]-[day]T[hour]:[minute]:[second].[subsecond]Z"
+        ))
+        .unwrap_or_else(|_| String::new());
+    cx.render(rsx! {
+        "{text}<br>",
+        input {
+            "type": "button",
+            name: "display",
+            value: "Display",
+            "onclick": "switchToDisplay('{date}')",
+        },
+        input {
+            "type": "button",
+            name: "commit",
+            value: "Commit",
+            "onclick": "commitConflict('{date}', '{dt}')",
+        },
+        input {
+            "type": "button",
+            name: "remove",
+            value: "Remove",
+            "onclick": "removeConflict('{date}', '{dt}')",
+        },
+        input {
+            "type": "button",
+            name: "edit",
+            value: "Edit",
+            "onclick": "switchToEditor('{date}')",
+        },
     })
 }
