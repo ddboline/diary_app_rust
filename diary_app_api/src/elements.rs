@@ -347,9 +347,9 @@ fn edit_element(cx: Scope, date: Date, text: Vec<StackString>, do_update: bool) 
             cols: "100",
             form: "diary_edit_form",
             "{text}",
-            buttons,
         },
         "<br>",
+        buttons,
     })
 }
 
