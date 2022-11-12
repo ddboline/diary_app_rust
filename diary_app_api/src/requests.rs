@@ -164,7 +164,7 @@ impl DiaryAppRequests {
                         let nlines = entry.diff_text.split('\n').count() + 1;
                         let id = entry.id;
                         let diff = &entry.diff_text;
-                        let dt = datetime.format(format_description!("[year]-[month]-[day]T[hour]:[minute]:[second].[subsecond]Z")).unwrap_or_else(|_| "".into());
+                        let dt = datetime.format(format_description!("[year]-[month]-[day]T[hour]:[minute]:[second].[subsecond]Z")).unwrap_or_else(|_| String::new());
                         match entry.diff_type.as_ref() {
                             "rem" => format_sstr!(
                                 r#"<textarea style="color:Red;" cols=100 rows={nlines}

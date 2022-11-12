@@ -50,9 +50,13 @@ impl FromStr for DiaryAppCommands {
     }
 }
 
+fn parse_commands_from_str(s: &str) -> Result<DiaryAppCommands, String> {
+    s.parse().map_err(|e| format!("{e}"))
+}
+
 #[derive(Parser, Debug, Clone)]
 pub struct DiaryAppOpts {
-    #[clap(parse(try_from_str))]
+    #[clap(value_parser = parse_commands_from_str)]
     /// Available commands are "(s)earch", "(i)nsert", "sync", "serialize,
     /// "clear", "clear_cache", "list", "list_conflicts", "show",
     /// "show_conflict", "remove", "remove_conflict"
@@ -60,8 +64,8 @@ pub struct DiaryAppOpts {
     #[clap(
         short = 't',
         long = "text",
-        required_if("command", "search"),
-        required_if("command", "insert")
+        required_if_eq("command", "search"),
+        required_if_eq("command", "insert")
     )]
     pub text: Vec<StackString>,
 }
@@ -70,7 +74,7 @@ impl DiaryAppOpts {
     /// # Errors
     /// Return error if db query fails
     pub async fn process_args() -> Result<(), Error> {
-        let opts = Self::from_args();
+        let opts = Self::parse();
 
         let config = Config::init_config()?;
         let pool = PgPool::new(&config.database_url);
@@ -93,7 +97,10 @@ impl DiaryAppOpts {
                 }
             }
             DiaryAppCommands::ClearCache => {
-                let entries: Vec<_> = DiaryCache::get_cache_entries(&dap.pool).await?.try_collect().await?;
+                let entries: Vec<_> = DiaryCache::get_cache_entries(&dap.pool)
+                    .await?
+                    .try_collect()
+                    .await?;
                 for entry in entries {
                     dap.stdout.send(serde_json::to_string(&entry)?);
                     entry.delete_entry(&dap.pool).await?;
@@ -113,7 +120,7 @@ impl DiaryAppOpts {
                             .format(format_description!(
                                 "[year]-[month]-[day]T[hour]:[minute]:[second].[subsecond]Z"
                             ))
-                            .unwrap_or_else(|_| "".into())
+                            .unwrap_or_else(|_| String::new())
                             .into();
                         dap.stdout.send(timestamp);
                     }

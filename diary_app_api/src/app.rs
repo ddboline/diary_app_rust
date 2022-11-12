@@ -71,7 +71,7 @@ fn get_api_path(app: &AppState) -> BoxedFilter<(impl Reply,)> {
     let list_api_path = list_api(app.clone()).boxed();
     let edit_path = edit(app.clone()).boxed();
     let display_path = display(app.clone()).boxed();
-    let frontpage_path = diary_frontpage(app.clone()).boxed();
+    let frontpage_path = diary_frontpage().boxed();
     let list_conflicts_path = list_conflicts(app.clone()).boxed();
     let show_conflict_path = show_conflict(app.clone()).boxed();
     let remove_conflict_path = remove_conflict(app.clone()).boxed();
