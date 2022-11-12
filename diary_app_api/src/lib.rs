@@ -11,6 +11,7 @@ pub mod errors;
 pub mod logged_user;
 pub mod requests;
 pub mod routes;
+pub mod elements;
 
 use derive_more::{Deref, From, Into};
 use diary_app_lib::models::DiaryCache;

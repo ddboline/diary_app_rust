@@ -16,7 +16,7 @@ dotenv = "0.15"
 futures = "0.3"
 rayon = "1.5"
 jwalk = "0.6"
-clap = {version="3.0", features=["derive"]}
+clap = {version="4.0", features=["derive"]}
 crossbeam-channel = "0.5"
 parking_lot = "0.12"
 crossbeam-utils = "0.8"

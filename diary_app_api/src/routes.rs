@@ -21,6 +21,9 @@ use super::{
     logged_user::LoggedUser,
     requests::{DiaryAppOutput, DiaryAppRequests, ListOptions, SearchOptions},
     CommitConflictData, ConflictData, DiaryCacheWrapper,
+    elements::{
+        list_body, index_body
+    },
 };
 
 pub type WarpResult<T> = Result<T, Rejection>;
@@ -273,21 +276,21 @@ pub async fn list(
     #[data] state: AppState,
 ) -> WarpResult<ListResponse> {
     let query = query.into_inner();
-    let body = list_body(query, &state).await?;
+    let body = get_body(query, &state).await?;
     Ok(HtmlBase::new(body).into())
 }
 
-async fn list_body(query: ListOptions, state: &AppState) -> HttpResult<StackString> {
-    let body = list_api_body(query, state).await?;
-    let conflicts = if let DiaryAppOutput::Dates(dates) = DiaryAppRequests::ListConflicts(None)
+async fn get_body(query: ListOptions, state: &AppState) -> HttpResult<StackString> {
+    let dates = list_api_body(query, state).await?;
+    let conflicts = if let DiaryAppOutput::Dates(d) = DiaryAppRequests::ListConflicts(None)
         .process(&state.db)
         .await?
     {
-        dates.into_iter().map(Into::into).collect()
+        d.into_iter().map(Into::into).collect()
     } else {
         HashSet::new()
     };
-    let body = _list_string(&conflicts, body, query);
+    let body = list_body(conflicts, dates, query.start).into();
     Ok(body)
 }
 
@@ -408,39 +411,8 @@ pub async fn diary_frontpage(
     #[filter = "LoggedUser::filter"] _: LoggedUser,
     #[data] state: AppState,
 ) -> WarpResult<FrontpageResponse> {
-    let body = diary_frontpage_body(state).await?;
+    let body = index_body().into();
     Ok(HtmlBase::new(body).into())
-}
-
-async fn diary_frontpage_body(state: AppState) -> HttpResult<StackString> {
-    let query = ListOptions {
-        limit: Some(10),
-        ..ListOptions::default()
-    };
-    let body = if let DiaryAppOutput::Dates(dates) =
-        DiaryAppRequests::List(query).process(&state.db).await?
-    {
-        dates.into_iter().map(Into::into).collect()
-    } else {
-        Vec::new()
-    };
-    debug!("Got list");
-    let conflicts = if let DiaryAppOutput::Dates(dates) = DiaryAppRequests::ListConflicts(None)
-        .process(&state.db)
-        .await?
-    {
-        dates.into_iter().map(Into::into).collect()
-    } else {
-        HashSet::new()
-    };
-    debug!("Got conflicts");
-    let body = _list_string(&conflicts, body, query);
-    let params = hashmap! {
-        "LIST_TEXT" => body.as_str(),
-        "DISPLAY_TEXT" => "",
-    };
-    let body = state.hb.render("id", &params)?.into();
-    Ok(body)
 }
 
 #[derive(RwebResponse)]

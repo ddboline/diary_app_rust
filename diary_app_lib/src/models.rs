@@ -43,7 +43,7 @@ pub struct AuthorizedUsers {
     pub telegram_userid: Option<i64>,
 }
 
-#[derive(FromSqlRow, Clone, Debug, Serialize, Deserialize)]
+#[derive(FromSqlRow, Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct DiaryConflict {
     pub id: Uuid,
     pub sync_datetime: DateTimeWrapper,
