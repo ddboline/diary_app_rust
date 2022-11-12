@@ -65,7 +65,7 @@ pub struct DiaryAppOpts {
         short = 't',
         long = "text",
         required_if_eq("command", "search"),
-        required_if_eq("command", "insert"),
+        required_if_eq("command", "insert")
     )]
     pub text: Vec<StackString>,
 }
@@ -97,7 +97,10 @@ impl DiaryAppOpts {
                 }
             }
             DiaryAppCommands::ClearCache => {
-                let entries: Vec<_> = DiaryCache::get_cache_entries(&dap.pool).await?.try_collect().await?;
+                let entries: Vec<_> = DiaryCache::get_cache_entries(&dap.pool)
+                    .await?
+                    .try_collect()
+                    .await?;
                 for entry in entries {
                     dap.stdout.send(serde_json::to_string(&entry)?);
                     entry.delete_entry(&dap.pool).await?;
@@ -117,7 +120,7 @@ impl DiaryAppOpts {
                             .format(format_description!(
                                 "[year]-[month]-[day]T[hour]:[minute]:[second].[subsecond]Z"
                             ))
-                            .unwrap_or_else(|_| "".into())
+                            .unwrap_or_else(|_| String::new())
                             .into();
                         dap.stdout.send(timestamp);
                     }

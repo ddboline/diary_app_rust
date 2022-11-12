@@ -197,7 +197,7 @@ impl DiaryAppInterface {
                             .format(format_description!(
                                 "[year]-[month]-[day]T[hour]:[minute]:[second]Z"
                             ))
-                            .unwrap_or_else(|_| "".into()),
+                            .unwrap_or_else(|_| String::new()),
                         entry.diary_text
                     )
                 })
