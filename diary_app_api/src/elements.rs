@@ -1,6 +1,5 @@
 use dioxus::prelude::{
-    dioxus_elements, format_args_f, inline_props, rsx, Element, LazyNodes, NodeFactory, Props,
-    Scope, VNode, VirtualDom,
+    dioxus_elements, inline_props, rsx, Element, GlobalAttributes, Props, Scope, VirtualDom,
 };
 use rweb_helper::DateType;
 use stack_string::StackString;
@@ -71,14 +70,14 @@ fn conflict_element(
 
 pub fn index_body() -> String {
     let mut app = VirtualDom::new(index_element);
-    app.rebuild();
-    dioxus::ssr::render_vdom(&app)
+    drop(app.rebuild());
+    dioxus_ssr::render(&app)
 }
 
 fn index_element(cx: Scope) -> Element {
     cx.render(rsx! {
         head {
-            style {[include_str!("../../templates/style.css")]}
+            style {include_str!("../../templates/style.css")}
         }
         body {
             form {
@@ -131,7 +130,7 @@ fn index_element(cx: Scope) -> Element {
             script {
                 "language": "JavaScript",
                 "type": "text/javascript",
-                [include_str!("../../templates/scripts.js")]
+                include_str!("../../templates/scripts.js")
             }
         }
     })
@@ -150,8 +149,8 @@ pub fn list_body(
             start,
         },
     );
-    app.rebuild();
-    dioxus::ssr::render_vdom(&app)
+    drop(app.rebuild());
+    dioxus_ssr::render(&app)
 }
 
 #[inline_props]
@@ -221,8 +220,8 @@ pub fn list_conflicts_body(date: Option<DateType>, conflicts: Vec<DateTimeWrappe
         list_conflicts_element,
         list_conflicts_elementProps { date, conflicts },
     );
-    app.rebuild();
-    dioxus::ssr::render_vdom(&app)
+    drop(app.rebuild());
+    dioxus_ssr::render(&app)
 }
 
 #[inline_props]
@@ -275,8 +274,8 @@ fn list_conflicts_element(
 
 pub fn search_body(results: Vec<StackString>) -> String {
     let mut app = VirtualDom::new_with_props(search_element, search_elementProps { results });
-    app.rebuild();
-    dioxus::ssr::render_vdom(&app)
+    drop(app.rebuild());
+    dioxus_ssr::render(&app)
 }
 
 #[inline_props]
@@ -304,8 +303,8 @@ pub fn edit_body(date: Date, text: Vec<StackString>, do_update: bool) -> String 
             do_update,
         },
     );
-    app.rebuild();
-    dioxus::ssr::render_vdom(&app)
+    drop(app.rebuild());
+    dioxus_ssr::render(&app)
 }
 
 #[inline_props]
@@ -362,8 +361,8 @@ pub fn show_conflict_body(date: Date, text: Vec<StackString>, datetime: DateTime
             datetime,
         },
     );
-    app.rebuild();
-    dioxus::ssr::render_vdom(&app)
+    drop(app.rebuild());
+    dioxus_ssr::render(&app)
 }
 
 #[inline_props]
@@ -380,7 +379,9 @@ fn show_conflict_element(
         ))
         .unwrap_or_else(|_| String::new());
     cx.render(rsx! {
-        "{text}<br>",
+        br {
+            "{text}",
+        }
         input {
             "type": "button",
             name: "display",
