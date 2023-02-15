@@ -153,9 +153,8 @@ impl S3Interface {
     /// # Errors
     /// Return error if s3 api fails
     pub async fn upload_entry(&self, date: Date) -> Result<Option<DiaryEntries>, Error> {
-        let entry = match DiaryEntries::get_by_date(date, &self.pool).await? {
-            Some(e) => e,
-            None => return Ok(None),
+        let Some(entry) = DiaryEntries::get_by_date(date, &self.pool).await? else {
+            return Ok(None)
         };
         if entry.diary_text.trim().is_empty() {
             return Ok(None);

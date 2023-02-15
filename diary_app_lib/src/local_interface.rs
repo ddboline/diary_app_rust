@@ -46,7 +46,7 @@ impl LocalInterface {
                 acc
             });
         let year_mod_map = Arc::new(year_mod_map);
-        let mut date_list: Vec<_> = mod_map.into_iter().map(|(k, _)| k).collect();
+        let mut date_list: Vec<_> = mod_map.into_keys().collect();
         date_list.sort();
         let year_map: BTreeMap<i32, Vec<_>> =
             date_list.into_iter().fold(BTreeMap::new(), |mut acc, d| {
