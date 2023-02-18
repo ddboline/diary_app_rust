@@ -294,13 +294,13 @@ fn search_element(cx: Scope, results: Vec<StackString>) -> Element {
     })
 }
 
-pub fn edit_body(date: Date, text: Vec<StackString>, do_update: bool) -> String {
+pub fn edit_body(date: Date, text: Vec<StackString>, edit_button: bool) -> String {
     let mut app = VirtualDom::new_with_props(
         edit_element,
         edit_elementProps {
             date,
             text,
-            do_update,
+            edit_button,
         },
     );
     drop(app.rebuild());
@@ -308,9 +308,9 @@ pub fn edit_body(date: Date, text: Vec<StackString>, do_update: bool) -> String 
 }
 
 #[inline_props]
-fn edit_element(cx: Scope, date: Date, text: Vec<StackString>, do_update: bool) -> Element {
+fn edit_element(cx: Scope, date: Date, text: Vec<StackString>, edit_button: bool) -> Element {
     let text = text.join("\n");
-    let buttons = if *do_update {
+    let buttons = if *edit_button {
         rsx! {
             input {
                 "type": "button",
@@ -338,15 +338,32 @@ fn edit_element(cx: Scope, date: Date, text: Vec<StackString>, do_update: bool) 
             }
         }
     };
+    let textarea = if *edit_button {
+        rsx! {
+            textarea {
+                name: "message",
+                id: "diary_editor_form",
+                rows: "50",
+                cols: "100",
+                form: "diary_edit_form",
+                readonly: true,
+                "{text}",
+            }
+        }
+    } else {
+        rsx! {
+            textarea {
+                name: "message",
+                id: "diary_editor_form",
+                rows: "50",
+                cols: "100",
+                form: "diary_edit_form",
+                "{text}",
+            }
+        }
+    };
     cx.render(rsx! {
-        textarea {
-            name: "message",
-            id: "diary_editor_form",
-            rows: "50",
-            cols: "100",
-            form: "diary_edit_form",
-            "{text}",
-        },
+        textarea,
         "<br>",
         buttons,
     })
