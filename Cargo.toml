@@ -20,7 +20,7 @@ diary_app_api = {path="diary_app_api"}
 diary_app_bot = {path="diary_app_bot"}
 env_logger = "0.10"
 tokio = {version="1.26", features=["full"]}
-dirs = "4.0"
+dirs = "5.0"
 anyhow = "1.0"
 time = {version="0.3", features=["serde-human-readable", "macros", "formatting"]}
 

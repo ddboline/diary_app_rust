@@ -28,7 +28,7 @@ regex = {version = "1.4", default_features = false}
 difference = "2.0"
 anyhow = "1.0"
 thiserror = "1.0"
-dirs = "4.0"
+dirs = "5.0"
 tokio = {version="1.26", features=["full"]}
 derive_more = "0.99"
 envy = "0.4"
