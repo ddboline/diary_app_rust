@@ -528,7 +528,7 @@ pub async fn diary_cache(
 }
 
 #[derive(RwebResponse)]
-#[response(description = "Cache Update Response")]
+#[response(description = "Cache Update Response", status = "CREATED")]
 struct DiaryCacheUpdateResponse(HtmlBase<&'static str, Error>);
 
 #[post("/api/diary_cache")]
