@@ -1,6 +1,6 @@
 [package]
 name = "diary_app_api"
-version = "0.9.4"
+version = "0.9.5"
 authors = ["Daniel Boline <ddboline@gmail.com>"]
 edition = "2018"
 
@@ -8,7 +8,7 @@ edition = "2018"
 
 [dependencies]
 diary_app_lib = {path = "../diary_app_lib"}
-rweb = {version="0.15", features=["openapi"], default-features=false}
+rweb = {git = "https://github.com/ddboline/rweb.git", features=["openapi"], default-features=false}
 http = "0.2"
 futures = "0.3"
 serde = "1.0"
@@ -30,15 +30,15 @@ derive_more = "0.99"
 uuid = "1.0"
 time = {version="0.3", features=["serde-human-readable", "macros", "formatting"]}
 time-tz = {version="1.0", features=["system"]}
-rweb-helper = { git = "https://github.com/ddboline/rweb_helper.git", tag="0.4.13" }
-stack-string = { version="0.8", features=["postgres_types", "rweb-openapi"] }
-authorized_users = { git = "https://github.com/ddboline/auth_server_rust.git", tag="0.10.5"}
+rweb-helper = { git = "https://github.com/ddboline/rweb_helper.git" }
+stack-string = { git = "https://github.com/ddboline/stack-string-rs.git", features=["postgres_types", "rweb-openapi"] }
+authorized_users = { git = "https://github.com/ddboline/auth_server_rust.git", tag="0.10.7"}
 postgres_query = {git = "https://github.com/ddboline/rust-postgres-query", tag = "0.3.4", features=["deadpool"]}
 dioxus = "0.3"
 dioxus-ssr = "0.3"
 
 [dev-dependencies]
 reqwest = {version="0.11", features=["cookies", "json", "rustls-tls", "stream"]}
-auth_server_http = { git = "https://github.com/ddboline/auth_server_rust.git", tag="0.10.5"}
-auth_server_lib = { git = "https://github.com/ddboline/auth_server_rust.git", tag="0.10.5"}
+auth_server_http = { git = "https://github.com/ddboline/auth_server_rust.git", tag="0.10.7"}
+auth_server_lib = { git = "https://github.com/ddboline/auth_server_rust.git", tag="0.10.7"}
 env_logger = "0.10"
