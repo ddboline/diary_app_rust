@@ -14,29 +14,12 @@ pub mod logged_user;
 pub mod requests;
 pub mod routes;
 
-use derive_more::{Deref, From, Into};
-use diary_app_lib::models::DiaryCache;
 use rweb::Schema;
 use serde::{Deserialize, Serialize};
-use stack_string::StackString;
 
 use rweb_helper::{derive_rweb_schema, DateTimeType, DateType};
 
 use diary_app_lib::date_time_wrapper::DateTimeWrapper;
-
-#[derive(Deref, Clone, Debug, Serialize, Deserialize, Into, From)]
-pub struct DiaryCacheWrapper(DiaryCache);
-
-derive_rweb_schema!(DiaryCacheWrapper, _DiaryCacheWrapper);
-
-#[allow(dead_code)]
-#[derive(Schema)]
-struct _DiaryCacheWrapper {
-    #[schema(description = "Cache Datetime")]
-    diary_datetime: DateTimeType,
-    #[schema(description = "Cache Text")]
-    diary_text: StackString,
-}
 
 #[derive(Serialize, Deserialize)]
 pub struct ConflictData {
@@ -73,13 +56,11 @@ mod test {
     use rweb_helper::derive_rweb_test;
 
     use crate::{
-        CommitConflictData, ConflictData, DiaryCacheWrapper, _CommitConflictData, _ConflictData,
-        _DiaryCacheWrapper,
+        CommitConflictData, ConflictData, _CommitConflictData, _ConflictData,
     };
 
     #[test]
     fn test_type() {
-        derive_rweb_test!(DiaryCacheWrapper, _DiaryCacheWrapper);
         derive_rweb_test!(ConflictData, _ConflictData);
         derive_rweb_test!(CommitConflictData, _CommitConflictData);
     }

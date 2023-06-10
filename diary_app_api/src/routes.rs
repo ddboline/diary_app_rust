@@ -1,4 +1,3 @@
-use futures::TryStreamExt;
 use rweb::{get, post, Json, Query, Rejection, Schema};
 use rweb_helper::{
     html_response::HtmlResponse as HtmlBase, json_response::JsonResponse as JsonBase, DateType,
@@ -10,7 +9,7 @@ use std::collections::HashSet;
 use time::{Date, OffsetDateTime};
 use time_tz::OffsetDateTimeExt;
 
-use diary_app_lib::{date_time_wrapper::DateTimeWrapper, models::DiaryCache};
+use diary_app_lib::{date_time_wrapper::DateTimeWrapper};
 
 use super::{
     app::AppState,
@@ -20,7 +19,7 @@ use super::{
     errors::ServiceError as Error,
     logged_user::LoggedUser,
     requests::{DiaryAppOutput, DiaryAppRequests, ListOptions, SearchOptions},
-    CommitConflictData, ConflictData, DiaryCacheWrapper,
+    CommitConflictData, ConflictData,
 };
 
 pub type WarpResult<T> = Result<T, Rejection>;
@@ -506,43 +505,4 @@ struct UserResponse(JsonBase<LoggedUser, Error>);
 #[get("/api/user")]
 pub async fn user(#[filter = "LoggedUser::filter"] user: LoggedUser) -> WarpResult<UserResponse> {
     Ok(JsonBase::new(user).into())
-}
-
-#[derive(RwebResponse)]
-#[response(description = "Get Diary Cache")]
-struct DiaryCacheResponse(JsonBase<Vec<DiaryCacheWrapper>, Error>);
-
-#[get("/api/diary_cache")]
-pub async fn diary_cache(
-    #[filter = "LoggedUser::filter"] _: LoggedUser,
-    #[data] state: AppState,
-) -> WarpResult<DiaryCacheResponse> {
-    let cache_entries: Vec<DiaryCacheWrapper> = DiaryCache::get_cache_entries(&state.db.pool)
-        .await
-        .map_err(Into::<Error>::into)?
-        .map_ok(Into::into)
-        .try_collect()
-        .await
-        .map_err(Into::<Error>::into)?;
-    Ok(JsonBase::new(cache_entries).into())
-}
-
-#[derive(RwebResponse)]
-#[response(description = "Cache Update Response", status = "CREATED")]
-struct DiaryCacheUpdateResponse(HtmlBase<&'static str, Error>);
-
-#[post("/api/diary_cache")]
-pub async fn diary_cache_update(
-    payload: Json<Vec<DiaryCacheWrapper>>,
-    #[filter = "LoggedUser::filter"] _: LoggedUser,
-    #[data] state: AppState,
-) -> WarpResult<DiaryCacheUpdateResponse> {
-    for entry in payload.into_inner() {
-        let entry: DiaryCache = entry.into();
-        entry
-            .insert_entry(&state.db.pool)
-            .await
-            .map_err(Into::<Error>::into)?;
-    }
-    Ok(HtmlBase::new("finished").into())
 }
