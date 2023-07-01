@@ -1,6 +1,6 @@
 [package]
 name = "diary_app_bot"
-version = "0.9.5"
+version = "0.9.6"
 authors = ["Daniel Boline <ddboline@gmail.com>"]
 edition = "2018"
 
@@ -16,6 +16,6 @@ crossbeam-utils = "0.8"
 lazy_static = "1.4"
 anyhow = "1.0"
 thiserror = "1.0"
-tokio = {version="1.26", features=["full"]}
+tokio = {version="1.28", features=["full"]}
 telegram-bot = {git = "https://github.com/ddboline/telegram-bot.git", tag="0.9.0-4", default_features=false}
-stack-string = { git = "https://github.com/ddboline/stack-string-rs.git", features=["postgres_types"] }
+stack-string = { git = "https://github.com/ddboline/stack-string-rs.git", features=["postgres_types"], tag="0.9.1" }

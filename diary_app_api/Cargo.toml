@@ -1,6 +1,6 @@
 [package]
 name = "diary_app_api"
-version = "0.9.5"
+version = "0.9.6"
 authors = ["Daniel Boline <ddboline@gmail.com>"]
 edition = "2018"
 
@@ -8,14 +8,13 @@ edition = "2018"
 
 [dependencies]
 diary_app_lib = {path = "../diary_app_lib"}
-rweb = {git = "https://github.com/ddboline/rweb.git", features=["openapi"], default-features=false}
 http = "0.2"
 futures = "0.3"
 serde = "1.0"
 serde_derive = "1.0"
 serde_json = "1.0"
 lazy_static = "1.4"
-tokio = {version="1.26", features=["time"]}
+tokio = {version="1.28", features=["time"]}
 log = "0.4"
 parking_lot = "0.12"
 maplit = "1.0"
@@ -23,22 +22,23 @@ anyhow = "1.0"
 thiserror = "1.0"
 async-trait = "0.1"
 handlebars = "4.0"
-itertools = "0.10"
+itertools = "0.11"
 indexmap = "1.6"
 serde_yaml = "0.9"
 derive_more = "0.99"
 uuid = "1.0"
 time = {version="0.3", features=["serde-human-readable", "macros", "formatting"]}
 time-tz = {version="1.0", features=["system"]}
-rweb-helper = { git = "https://github.com/ddboline/rweb_helper.git" }
-stack-string = { git = "https://github.com/ddboline/stack-string-rs.git", features=["postgres_types", "rweb-openapi"] }
-authorized_users = { git = "https://github.com/ddboline/auth_server_rust.git", tag="0.10.7"}
+rweb = {git = "https://github.com/ddboline/rweb.git", features=["openapi"], default-features=false, tag="0.15.1-1"}
+rweb-helper = { git = "https://github.com/ddboline/rweb_helper.git", tag="0.5.0-1" }
+stack-string = { git = "https://github.com/ddboline/stack-string-rs.git", features=["postgres_types", "rweb-openapi"], tag="0.9.1" }
+authorized_users = { git = "https://github.com/ddboline/auth_server_rust.git", tag="0.10.8"}
 postgres_query = {git = "https://github.com/ddboline/rust-postgres-query", tag = "0.3.4", features=["deadpool"]}
 dioxus = "0.3"
 dioxus-ssr = "0.3"
 
 [dev-dependencies]
 reqwest = {version="0.11", features=["cookies", "json", "rustls-tls", "stream"]}
-auth_server_http = { git = "https://github.com/ddboline/auth_server_rust.git", tag="0.10.7"}
-auth_server_lib = { git = "https://github.com/ddboline/auth_server_rust.git", tag="0.10.7"}
+auth_server_http = { git = "https://github.com/ddboline/auth_server_rust.git", tag="0.10.8"}
+auth_server_lib = { git = "https://github.com/ddboline/auth_server_rust.git", tag="0.10.8"}
 env_logger = "0.10"
