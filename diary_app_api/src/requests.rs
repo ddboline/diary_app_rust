@@ -6,7 +6,7 @@ use rweb_helper::DateType;
 use serde::{Deserialize, Serialize};
 use stack_string::{format_sstr, StackString};
 use std::collections::BTreeSet;
-use time::{macros::format_description, Date};
+use time::Date;
 use uuid::Uuid;
 
 use diary_app_lib::{
@@ -55,6 +55,7 @@ pub enum DiaryAppOutput {
     Lines(Vec<StackString>),
     Timestamps(Vec<DateTimeWrapper>),
     Dates(Vec<Date>),
+    Conflicts(Vec<DiaryConflict>),
 }
 
 impl From<Vec<StackString>> for DiaryAppOutput {
@@ -72,6 +73,12 @@ impl From<Vec<DateTimeWrapper>> for DiaryAppOutput {
 impl From<Vec<Date>> for DiaryAppOutput {
     fn from(item: Vec<Date>) -> Self {
         Self::Dates(item)
+    }
+}
+
+impl From<Vec<DiaryConflict>> for DiaryAppOutput {
+    fn from(value: Vec<DiaryConflict>) -> Self {
+        Self::Conflicts(value)
     }
 }
 
@@ -147,41 +154,6 @@ impl DiaryAppRequests {
                     .await?
                     .try_collect()
                     .await?;
-                let diary_dates: BTreeSet<Date> =
-                    conflicts.iter().map(|entry| entry.diary_date).collect();
-                if diary_dates.len() > 1 {
-                    return Err(format_err!(
-                        "Something has gone horribly wrong {datetime}, {conflicts:?}"
-                    ));
-                }
-                let date = diary_dates.into_iter().next().ok_or_else(|| {
-                    format_err!("Something has gone horribly wrong {datetime} {conflicts:?}")
-                })?;
-
-                let conflicts: Vec<StackString> = conflicts
-                    .into_iter()
-                    .map(|entry| {
-                        let nlines = entry.diff_text.split('\n').count() + 1;
-                        let id = entry.id;
-                        let diff = &entry.diff_text;
-                        let dt = datetime.format(format_description!("[year]-[month]-[day]T[hour]:[minute]:[second].[subsecond]Z")).unwrap_or_else(|_| String::new());
-                        match entry.diff_type.as_ref() {
-                            "rem" => format_sstr!(
-                                r#"<textarea style="color:Red;" cols=100 rows={nlines}
-                                   >{diff}</textarea>
-                                   <input type="button" name="add" value="Add" onclick="updateConflictAdd('{id}', '{date}', '{dt}');">
-                                   <br>"#
-                            ),
-                            "add" => format_sstr!(
-                                r#"<textarea style="color:Blue;" cols=100 rows={nlines}
-                                   >{diff}</textarea>
-                                   <input type="button" name="rm" value="Rm" onclick="updateConflictRem('{id}', '{date}', '{dt}');">
-                                   <br>"#
-                            ),
-                            _ => format_sstr!("<textarea cols=100 rows={nlines}>{diff}</textarea><br>"),
-                        }
-                    })
-                    .collect();
                 Ok(conflicts.into())
             }
             DiaryAppRequests::RemoveConflict(datetime) => {
