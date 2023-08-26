@@ -22,7 +22,7 @@ function setTextAreaRowsCols() {
     let textarea = document.getElementById('diary_editor_form');
     if (textarea) {
         if (textarea.getAttribute('rows')) {
-            textarea.setAttribute('rows', Math.floor(window.innerHeight * 40 / 856.));
+            textarea.setAttribute('rows', Math.floor(window.innerHeight * 37 / 856.));
         }
         if (textarea.getAttribute('cols')) {
             textarea.setAttribute('cols', Math.floor(window.innerWidth * 90 / 1105.));
