@@ -406,7 +406,7 @@ fn show_conflict_element(
                 .next()
                 .expect("Something has gone horribly wrong {datetime} {conflicts:?}");
             let conflicts: Vec<_> = conflicts
-                .into_iter()
+                .iter()
                 .map(|entry| {
                     let nlines = entry.diff_text.split('\n').count() + 1;
                     let id = entry.id;
