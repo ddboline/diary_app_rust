@@ -3,7 +3,7 @@ use dioxus::prelude::{
 };
 use rweb_helper::DateType;
 use stack_string::StackString;
-use std::collections::HashSet;
+use std::collections::{BTreeSet, HashSet};
 use time::{macros::format_description, Date, OffsetDateTime};
 use time_tz::OffsetDateTimeExt;
 
@@ -77,7 +77,9 @@ pub fn index_body() -> String {
 fn index_element(cx: Scope) -> Element {
     cx.render(rsx! {
         head {
-            style {include_str!("../../templates/style.css")}
+            style {
+                dangerous_inner_html: include_str!("../../templates/style.css")
+            }
         }
         body {
             form {
@@ -104,20 +106,21 @@ fn index_element(cx: Scope) -> Element {
                     id: "diary_status",
                     "&nbsp;",
                 },
-                "<br>",
-                form {
-                    action: "javascript:searchDate();",
-                    input {
-                        "type": "button",
-                        name: "search_date_button",
-                        value: "Date",
-                        "onclick": "searchDate();",
+                br {
+                    form {
+                        action: "javascript:searchDate();",
+                        input {
+                            "type": "button",
+                            name: "search_date_button",
+                            value: "Date",
+                            "onclick": "searchDate();",
+                        },
+                        input {
+                            "type": "date",
+                            name: "search_date",
+                            id: "search_date",
+                        }
                     },
-                    input {
-                        "type": "date",
-                        name: "search_date",
-                        id: "search_date",
-                    }
                 },
             },
             nav {
@@ -130,7 +133,7 @@ fn index_element(cx: Scope) -> Element {
             script {
                 "language": "JavaScript",
                 "type": "text/javascript",
-                include_str!("../../templates/scripts.js")
+                dangerous_inner_html: include_str!("../../templates/scripts.js")
             }
         }
     })
@@ -207,7 +210,7 @@ fn date_list_element(
                         "onclick": "switchToDate( '{d}' )",
                         c
                     },
-                    "<br>",
+                    br {},
                 }
             }
         })
@@ -257,18 +260,17 @@ fn list_conflicts_element(
                     name: "show_{t}",
                     value: "Show {t}",
                     "onclick": "showConflict( '{d}', '{t}' )",
-                    "<br>",
                 }
             }
         }),
-        "<br>",
-        clean_conflicts,
-        button {
-            "type": "submit",
-            "onclick": "switchToList()",
-            "List",
+        br {
+            clean_conflicts,
+            button {
+                "type": "submit",
+                "onclick": "switchToList()",
+                "List",
+            },
         },
-        "<br>"
     })
 }
 
@@ -364,17 +366,22 @@ fn edit_element(cx: Scope, date: Date, text: Vec<StackString>, edit_button: bool
     };
     cx.render(rsx! {
         textarea,
-        "<br>",
-        buttons,
+        br {
+            buttons
+        }
     })
 }
 
-pub fn show_conflict_body(date: Date, text: Vec<StackString>, datetime: DateTimeWrapper) -> String {
+pub fn show_conflict_body(
+    date: Date,
+    conflicts: Vec<DiaryConflict>,
+    datetime: DateTimeWrapper,
+) -> String {
     let mut app = VirtualDom::new_with_props(
         show_conflict_element,
         show_conflict_elementProps {
             date,
-            text,
+            conflicts,
             datetime,
         },
     );
@@ -386,18 +393,84 @@ pub fn show_conflict_body(date: Date, text: Vec<StackString>, datetime: DateTime
 fn show_conflict_element(
     cx: Scope,
     date: Date,
-    text: Vec<StackString>,
+    conflicts: Vec<DiaryConflict>,
     datetime: DateTimeWrapper,
 ) -> Element {
-    let text = text.join("\n");
+    let conflict_text = {
+        let diary_dates: BTreeSet<Date> = conflicts.iter().map(|entry| entry.diary_date).collect();
+        if diary_dates.len() > 1 {
+            Vec::new()
+        } else {
+            let date = diary_dates
+                .into_iter()
+                .next()
+                .expect("Something has gone horribly wrong {datetime} {conflicts:?}");
+            let conflicts: Vec<_> = conflicts
+                .into_iter()
+                .map(|entry| {
+                    let nlines = entry.diff_text.split('\n').count() + 1;
+                    let id = entry.id;
+                    let diff = &entry.diff_text;
+                    let dt = datetime
+                        .format(format_description!(
+                            "[year]-[month]-[day]T[hour]:[minute]:[second].[subsecond]Z"
+                        ))
+                        .unwrap_or_else(|_| String::new());
+                    match entry.diff_type.as_ref() {
+                        "rem" => rsx! {
+                            textarea {
+                                style: "color:Red;",
+                                cols: 100,
+                                rows: "{nlines}",
+                                "{diff}"
+                            },
+                            div {
+                                input {
+                                    "type": "button",
+                                    name: "add",
+                                    value: "Add",
+                                    "onclick": "updateConflictAdd('{id}', '{date}', '{dt}');",
+                                }
+                            }
+                        },
+                        "add" => rsx! {
+                            textarea {
+                                style: "color:Blue;",
+                                cols: 100,
+                                rows: "{nlines}",
+                                "{diff}"
+                            },
+                            div {
+                                input {
+                                    "type": "button",
+                                    name: "rm",
+                                    value: "Rm",
+                                    "onclick": "updateConflictRem('{id}', '{date}', '{dt}');",
+                                }
+                            }
+                        },
+                        _ => rsx! {
+                            textarea {
+                                cols: 100,
+                                rows: "{nlines}",
+                                "{diff}",
+                            }
+                        },
+                    }
+                })
+                .collect();
+            conflicts
+        }
+    };
+
     let dt = datetime
         .format(format_description!(
             "[year]-[month]-[day]T[hour]:[minute]:[second].[subsecond]Z"
         ))
         .unwrap_or_else(|_| String::new());
     cx.render(rsx! {
-        br {
-            "{text}",
+        div {
+            conflict_text.into_iter(),
         }
         input {
             "type": "button",
