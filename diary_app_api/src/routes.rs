@@ -9,7 +9,7 @@ use std::collections::HashSet;
 use time::{Date, OffsetDateTime};
 use time_tz::OffsetDateTimeExt;
 
-use diary_app_lib::{date_time_wrapper::DateTimeWrapper};
+use diary_app_lib::date_time_wrapper::DateTimeWrapper;
 
 use super::{
     app::AppState,
@@ -383,15 +383,16 @@ async fn get_show_conflict(query: ConflictData, state: AppState) -> HttpResult<S
         .date
         .unwrap_or_else(|| OffsetDateTime::now_utc().to_timezone(local).date().into())
         .into();
-    let text = if let DiaryAppOutput::Lines(lines) = DiaryAppRequests::ShowConflict(datetime)
-        .process(&state.db)
-        .await?
+    let conflicts = if let DiaryAppOutput::Conflicts(conflicts) =
+        DiaryAppRequests::ShowConflict(datetime)
+            .process(&state.db)
+            .await?
     {
-        lines
+        conflicts
     } else {
         Vec::new()
     };
-    let body = show_conflict_body(diary_date, text, datetime).into();
+    let body = show_conflict_body(diary_date, conflicts, datetime).into();
     Ok(body)
 }
 
