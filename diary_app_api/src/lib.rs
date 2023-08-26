@@ -55,9 +55,7 @@ struct _CommitConflictData {
 mod test {
     use rweb_helper::derive_rweb_test;
 
-    use crate::{
-        CommitConflictData, ConflictData, _CommitConflictData, _ConflictData,
-    };
+    use crate::{CommitConflictData, ConflictData, _CommitConflictData, _ConflictData};
 
     #[test]
     fn test_type() {
