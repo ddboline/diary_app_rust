@@ -104,7 +104,7 @@ fn index_element(cx: Scope) -> Element {
                 button {
                     name: "diary_status",
                     id: "diary_status",
-                    "&nbsp;",
+                    dangerous_inner_html: "&nbsp;",
                 },
                 br {
                     form {
