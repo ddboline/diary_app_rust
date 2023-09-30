@@ -181,7 +181,8 @@ async fn fill_telegram_user_ids(pool: PgPool) -> Result<(), Error> {
 pub async fn run_bot() -> Result<(), Error> {
     let config = Config::init_config()?;
     let pool = PgPool::new(&config.database_url);
-    let dapp = DiaryAppInterface::new(config, pool);
+    let sdk_config = aws_config::load_from_env().await;
+    let dapp = DiaryAppInterface::new(config, &sdk_config, pool);
 
     let pool_ = dapp.pool.clone();
 

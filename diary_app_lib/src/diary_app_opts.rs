@@ -78,7 +78,8 @@ impl DiaryAppOpts {
 
         let config = Config::init_config()?;
         let pool = PgPool::new(&config.database_url);
-        let dap = DiaryAppInterface::new(config, pool);
+        let sdk_config = aws_config::load_from_env().await;
+        let dap = DiaryAppInterface::new(config, &sdk_config, pool);
 
         match opts.command {
             DiaryAppCommands::Search => {

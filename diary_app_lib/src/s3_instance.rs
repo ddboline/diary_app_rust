@@ -1,12 +1,13 @@
-use anyhow::{format_err, Error};
-use futures::stream::{StreamExt, TryStreamExt};
-use rusoto_core::Region;
-use rusoto_s3::{Bucket, GetObjectRequest, Object, PutObjectRequest, S3Client, S3};
-use s3_ext::S3Ext;
+use anyhow::Error;
+use aws_config::SdkConfig;
+use aws_sdk_s3::{
+    operation::list_objects::ListObjectsOutput,
+    types::{Bucket, Object},
+    Client as S3Client,
+};
+use bytes::Bytes;
 use std::{convert::Into, fmt};
-use sts_profile_auth::get_client_sts;
-use time::{format_description::well_known::Rfc3339, OffsetDateTime};
-use time_tz::{timezones::db::UTC, OffsetDateTimeExt};
+use time::OffsetDateTime;
 use tokio::io::AsyncReadExt;
 
 use crate::exponential_retry;
@@ -14,7 +15,7 @@ use crate::exponential_retry;
 #[derive(Clone)]
 pub struct S3Instance {
     s3_client: S3Client,
-    max_keys: Option<usize>,
+    max_keys: Option<i32>,
 }
 
 impl fmt::Debug for S3Instance {
@@ -25,8 +26,9 @@ impl fmt::Debug for S3Instance {
 
 impl Default for S3Instance {
     fn default() -> Self {
+        let sdk_config = SdkConfig::builder().build();
         Self {
-            s3_client: get_client_sts!(S3Client, Region::UsEast1).expect("Failed to obtain client"),
+            s3_client: S3Client::from_conf((&sdk_config).into()),
             max_keys: None,
         }
     }
@@ -34,16 +36,15 @@ impl Default for S3Instance {
 
 impl S3Instance {
     #[must_use]
-    pub fn new(aws_region_name: &str) -> Self {
-        let region: Region = aws_region_name.parse().ok().unwrap_or(Region::UsEast1);
+    pub fn new(sdk_config: &SdkConfig) -> Self {
         Self {
-            s3_client: get_client_sts!(S3Client, region).expect("Failed to obtain client"),
+            s3_client: S3Client::from_conf(sdk_config.into()),
             max_keys: None,
         }
     }
 
     #[must_use]
-    pub fn max_keys(mut self, max_keys: usize) -> Self {
+    pub fn max_keys(mut self, max_keys: i32) -> Self {
         self.max_keys = Some(max_keys);
         self
     }
@@ -54,6 +55,7 @@ impl S3Instance {
         exponential_retry(|| async move {
             self.s3_client
                 .list_buckets()
+                .send()
                 .await
                 .map(|l| l.buckets.unwrap_or_default())
                 .map_err(Into::into)
@@ -69,20 +71,17 @@ impl S3Instance {
         bucket_name: &str,
         key_name: &str,
     ) -> Result<(), Error> {
-        exponential_retry(|| {
-            let target = PutObjectRequest {
-                bucket: bucket_name.into(),
-                key: key_name.into(),
-                body: Some(input_str.as_bytes().to_vec().into()),
-                ..PutObjectRequest::default()
-            };
-            async move {
-                self.s3_client
-                    .put_object(target)
-                    .await
-                    .map(|_| ())
-                    .map_err(Into::into)
-            }
+        exponential_retry(|| async move {
+            let body = Bytes::copy_from_slice(input_str.as_bytes()).into();
+            self.s3_client
+                .put_object()
+                .bucket(bucket_name)
+                .key(key_name)
+                .body(body)
+                .send()
+                .await
+                .map(|_| ())
+                .map_err(Into::into)
         })
         .await
     }
@@ -94,27 +93,44 @@ impl S3Instance {
         bucket_name: &str,
         key_name: &str,
     ) -> Result<(String, OffsetDateTime), Error> {
-        exponential_retry(|| {
-            let source = GetObjectRequest {
-                bucket: bucket_name.into(),
-                key: key_name.into(),
-                ..GetObjectRequest::default()
-            };
-            async move {
-                let mut resp = self.s3_client.get_object(source).await?;
-                let body = resp.body.take().ok_or_else(|| format_err!("no body"))?;
+        exponential_retry(|| async move {
+            let resp = self
+                .s3_client
+                .get_object()
+                .bucket(bucket_name)
+                .key(key_name)
+                .send()
+                .await?;
+            let last_modified = resp
+                .last_modified
+                .and_then(|t| OffsetDateTime::from_unix_timestamp(t.as_secs_f64() as i64).ok())
+                .unwrap_or_else(OffsetDateTime::now_utc);
 
-                let mut buf = String::new();
-                body.into_async_read().read_to_string(&mut buf).await?;
-                let last_modified = resp
-                    .last_modified
-                    .as_ref()
-                    .and_then(|lm| OffsetDateTime::parse(lm, &Rfc3339).ok())
-                    .map_or_else(OffsetDateTime::now_utc, |d| d.to_timezone(UTC));
-                Ok((buf, last_modified))
-            }
+            let mut buf = String::new();
+            resp.body.into_async_read().read_to_string(&mut buf).await?;
+            Ok((buf, last_modified))
         })
         .await
+    }
+
+    async fn list_keys(
+        &self,
+        bucket: &str,
+        prefix: Option<&str>,
+        marker: Option<impl AsRef<str>>,
+        max_keys: Option<i32>,
+    ) -> Result<ListObjectsOutput, Error> {
+        let mut builder = self.s3_client.list_objects().bucket(bucket);
+        if let Some(prefix) = prefix {
+            builder = builder.prefix(prefix);
+        }
+        if let Some(marker) = marker {
+            builder = builder.marker(marker.as_ref());
+        }
+        if let Some(max_keys) = max_keys {
+            builder = builder.max_keys(max_keys);
+        }
+        builder.send().await.map_err(Into::into)
     }
 
     /// # Errors
@@ -125,15 +141,29 @@ impl S3Instance {
         prefix: Option<&str>,
     ) -> Result<Vec<Object>, Error> {
         exponential_retry(|| async move {
-            let stream = match prefix {
-                Some(p) => self.s3_client.stream_objects_with_prefix(bucket, p),
-                None => self.s3_client.stream_objects(bucket),
-            };
-            let results: Result<Vec<_>, _> = match self.max_keys {
-                Some(nkeys) => stream.take(nkeys).try_collect().await,
-                None => stream.try_collect().await,
-            };
-            results.map_err(Into::into)
+            let mut marker: Option<String> = None;
+            let mut list_of_keys = Vec::new();
+            let mut max_keys = self.max_keys;
+            loop {
+                let mut output = self
+                    .list_keys(bucket, prefix, marker.as_ref(), max_keys)
+                    .await?;
+                if let Some(contents) = output.contents.take() {
+                    if let Some(last) = contents.last() {
+                        if let Some(key) = &last.key {
+                            marker.replace(key.into());
+                        }
+                    }
+                    if let Some(n) = max_keys {
+                        max_keys.replace(n - contents.len() as i32);
+                    }
+                    list_of_keys.extend_from_slice(&contents);
+                }
+                if !output.is_truncated {
+                    break;
+                }
+            }
+            Ok(list_of_keys)
         })
         .await
     }

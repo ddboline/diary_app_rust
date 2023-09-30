@@ -53,7 +53,8 @@ pub async fn start_app() -> Result<(), Error> {
     let config = Config::init_config()?;
     get_secrets(&config.secret_path, &config.jwt_secret_path).await?;
     let pool = PgPool::new(&config.database_url);
-    let dapp = DiaryAppActor(DiaryAppInterface::new(config.clone(), pool));
+    let sdk_config = aws_config::load_from_env().await;
+    let dapp = DiaryAppActor(DiaryAppInterface::new(config.clone(), &sdk_config, pool));
 
     tokio::task::spawn(update_db(dapp.pool.clone()));
 
@@ -176,7 +177,8 @@ mod tests {
         set_var("PORT", test_port.to_string());
         let config = Config::init_config()?;
         let pool = PgPool::new(&config.database_url);
-        let dapp = DiaryAppActor(DiaryAppInterface::new(config.clone(), pool));
+        let sdk_config = aws_config::load_from_env().await;
+        let dapp = DiaryAppActor(DiaryAppInterface::new(config.clone(), &sdk_config, pool));
 
         tokio::task::spawn(async move {
             env_logger::init();

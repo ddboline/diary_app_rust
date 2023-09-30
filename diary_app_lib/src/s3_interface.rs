@@ -1,18 +1,16 @@
 use anyhow::{format_err, Error};
+use aws_config::SdkConfig;
+use aws_sdk_s3::types::Object;
 use futures::{stream::FuturesUnordered, TryStreamExt};
 use lazy_static::lazy_static;
 use log::debug;
-use rusoto_s3::Object;
 use stack_string::{format_sstr, StackString};
 use std::{
     collections::HashMap,
     convert::{TryFrom, TryInto},
     sync::Arc,
 };
-use time::{
-    format_description::well_known::Rfc3339, macros::format_description, Date, OffsetDateTime,
-};
-use time_tz::{timezones::db::UTC, OffsetDateTimeExt};
+use time::{macros::format_description, Date, OffsetDateTime};
 use tokio::sync::RwLock;
 
 use crate::{config::Config, models::DiaryEntries, pgpool::PgPool, s3_instance::S3Instance};
@@ -42,14 +40,12 @@ impl TryFrom<Object> for KeyMetaData {
         let date = Date::parse(&key, format_description!("[year]-[month]-[day].txt"))?;
         let last_modified = obj
             .last_modified
-            .as_ref()
-            .and_then(|lm| OffsetDateTime::parse(lm, &Rfc3339).ok())
-            .map_or_else(OffsetDateTime::now_utc, |d| d.to_timezone(UTC));
-        let size = obj.size.unwrap_or(0);
+            .and_then(|d| OffsetDateTime::from_unix_timestamp(d.as_secs_f64() as i64).ok())
+            .unwrap_or_else(OffsetDateTime::now_utc);
         Ok(Self {
             date,
             last_modified,
-            size,
+            size: obj.size,
         })
     }
 }
@@ -63,9 +59,9 @@ pub struct S3Interface {
 
 impl S3Interface {
     #[must_use]
-    pub fn new(config: Config, pool: PgPool) -> Self {
+    pub fn new(config: Config, sdk_config: &SdkConfig, pool: PgPool) -> Self {
         Self {
-            s3_client: S3Instance::new(&config.aws_region_name),
+            s3_client: S3Instance::new(sdk_config),
             pool,
             config,
         }
@@ -305,8 +301,9 @@ mod tests {
     #[ignore]
     async fn test_validate_s3() -> Result<(), Error> {
         let config = Config::init_config()?;
+        let sdk_config = aws_config::load_from_env().await;
         let pool = PgPool::new(&config.database_url);
-        let s3 = S3Interface::new(config, pool);
+        let s3 = S3Interface::new(config, &sdk_config, pool);
         let results = s3.validate_s3().await?;
         for (date, backup_len, diary_len) in results.iter() {
             println!(
@@ -316,7 +313,8 @@ mod tests {
         }
         assert!(results.is_empty());
 
-        let s3_instance = S3Instance::new("us-east-1").max_keys(100);
+        let sdk_config = aws_config::load_from_env().await;
+        let s3_instance = S3Instance::new(&sdk_config).max_keys(100);
 
         let bucket = s3_instance
             .get_list_of_buckets()

@@ -1,6 +1,6 @@
 [package]
 name = "diary_app_rust"
-version = "0.9.8"
+version = "0.10.0"
 authors = ["Daniel Boline <ddboline@gmail.com>"]
 edition = "2018"
 
@@ -19,7 +19,7 @@ diary_app_lib = {path="diary_app_lib"}
 diary_app_api = {path="diary_app_api"}
 diary_app_bot = {path="diary_app_bot"}
 env_logger = "0.10"
-tokio = {version="1.28", features=["full"]}
+tokio = {version="1.32", features=["full"]}
 dirs = "5.0"
 anyhow = "1.0"
 time = {version="0.3", features=["serde-human-readable", "macros", "formatting"]}

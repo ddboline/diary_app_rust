@@ -1,4 +1,5 @@
 use anyhow::{format_err, Error};
+use aws_config::SdkConfig;
 use futures::{future::try_join_all, stream::FuturesUnordered, TryStreamExt};
 use jwalk::WalkDir;
 use log::{debug, info};
@@ -40,10 +41,10 @@ pub struct DiaryAppInterface {
 
 impl DiaryAppInterface {
     #[must_use]
-    pub fn new(config: Config, pool: PgPool) -> Self {
+    pub fn new(config: Config, sdk_config: &SdkConfig, pool: PgPool) -> Self {
         Self {
             local: LocalInterface::new(config.clone(), pool.clone()),
-            s3: S3Interface::new(config.clone(), pool.clone()),
+            s3: S3Interface::new(config.clone(), sdk_config, pool.clone()),
             pool,
             config,
             stdout: StdoutChannel::new(),
@@ -573,15 +574,16 @@ mod tests {
         pgpool::PgPool,
     };
 
-    fn get_dap() -> Result<DiaryAppInterface, Error> {
+    async fn get_dap() -> Result<DiaryAppInterface, Error> {
         let config = Config::init_config()?;
+        let sdk_config = aws_config::load_from_env().await;
         let pool = PgPool::new(&config.database_url);
-        Ok(DiaryAppInterface::new(config, pool))
+        Ok(DiaryAppInterface::new(config, &sdk_config, pool))
     }
 
     #[tokio::test(flavor = "multi_thread")]
     async fn test_search_text() -> Result<(), Error> {
-        let dap = get_dap()?;
+        let dap = get_dap().await?;
         let test_date = date!(2011 - 05 - 23);
         let original_text = DiaryEntries::get_by_date(test_date, &dap.pool).await?;
         if original_text.is_none() {
@@ -610,7 +612,7 @@ mod tests {
 
     #[tokio::test(flavor = "multi_thread")]
     async fn test_get_list_of_dates() -> Result<(), Error> {
-        let dap = get_dap()?;
+        let dap = get_dap().await?;
 
         let results = dap
             .get_list_of_dates(
@@ -636,7 +638,7 @@ mod tests {
 
     #[tokio::test(flavor = "multi_thread")]
     async fn test_get_matching_dates() -> Result<(), Error> {
-        let dap = get_dap()?;
+        let dap = get_dap().await?;
         let mod_map = DiaryEntries::get_modified_map(&dap.pool).await?;
 
         let results = DiaryAppInterface::get_matching_dates(&mod_map, Some(2011), None, None);
@@ -649,7 +651,7 @@ mod tests {
 
     #[tokio::test(flavor = "multi_thread")]
     async fn test_cache_text() -> Result<(), Error> {
-        let dap = get_dap()?;
+        let dap = get_dap().await?;
 
         let test_text = "Test text";
         let result = dap.cache_text(test_text).await?;
@@ -669,7 +671,7 @@ mod tests {
 
     #[tokio::test(flavor = "multi_thread")]
     async fn test_replace_text() -> Result<(), Error> {
-        let dap = get_dap()?;
+        let dap = get_dap().await?;
         let test_date = date!(1950 - 01 - 01);
         let test_text = "Test text";
 
@@ -698,7 +700,7 @@ mod tests {
     #[tokio::test(flavor = "multi_thread")]
     #[ignore]
     async fn test_validate_backup() -> Result<(), Error> {
-        let dap = get_dap()?;
+        let dap = get_dap().await?;
         let results = dap.validate_backup().await?;
         for (date, backup_len, diary_len) in results.iter() {
             println!(
