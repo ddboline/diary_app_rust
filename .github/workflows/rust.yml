@@ -46,7 +46,7 @@ jobs:
         rm ${DIARY_PATH}/diary_entries.sql.gz && \
         cargo test --verbose --all && \
         cargo install cargo-tarpaulin && \
-        cargo tarpaulin --verbose --all-features --workspace --out Xml
+        cargo tarpaulin --verbose --all-features --workspace --out xml
       env:
         DATABASE_URL: postgresql://postgres:2UtcMAAvNuBHPqK9@localhost:5432/diary_app_cache
         DIARY_DB_BUCKET: diary-db-backup
