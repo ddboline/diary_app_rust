@@ -42,10 +42,11 @@ impl TryFrom<Object> for KeyMetaData {
             .last_modified
             .and_then(|d| OffsetDateTime::from_unix_timestamp(d.as_secs_f64() as i64).ok())
             .unwrap_or_else(OffsetDateTime::now_utc);
+        let size = obj.size.ok_or_else(|| format_err!("No size"))?;
         Ok(Self {
             date,
             last_modified,
-            size: obj.size,
+            size,
         })
     }
 }

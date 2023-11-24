@@ -1,6 +1,6 @@
 use anyhow::Error as AnyhowError;
 use handlebars::RenderError;
-use http::StatusCode;
+use rweb::http::StatusCode;
 use log::error;
 use postgres_query::Error as PqError;
 use rweb::{
