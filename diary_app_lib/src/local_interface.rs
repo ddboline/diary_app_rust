@@ -51,7 +51,7 @@ impl LocalInterface {
         let year_map: BTreeMap<i32, Vec<_>> =
             date_list.into_iter().fold(BTreeMap::new(), |mut acc, d| {
                 let year = d.year();
-                acc.entry(year).or_insert_with(Vec::new).push(d);
+                acc.entry(year).or_default().push(d);
                 acc
             });
 

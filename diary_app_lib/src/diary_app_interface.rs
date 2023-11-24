@@ -307,11 +307,14 @@ impl DiaryAppInterface {
         let local = DateTimeWrapper::local_tz();
         let date_entry_map = DiaryCache::get_cache_entries(&self.pool)
             .await?
-            .try_fold(HashMap::new(), |mut acc, entry| async move {
-                let entry_date = entry.diary_datetime.to_timezone(local).date();
-                acc.entry(entry_date).or_insert_with(Vec::new).push(entry);
-                Ok(acc)
-            })
+            .try_fold(
+                HashMap::new(),
+                |mut acc: HashMap<Date, Vec<DiaryCache>>, entry| async move {
+                    let entry_date = entry.diary_datetime.to_timezone(local).date();
+                    acc.entry(entry_date).or_default().push(entry);
+                    Ok(acc)
+                },
+            )
             .await?;
 
         let futures: FuturesUnordered<_> = date_entry_map

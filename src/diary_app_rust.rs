@@ -5,7 +5,7 @@ async fn main() {
     env_logger::init();
 
     match DiaryAppOpts::process_args().await {
-        Ok(_) => {}
+        Ok(()) => {}
         Err(e) => {
             assert!(e.to_string().contains("Broken pipe"), "{}", e);
         }

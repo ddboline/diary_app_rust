@@ -152,7 +152,7 @@ async fn telegram_worker(dapp: DiaryAppInterface) -> Result<(), Error> {
         let d = dapp.clone();
 
         match timeout(Duration::from_secs(3600), bot_handler(d)).await {
-            Err(_) | Ok(Ok(_)) => FAILURE_COUNT.reset()?,
+            Err(_) | Ok(Ok(())) => FAILURE_COUNT.reset()?,
             Ok(Err(_)) => FAILURE_COUNT.increment()?,
         }
     }
