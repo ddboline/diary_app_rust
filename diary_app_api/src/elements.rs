@@ -1,5 +1,6 @@
 use dioxus::prelude::{
-    dioxus_elements, inline_props, rsx, Element, GlobalAttributes, Props, Scope, VirtualDom,
+    component, dioxus_elements, rsx, Element, GlobalAttributes, IntoDynNode, Props, Scope,
+    VirtualDom,
 };
 use rweb_helper::DateType;
 use stack_string::StackString;
@@ -9,7 +10,7 @@ use time_tz::OffsetDateTimeExt;
 
 use diary_app_lib::{date_time_wrapper::DateTimeWrapper, models::DiaryConflict};
 
-#[inline_props]
+#[component(no_case_check)]
 fn conflict_element(
     cx: Scope,
     conflicts: Vec<DiaryConflict>,
@@ -156,7 +157,7 @@ pub fn list_body(
     dioxus_ssr::render(&app)
 }
 
-#[inline_props]
+#[component(no_case_check)]
 fn date_list_element(
     cx: Scope,
     conflicts: HashSet<DateType>,
@@ -227,7 +228,7 @@ pub fn list_conflicts_body(date: Option<DateType>, conflicts: Vec<DateTimeWrappe
     dioxus_ssr::render(&app)
 }
 
-#[inline_props]
+#[component(no_case_check)]
 fn list_conflicts_element(
     cx: Scope,
     date: Option<DateType>,
@@ -280,7 +281,7 @@ pub fn search_body(results: Vec<StackString>) -> String {
     dioxus_ssr::render(&app)
 }
 
-#[inline_props]
+#[component(no_case_check)]
 fn search_element(cx: Scope, results: Vec<StackString>) -> Element {
     let body = results.join("\n");
     cx.render(rsx! {
@@ -309,7 +310,7 @@ pub fn edit_body(date: Date, text: Vec<StackString>, edit_button: bool) -> Strin
     dioxus_ssr::render(&app)
 }
 
-#[inline_props]
+#[component(no_case_check)]
 fn edit_element(cx: Scope, date: Date, text: Vec<StackString>, edit_button: bool) -> Element {
     let text = text.join("\n");
     let buttons = if *edit_button {
@@ -389,7 +390,7 @@ pub fn show_conflict_body(
     dioxus_ssr::render(&app)
 }
 
-#[inline_props]
+#[component(no_case_check)]
 fn show_conflict_element(
     cx: Scope,
     date: Date,
