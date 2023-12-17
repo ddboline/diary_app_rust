@@ -10,72 +10,14 @@ use time_tz::OffsetDateTimeExt;
 
 use diary_app_lib::{date_time_wrapper::DateTimeWrapper, models::DiaryConflict};
 
-#[component(no_case_check)]
-fn conflict_element(
-    cx: Scope,
-    conflicts: Vec<DiaryConflict>,
-    datetime: DateTimeWrapper,
-    date: Date,
-) -> Element {
-    cx.render(rsx! {
-        conflicts.iter().enumerate().map(|(idx, entry)| {
-            let nlines = entry.diff_text.split('\n').count() + 1;
-            let id = entry.id;
-            let diff = &entry.diff_text;
-            let dt = datetime.format(format_description!("[year]-[month]-[day]T[hour]:[minute]:[second].[subsecond]Z")).unwrap_or_else(|_| String::new());
-            match entry.diff_type.as_ref() {
-                "rem" => rsx! {
-                    textarea {
-                        key: "rem-key-{idx}",
-                        "style": "color:Red;",
-                        cols: "100",
-                        rows: "{nlines}",
-                        "{diff}",
-                    },
-                    input {
-                        key: "add-key-{idx}",
-                        "type": "button",
-                        name: "add",
-                        value: "Add",
-                        "onclick": "updateConflictAdd('{id}', '{date}', '{dt}');",
-                    }
-                },
-                "add" => rsx! {
-                    textarea {
-                        key: "add-key-{idx}",
-                        "style": "color:Blue;",
-                        cols: "100",
-                        rows: "{nlines}",
-                        "{diff}",
-                    },
-                    input {
-                        key: "rem-key-{idx}",
-                        "type": "button",
-                        name: "rm",
-                        value: "Rm",
-                        "onclick": "updateConflictRem('{id}', '{date}', '{dt}');",
-                    }
-                },
-                _ => rsx! {
-                    textarea {
-                        key: "diff-key-{idx}",
-                        cols: "100",
-                        rows: "{nlines}",
-                        "{diff}",
-                    }
-                }
-            }
-        })
-    })
-}
-
 pub fn index_body() -> String {
-    let mut app = VirtualDom::new(index_element);
+    let mut app = VirtualDom::new(IndexElement);
     drop(app.rebuild());
     dioxus_ssr::render(&app)
 }
 
-fn index_element(cx: Scope) -> Element {
+#[component]
+fn IndexElement(cx: Scope) -> Element {
     cx.render(rsx! {
         head {
             style {
@@ -146,8 +88,8 @@ pub fn list_body(
     start: Option<usize>,
 ) -> String {
     let mut app = VirtualDom::new_with_props(
-        date_list_element,
-        date_list_elementProps {
+        DateListElement,
+        DateListElementProps {
             conflicts,
             dates,
             start,
@@ -157,8 +99,8 @@ pub fn list_body(
     dioxus_ssr::render(&app)
 }
 
-#[component(no_case_check)]
-fn date_list_element(
+#[component]
+fn DateListElement(
     cx: Scope,
     conflicts: HashSet<DateType>,
     dates: Vec<DateType>,
@@ -221,15 +163,15 @@ fn date_list_element(
 
 pub fn list_conflicts_body(date: Option<DateType>, conflicts: Vec<DateTimeWrapper>) -> String {
     let mut app = VirtualDom::new_with_props(
-        list_conflicts_element,
-        list_conflicts_elementProps { date, conflicts },
+        ListConflictsElement,
+        ListConflictsElementProps { date, conflicts },
     );
     drop(app.rebuild());
     dioxus_ssr::render(&app)
 }
 
-#[component(no_case_check)]
-fn list_conflicts_element(
+#[component]
+fn ListConflictsElement(
     cx: Scope,
     date: Option<DateType>,
     conflicts: Vec<DateTimeWrapper>,
@@ -276,13 +218,13 @@ fn list_conflicts_element(
 }
 
 pub fn search_body(results: Vec<StackString>) -> String {
-    let mut app = VirtualDom::new_with_props(search_element, search_elementProps { results });
+    let mut app = VirtualDom::new_with_props(SearchElement, SearchElementProps { results });
     drop(app.rebuild());
     dioxus_ssr::render(&app)
 }
 
-#[component(no_case_check)]
-fn search_element(cx: Scope, results: Vec<StackString>) -> Element {
+#[component]
+fn SearchElement(cx: Scope, results: Vec<StackString>) -> Element {
     let body = results.join("\n");
     cx.render(rsx! {
         textarea {
@@ -299,8 +241,8 @@ fn search_element(cx: Scope, results: Vec<StackString>) -> Element {
 
 pub fn edit_body(date: Date, text: Vec<StackString>, edit_button: bool) -> String {
     let mut app = VirtualDom::new_with_props(
-        edit_element,
-        edit_elementProps {
+        EditElement,
+        EditElementProps {
             date,
             text,
             edit_button,
@@ -310,8 +252,8 @@ pub fn edit_body(date: Date, text: Vec<StackString>, edit_button: bool) -> Strin
     dioxus_ssr::render(&app)
 }
 
-#[component(no_case_check)]
-fn edit_element(cx: Scope, date: Date, text: Vec<StackString>, edit_button: bool) -> Element {
+#[component]
+fn EditElement(cx: Scope, date: Date, text: Vec<StackString>, edit_button: bool) -> Element {
     let text = text.join("\n");
     let buttons = if *edit_button {
         rsx! {
@@ -379,8 +321,8 @@ pub fn show_conflict_body(
     datetime: DateTimeWrapper,
 ) -> String {
     let mut app = VirtualDom::new_with_props(
-        show_conflict_element,
-        show_conflict_elementProps {
+        ShowConflictElement,
+        ShowConflictElementProps {
             date,
             conflicts,
             datetime,
@@ -390,8 +332,8 @@ pub fn show_conflict_body(
     dioxus_ssr::render(&app)
 }
 
-#[component(no_case_check)]
-fn show_conflict_element(
+#[component]
+fn ShowConflictElement(
     cx: Scope,
     date: Date,
     conflicts: Vec<DiaryConflict>,
