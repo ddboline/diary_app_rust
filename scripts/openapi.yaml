@@ -2,7 +2,7 @@ openapi: 3.0.1
 info:
   title: Frontend for AWS
   description: Web Frontend for AWS Services
-  version: 0.9.5
+  version: 0.10.4
 paths:
   /api/search:
     get:
@@ -21,6 +21,7 @@ paths:
           description: Search Date
           format: date
           nullable: true
+          example: 2023-01-01
           type: string
       responses:
         '200':
@@ -50,6 +51,7 @@ paths:
           description: Search Date
           format: date
           nullable: true
+          example: 2023-01-01
           type: string
       responses:
         '200':
@@ -73,13 +75,7 @@ paths:
         content:
           application/json:
             schema:
-              properties:
-                text:
-                  description: Text to Insert
-                  type: string
-              type: object
-              required:
-              - text
+              $ref: '#/components/schemas/InsertData'
         required: true
       responses:
         '201':
@@ -134,18 +130,7 @@ paths:
         content:
           application/json:
             schema:
-              properties:
-                date:
-                  description: Replacement Date
-                  format: date
-                  type: string
-                text:
-                  description: Replacement Text
-                  type: string
-              type: object
-              required:
-              - date
-              - text
+              $ref: '#/components/schemas/ReplaceData'
         required: true
       responses:
         '201':
@@ -173,6 +158,7 @@ paths:
           description: Minimum Date
           format: date
           nullable: true
+          example: 2023-01-01
           type: string
       - name: max_date
         in: query
@@ -181,6 +167,7 @@ paths:
           description: Maximum Date
           format: date
           nullable: true
+          example: 2023-01-01
           type: string
       - name: start
         in: query
@@ -219,6 +206,7 @@ paths:
           description: Minimum Date
           format: date
           nullable: true
+          example: 2023-01-01
           type: string
       - name: max_date
         in: query
@@ -227,6 +215,7 @@ paths:
           description: Maximum Date
           format: date
           nullable: true
+          example: 2023-01-01
           type: string
       - name: start
         in: query
@@ -250,15 +239,7 @@ paths:
           content:
             application/json:
               schema:
-                properties:
-                  list:
-                    items:
-                      format: date
-                      type: string
-                    type: array
-                type: object
-                required:
-                - list
+                $ref: '#/components/schemas/ListOutput'
         '400':
           description: Bad Request
         '500':
@@ -271,6 +252,7 @@ paths:
         required: true
         schema:
           format: date
+          example: 2023-01-01
           type: string
       responses:
         '200':
@@ -291,6 +273,7 @@ paths:
         required: true
         schema:
           format: date
+          example: 2023-01-01
           type: string
       responses:
         '200':
@@ -326,6 +309,7 @@ paths:
           description: Conflict Date
           format: date
           nullable: true
+          example: 2023-01-01
           type: string
       - name: datetime
         in: query
@@ -356,6 +340,7 @@ paths:
           description: Conflict Date
           format: date
           nullable: true
+          example: 2023-01-01
           type: string
       - name: datetime
         in: query
@@ -386,6 +371,7 @@ paths:
           description: Conflict Date
           format: date
           nullable: true
+          example: 2023-01-01
           type: string
       - name: datetime
         in: query
@@ -415,6 +401,7 @@ paths:
         schema:
           description: Conflict ID
           format: uuid
+          example: 334518f4-1bfd-4f20-9978-bfad0dc033e1
           type: string
       - name: diff_type
         in: query
@@ -466,20 +453,71 @@ paths:
           content:
             application/json:
               schema:
-                properties:
-                  email:
-                    description: Email Address
-                    type: string
-                  session:
-                    description: Session Id
-                    format: uuid
-                    type: string
-                type: object
-                required:
-                - email
-                - session
+                $ref: '#/components/schemas/LoggedUser'
         '400':
           description: Bad Request
         '500':
           description: Internal Server Error
-components: {}
+components:
+  schemas:
+    InsertData:
+      properties:
+        text:
+          description: Text to Insert
+          type: string
+      type: object
+      required:
+      - text
+    ReplaceData:
+      properties:
+        date:
+          description: Replacement Date
+          format: date
+          example: 2023-01-01
+          type: string
+        text:
+          description: Replacement Text
+          type: string
+      type: object
+      required:
+      - date
+      - text
+    ListOutput:
+      properties:
+        list:
+          items:
+            format: date
+            example: 2023-01-01
+            type: string
+          type: array
+      type: object
+      required:
+      - list
+    ConflictData:
+      properties:
+        date:
+          description: Conflict Date
+          format: date
+          nullable: true
+          example: 2023-01-01
+          type: string
+        datetime:
+          description: Conflict DateTime
+          format: date-time
+          nullable: true
+          type: string
+      type: object
+    LoggedUser:
+      properties:
+        email:
+          description: Email Address
+          type: string
+        session:
+          description: Session Id
+          format: uuid
+          example: 334518f4-1bfd-4f20-9978-bfad0dc033e1
+          type: string
+      type: object
+      required:
+      - email
+      - session

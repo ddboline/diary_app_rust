@@ -1,6 +1,6 @@
 pub use authorized_users::{
     get_random_key, get_secrets, token::Token, AuthorizedUser, AUTHORIZED_USERS, JWT_SECRET,
-    KEY_LENGTH, SECRET_KEY, TRIGGER_DB_UPDATE,
+    KEY_LENGTH, SECRET_KEY, TRIGGER_DB_UPDATE, LOGIN_HTML
 };
 use futures::TryStreamExt;
 use log::debug;
@@ -21,6 +21,7 @@ use diary_app_lib::{models::AuthorizedUsers, pgpool::PgPool};
 use crate::errors::ServiceError as Error;
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Hash, Clone, Schema)]
+#[schema(component="LoggedUser")]
 pub struct LoggedUser {
     #[schema(description = "Email Address")]
     pub email: StackString,
