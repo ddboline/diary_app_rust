@@ -2,8 +2,8 @@ use anyhow::{format_err, Error};
 use aws_config::SdkConfig;
 use aws_sdk_s3::types::Object;
 use futures::{stream::FuturesUnordered, TryStreamExt};
-use lazy_static::lazy_static;
 use log::debug;
+use once_cell::sync::Lazy;
 use stack_string::{format_sstr, StackString};
 use std::{
     collections::HashMap,
@@ -17,10 +17,8 @@ use crate::{config::Config, models::DiaryEntries, pgpool::PgPool, s3_instance::S
 
 const TIME_BUFFER: i64 = 60;
 
-lazy_static! {
-    static ref KEY_CACHE: RwLock<(OffsetDateTime, Arc<[KeyMetaData]>)> =
-        RwLock::new((OffsetDateTime::now_utc(), Arc::new([])));
-}
+static KEY_CACHE: Lazy<RwLock<(OffsetDateTime, Arc<[KeyMetaData]>)>> =
+    Lazy::new(|| RwLock::new((OffsetDateTime::now_utc(), Arc::new([]))));
 
 #[derive(Debug, Clone)]
 struct KeyMetaData {

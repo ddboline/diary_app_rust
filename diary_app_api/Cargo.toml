@@ -1,6 +1,6 @@
 [package]
 name = "diary_app_api"
-version = "0.10.5"
+version = "0.10.6"
 authors = ["Daniel Boline <ddboline@gmail.com>"]
 edition = "2018"
 
@@ -9,7 +9,7 @@ edition = "2018"
 [dependencies]
 anyhow = "1.0"
 async-trait = "0.1"
-authorized_users = { git = "https://github.com/ddboline/auth_server_rust.git", tag="0.11.8"}
+authorized_users = { git = "https://github.com/ddboline/auth_server_rust.git", tag="0.11.9"}
 aws-config = {version="1.0", features=["behavior-version-latest"]}
 diary_app_lib = {path = "../diary_app_lib"}
 dioxus = "0.4"
@@ -18,7 +18,6 @@ derive_more = "0.99"
 futures = "0.3"
 handlebars = "4.0"
 itertools = "0.12"
-lazy_static = "1.4"
 log = "0.4"
 maplit = "1.0"
 parking_lot = "0.12"
@@ -37,7 +36,7 @@ tokio = {version="1.35", features=["time"]}
 uuid = "1.0"
 
 [dev-dependencies]
-auth_server_http = { git = "https://github.com/ddboline/auth_server_rust.git", tag="0.11.8"}
-auth_server_lib = { git = "https://github.com/ddboline/auth_server_rust.git", tag="0.11.8"}
+auth_server_http = { git = "https://github.com/ddboline/auth_server_rust.git", tag="0.11.9"}
+auth_server_lib = { git = "https://github.com/ddboline/auth_server_rust.git", tag="0.11.9"}
 env_logger = "0.10"
 reqwest = {version="0.11", features=["cookies", "json", "rustls-tls", "stream"]}

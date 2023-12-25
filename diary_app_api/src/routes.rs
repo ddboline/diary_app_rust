@@ -79,7 +79,7 @@ async fn search_results(query: SearchOptions, state: AppState) -> HttpResult<Vec
 }
 
 #[derive(Serialize, Deserialize, Schema)]
-#[schema(component="InsertData")]
+#[schema(component = "InsertData")]
 pub struct InsertData {
     #[schema(description = "Text to Insert")]
     pub text: StackString,
@@ -159,7 +159,7 @@ pub async fn sync_api(
 }
 
 #[derive(Serialize, Deserialize, Schema)]
-#[schema(component="ReplaceData")]
+#[schema(component = "ReplaceData")]
 pub struct ReplaceData {
     #[schema(description = "Replacement Date")]
     pub date: DateType,
@@ -238,7 +238,7 @@ async fn list_api_body(query: ListOptions, state: &AppState) -> HttpResult<Vec<D
 }
 
 #[derive(Schema, Serialize)]
-#[schema(component="ListOutput")]
+#[schema(component = "ListOutput")]
 struct ListOutput {
     list: Vec<DateType>,
 }

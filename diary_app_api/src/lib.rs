@@ -32,7 +32,7 @@ derive_rweb_schema!(ConflictData, _ConflictData);
 
 #[allow(dead_code)]
 #[derive(Schema)]
-#[schema(component="ConflictData")]
+#[schema(component = "ConflictData")]
 struct _ConflictData {
     #[schema(description = "Conflict Date")]
     pub date: Option<DateType>,

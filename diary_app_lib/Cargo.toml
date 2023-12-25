@@ -1,6 +1,6 @@
 [package]
 name = "diary_app_lib"
-version = "0.10.5"
+version = "0.10.6"
 authors = ["Daniel Boline <ddboline@gmail.com>"]
 edition = "2018"
 
@@ -22,8 +22,8 @@ dotenv = "0.15"
 envy = "0.4"
 futures = "0.3"
 jwalk = "0.8"
-lazy_static = "1.4"
 log = "0.4"
+once_cell = "1.0"
 parking_lot = "0.12"
 postgres-types = "0.2"
 postgres_query = {git = "https://github.com/ddboline/rust-postgres-query", tag = "0.3.6", features=["deadpool"]}

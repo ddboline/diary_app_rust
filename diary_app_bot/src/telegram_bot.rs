@@ -1,7 +1,7 @@
 use anyhow::Error;
 use futures::{future::join, StreamExt, TryStreamExt};
-use lazy_static::lazy_static;
 use log::debug;
+use once_cell::sync::Lazy;
 use stack_string::{format_sstr, StackString};
 use std::collections::HashSet;
 use telegram_bot::{types::refs::UserId, Api, CanReplySendMessage, MessageKind, UpdateKind};
@@ -23,11 +23,9 @@ use crate::failure_count::FailureCount;
 type UserIds = RwLock<HashSet<UserId>>;
 type OBuffer = RwLock<Vec<StackString>>;
 
-lazy_static! {
-    static ref TELEGRAM_USERIDS: UserIds = RwLock::new(HashSet::new());
-    static ref OUTPUT_BUFFER: OBuffer = RwLock::new(Vec::new());
-    static ref FAILURE_COUNT: FailureCount = FailureCount::new(5);
-}
+static TELEGRAM_USERIDS: Lazy<UserIds> = Lazy::new(|| RwLock::new(HashSet::new()));
+static OUTPUT_BUFFER: Lazy<OBuffer> = Lazy::new(|| RwLock::new(Vec::new()));
+static FAILURE_COUNT: Lazy<FailureCount> = Lazy::new(|| FailureCount::new(5));
 
 async fn diary_sync(
     dapp_interface: DiaryAppInterface,
