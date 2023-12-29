@@ -1,4 +1,4 @@
-use rweb::{get, post, Json, Query, Rejection, Schema, delete, patch};
+use rweb::{delete, get, patch, post, Json, Query, Rejection, Schema};
 use rweb_helper::{
     html_response::HtmlResponse as HtmlBase, json_response::JsonResponse as JsonBase, DateType,
     RwebResponse, UuidWrapper,
@@ -30,7 +30,7 @@ pub type HttpResult<T> = Result<T, Error>;
 struct SearchResponse(HtmlBase<StackString, Error>);
 
 #[get("/api/search")]
-#[openapi(description="Search Output Page")]
+#[openapi(description = "Search Output Page")]
 pub async fn search(
     query: Query<SearchOptions>,
     #[filter = "LoggedUser::filter"] _: LoggedUser,
@@ -67,7 +67,7 @@ struct InsertDataOutput {
 struct InsertDataResponse(JsonBase<InsertDataOutput, Error>);
 
 #[post("/api/insert")]
-#[openapi(description="Insert Text into Cache")]
+#[openapi(description = "Insert Text into Cache")]
 pub async fn insert(
     data: Json<InsertData>,
     #[filter = "LoggedUser::filter"] _: LoggedUser,
@@ -95,7 +95,7 @@ async fn insert_body(data: InsertData, state: AppState) -> HttpResult<Vec<StackS
 struct SyncResponse(HtmlBase<StackString, Error>);
 
 #[post("/api/sync")]
-#[openapi(description="Sync Diary")]
+#[openapi(description = "Sync Diary")]
 pub async fn sync(
     #[filter = "LoggedUser::filter"] _: LoggedUser,
     #[data] state: AppState,
@@ -132,7 +132,7 @@ struct ReplaceOutput {
 struct ReplaceResponse(JsonBase<ReplaceOutput, Error>);
 
 #[post("/api/replace")]
-#[openapi(description="Insert Text at Specific Date, replace existing text")]
+#[openapi(description = "Insert Text at Specific Date, replace existing text")]
 pub async fn replace(
     data: Json<ReplaceData>,
     #[filter = "LoggedUser::filter"] _: LoggedUser,
@@ -161,7 +161,7 @@ async fn replace_body(data: ReplaceData, state: AppState) -> HttpResult<Vec<Stac
 struct ListResponse(HtmlBase<StackString, Error>);
 
 #[get("/api/list")]
-#[openapi(description="List of Date Buttons")]
+#[openapi(description = "List of Date Buttons")]
 pub async fn list(
     query: Query<ListOptions>,
     #[filter = "LoggedUser::filter"] _: LoggedUser,
@@ -204,7 +204,7 @@ pub struct EditData {
 struct EditResponse(HtmlBase<StackString, Error>);
 
 #[get("/api/edit")]
-#[openapi(description="Diary Edit Form")]
+#[openapi(description = "Diary Edit Form")]
 pub async fn edit(
     query: Query<EditData>,
     #[filter = "LoggedUser::filter"] _: LoggedUser,
@@ -234,7 +234,7 @@ async fn get_edit_body(query: EditData, state: AppState) -> HttpResult<StackStri
 struct DisplayResponse(HtmlBase<StackString, Error>);
 
 #[get("/api/display")]
-#[openapi(description="Display Diary Entry")]
+#[openapi(description = "Display Diary Entry")]
 pub async fn display(
     query: Query<EditData>,
     #[filter = "LoggedUser::filter"] _: LoggedUser,
@@ -264,7 +264,7 @@ async fn display_body(query: EditData, state: AppState) -> HttpResult<StackStrin
 struct FrontpageResponse(HtmlBase<StackString, Error>);
 
 #[get("/api/index.html")]
-#[openapi(description="Diary Main Page")]
+#[openapi(description = "Diary Main Page")]
 pub async fn diary_frontpage(
     #[filter = "LoggedUser::filter"] _: LoggedUser,
 ) -> WarpResult<FrontpageResponse> {
@@ -277,7 +277,7 @@ pub async fn diary_frontpage(
 struct ListConflictsResponse(HtmlBase<StackString, Error>);
 
 #[get("/api/list_conflicts")]
-#[openapi(description="List Conflicts")]
+#[openapi(description = "List Conflicts")]
 pub async fn list_conflicts(
     query: Query<ConflictData>,
     #[filter = "LoggedUser::filter"] _: LoggedUser,
@@ -307,7 +307,7 @@ async fn get_conflicts_body(query: ConflictData, state: AppState) -> HttpResult<
 struct ShowConflictResponse(HtmlBase<StackString, Error>);
 
 #[get("/api/show_conflict")]
-#[openapi(description="Show Conflict")]
+#[openapi(description = "Show Conflict")]
 pub async fn show_conflict(
     query: Query<ConflictData>,
     #[filter = "LoggedUser::filter"] _: LoggedUser,
@@ -345,7 +345,7 @@ async fn get_show_conflict(query: ConflictData, state: AppState) -> HttpResult<S
 struct RemoveConflictResponse(HtmlBase<StackString, Error>);
 
 #[delete("/api/remove_conflict")]
-#[openapi(description="Delete Conflict")]
+#[openapi(description = "Delete Conflict")]
 pub async fn remove_conflict(
     query: Query<ConflictData>,
     #[filter = "LoggedUser::filter"] _: LoggedUser,
@@ -394,7 +394,7 @@ pub struct ConflictUpdateData {
 struct UpdateConflictResponse(HtmlBase<&'static str, Error>);
 
 #[patch("/api/update_conflict")]
-#[openapi(description="Update Conflict")]
+#[openapi(description = "Update Conflict")]
 pub async fn update_conflict(
     query: Query<ConflictUpdateData>,
     #[filter = "LoggedUser::filter"] _: LoggedUser,
@@ -420,7 +420,7 @@ async fn update_conflict_body(query: ConflictUpdateData, state: AppState) -> Htt
 struct ConflictResponse(JsonBase<ReplaceOutput, Error>);
 
 #[post("/api/commit_conflict")]
-#[openapi(description="Commit Conflict")]
+#[openapi(description = "Commit Conflict")]
 pub async fn commit_conflict(
     query: Query<CommitConflictData>,
     #[filter = "LoggedUser::filter"] _: LoggedUser,
@@ -451,7 +451,7 @@ async fn commit_conflict_body(
 struct UserResponse(JsonBase<LoggedUser, Error>);
 
 #[get("/api/user")]
-#[openapi(description="Get User Object")]
+#[openapi(description = "Get User Object")]
 pub async fn user(#[filter = "LoggedUser::filter"] user: LoggedUser) -> WarpResult<UserResponse> {
     Ok(JsonBase::new(user).into())
 }
