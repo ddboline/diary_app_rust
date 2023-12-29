@@ -1,4 +1,4 @@
-use rweb::{get, post, Json, Query, Rejection, Schema};
+use rweb::{get, post, Json, Query, Rejection, Schema, delete, patch};
 use rweb_helper::{
     html_response::HtmlResponse as HtmlBase, json_response::JsonResponse as JsonBase, DateType,
     RwebResponse, UuidWrapper,
@@ -121,7 +121,7 @@ async fn insert_body(data: InsertData, state: AppState) -> HttpResult<Vec<StackS
 #[response(description = "Sync Output", content = "html")]
 struct SyncResponse(HtmlBase<StackString, Error>);
 
-#[get("/api/sync")]
+#[post("/api/sync")]
 pub async fn sync(
     #[filter = "LoggedUser::filter"] _: LoggedUser,
     #[data] state: AppState,
@@ -148,7 +148,7 @@ struct SyncApiOutput {
 #[response(description = "Sync Api Response")]
 struct SyncApiResponse(JsonBase<SyncApiOutput, Error>);
 
-#[get("/api/sync_api")]
+#[post("/api/sync_api")]
 pub async fn sync_api(
     #[filter = "LoggedUser::filter"] _: LoggedUser,
     #[data] state: AppState,
@@ -403,7 +403,7 @@ async fn get_show_conflict(query: ConflictData, state: AppState) -> HttpResult<S
 #[response(description = "Remove Conflict", content = "html")]
 struct RemoveConflictResponse(HtmlBase<StackString, Error>);
 
-#[get("/api/remove_conflict")]
+#[delete("/api/remove_conflict")]
 pub async fn remove_conflict(
     query: Query<ConflictData>,
     #[filter = "LoggedUser::filter"] _: LoggedUser,
@@ -451,7 +451,7 @@ pub struct ConflictUpdateData {
 #[response(description = "Update Conflict", content = "html")]
 struct UpdateConflictResponse(HtmlBase<&'static str, Error>);
 
-#[get("/api/update_conflict")]
+#[patch("/api/update_conflict")]
 pub async fn update_conflict(
     query: Query<ConflictUpdateData>,
     #[filter = "LoggedUser::filter"] _: LoggedUser,
@@ -476,7 +476,7 @@ async fn update_conflict_body(query: ConflictUpdateData, state: AppState) -> Htt
 #[response(description = "Commit Conflict")]
 struct ConflictResponse(JsonBase<ReplaceOutput, Error>);
 
-#[get("/api/commit_conflict")]
+#[post("/api/commit_conflict")]
 pub async fn commit_conflict(
     query: Query<CommitConflictData>,
     #[filter = "LoggedUser::filter"] _: LoggedUser,

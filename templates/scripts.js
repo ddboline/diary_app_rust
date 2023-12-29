@@ -2,7 +2,7 @@
     gotoEntries( 0 );
 }();
 var autosave_timeout = null;
-function updateMainArticle( url , nav_update=null, status="done" ) {
+function updateMainArticle( url , nav_update=null, status="done", method="GET" ) {
     let xmlhttp = new XMLHttpRequest();
     xmlhttp.onload = function f() {
         document.getElementById("diary_status").innerHTML = status;
@@ -15,7 +15,7 @@ function updateMainArticle( url , nav_update=null, status="done" ) {
         }
         setTextAreaRowsCols();
     }
-    xmlhttp.open("GET", url, true);
+    xmlhttp.open(method, url, true);
     xmlhttp.send(null);
 }
 function setTextAreaRowsCols() {
@@ -46,7 +46,7 @@ function showConflict( date, datetime ) {
 function cleanConflicts(date) {
     let url = '../api/remove_conflict?date=' + date;
     let xmlhttp = new XMLHttpRequest();
-    xmlhttp.open('GET', url, true);
+    xmlhttp.open('DELETE', url, true);
     xmlhttp.onload = function see_result() {
         switchToDate( date )
     }
@@ -55,7 +55,7 @@ function cleanConflicts(date) {
 function removeConflict( date, datetime ) {
     let url = '../api/remove_conflict?datetime=' + datetime;
     let xmlhttp = new XMLHttpRequest();
-    xmlhttp.open('GET', url, true);
+    xmlhttp.open('DELETE', url, true);
     xmlhttp.onload = function see_result() {
         switchToDate( date )
     }
@@ -64,7 +64,7 @@ function removeConflict( date, datetime ) {
 function commitConflict( date, datetime ) {
     let url = '../api/commit_conflict?datetime=' + datetime;
     let xmlhttp = new XMLHttpRequest();
-    xmlhttp.open('GET', url, true);
+    xmlhttp.open('POST', url, true);
     xmlhttp.onload = function see_result() {
         removeConflict( date, datetime );
     }
@@ -80,9 +80,8 @@ function searchDate() {
     switchToDate( text_form.value );
 }
 function syncDiary() {
-    updateMainArticle('../api/sync');
+    updateMainArticle('../api/sync', method="POST");
     document.getElementById("main_article").innerHTML = "syncing..."
-
 }
 function updateNavigation( url ) {
     let xmlhttp = new XMLHttpRequest();
@@ -143,7 +142,7 @@ function switchToEditor( date ) {
 function updateConflictAdd( id, date, datetime ) {
     let url = '../api/update_conflict?id=' + id + '&diff_type=add';
     let xmlhttp = new XMLHttpRequest();
-    xmlhttp.open('GET', url, true);
+    xmlhttp.open('PATCH', url, true);
     xmlhttp.onload = function see_result() {
         showConflict( date, datetime );
     }
@@ -152,7 +151,7 @@ function updateConflictAdd( id, date, datetime ) {
 function updateConflictRem( id, date, datetime ) {
     let url = '../api/update_conflict?id=' + id + '&diff_type=rem';
     let xmlhttp = new XMLHttpRequest();
-    xmlhttp.open('GET', url, true);
+    xmlhttp.open('PATCH', url, true);
     xmlhttp.onload = function see_result() {
         showConflict( date, datetime );
     }
