@@ -25,40 +25,12 @@ use super::{
 pub type WarpResult<T> = Result<T, Rejection>;
 pub type HttpResult<T> = Result<T, Error>;
 
-#[derive(Schema, Serialize)]
-struct SearchApiOutput {
-    text: String,
-}
-
-#[derive(RwebResponse)]
-#[response(description = "Search Result")]
-struct SearchApiResponse(JsonBase<SearchApiOutput, Error>);
-
-#[get("/api/search_api")]
-pub async fn search_api(
-    query: Query<SearchOptions>,
-    #[filter = "LoggedUser::filter"] _: LoggedUser,
-    #[data] state: AppState,
-) -> WarpResult<SearchApiResponse> {
-    let query = query.into_inner();
-    let body = search_api_body(query, state).await?;
-    let text = body.join("\n");
-    Ok(JsonBase::new(SearchApiOutput { text }).into())
-}
-
-async fn search_api_body(query: SearchOptions, state: AppState) -> HttpResult<Vec<StackString>> {
-    if let DiaryAppOutput::Lines(body) = DiaryAppRequests::Search(query).process(&state.db).await? {
-        Ok(body)
-    } else {
-        Err(Error::BadRequest("Bad Output".into()))
-    }
-}
-
 #[derive(RwebResponse)]
 #[response(description = "Search Output", content = "html")]
 struct SearchResponse(HtmlBase<StackString, Error>);
 
 #[get("/api/search")]
+#[openapi(description="Search Output Page")]
 pub async fn search(
     query: Query<SearchOptions>,
     #[filter = "LoggedUser::filter"] _: LoggedUser,
@@ -95,6 +67,7 @@ struct InsertDataOutput {
 struct InsertDataResponse(JsonBase<InsertDataOutput, Error>);
 
 #[post("/api/insert")]
+#[openapi(description="Insert Text into Cache")]
 pub async fn insert(
     data: Json<InsertData>,
     #[filter = "LoggedUser::filter"] _: LoggedUser,
@@ -122,6 +95,7 @@ async fn insert_body(data: InsertData, state: AppState) -> HttpResult<Vec<StackS
 struct SyncResponse(HtmlBase<StackString, Error>);
 
 #[post("/api/sync")]
+#[openapi(description="Sync Diary")]
 pub async fn sync(
     #[filter = "LoggedUser::filter"] _: LoggedUser,
     #[data] state: AppState,
@@ -137,25 +111,6 @@ async fn sync_body(state: AppState) -> HttpResult<Vec<StackString>> {
     } else {
         Err(Error::BadRequest("Bad output".into()))
     }
-}
-
-#[derive(Schema, Serialize)]
-struct SyncApiOutput {
-    response: String,
-}
-
-#[derive(RwebResponse)]
-#[response(description = "Sync Api Response")]
-struct SyncApiResponse(JsonBase<SyncApiOutput, Error>);
-
-#[post("/api/sync_api")]
-pub async fn sync_api(
-    #[filter = "LoggedUser::filter"] _: LoggedUser,
-    #[data] state: AppState,
-) -> WarpResult<SyncApiResponse> {
-    let body = sync_body(state).await?;
-    let response = body.join("\n");
-    Ok(JsonBase::new(SyncApiOutput { response }).into())
 }
 
 #[derive(Serialize, Deserialize, Schema)]
@@ -177,6 +132,7 @@ struct ReplaceOutput {
 struct ReplaceResponse(JsonBase<ReplaceOutput, Error>);
 
 #[post("/api/replace")]
+#[openapi(description="Insert Text at Specific Date, replace existing text")]
 pub async fn replace(
     data: Json<ReplaceData>,
     #[filter = "LoggedUser::filter"] _: LoggedUser,
@@ -205,6 +161,7 @@ async fn replace_body(data: ReplaceData, state: AppState) -> HttpResult<Vec<Stac
 struct ListResponse(HtmlBase<StackString, Error>);
 
 #[get("/api/list")]
+#[openapi(description="List of Date Buttons")]
 pub async fn list(
     query: Query<ListOptions>,
     #[filter = "LoggedUser::filter"] _: LoggedUser,
@@ -237,27 +194,6 @@ async fn list_api_body(query: ListOptions, state: &AppState) -> HttpResult<Vec<D
     }
 }
 
-#[derive(Schema, Serialize)]
-#[schema(component = "ListOutput")]
-struct ListOutput {
-    list: Vec<DateType>,
-}
-
-#[derive(RwebResponse)]
-#[response(description = "ListApi Response")]
-struct ListApiResponse(JsonBase<ListOutput, Error>);
-
-#[get("/api/list_api")]
-pub async fn list_api(
-    query: Query<ListOptions>,
-    #[filter = "LoggedUser::filter"] _: LoggedUser,
-    #[data] state: AppState,
-) -> WarpResult<ListApiResponse> {
-    let query = query.into_inner();
-    let list = list_api_body(query, &state).await?;
-    Ok(JsonBase::new(ListOutput { list }).into())
-}
-
 #[derive(Serialize, Deserialize, Schema)]
 pub struct EditData {
     pub date: DateType,
@@ -268,6 +204,7 @@ pub struct EditData {
 struct EditResponse(HtmlBase<StackString, Error>);
 
 #[get("/api/edit")]
+#[openapi(description="Diary Edit Form")]
 pub async fn edit(
     query: Query<EditData>,
     #[filter = "LoggedUser::filter"] _: LoggedUser,
@@ -297,6 +234,7 @@ async fn get_edit_body(query: EditData, state: AppState) -> HttpResult<StackStri
 struct DisplayResponse(HtmlBase<StackString, Error>);
 
 #[get("/api/display")]
+#[openapi(description="Display Diary Entry")]
 pub async fn display(
     query: Query<EditData>,
     #[filter = "LoggedUser::filter"] _: LoggedUser,
@@ -326,6 +264,7 @@ async fn display_body(query: EditData, state: AppState) -> HttpResult<StackStrin
 struct FrontpageResponse(HtmlBase<StackString, Error>);
 
 #[get("/api/index.html")]
+#[openapi(description="Diary Main Page")]
 pub async fn diary_frontpage(
     #[filter = "LoggedUser::filter"] _: LoggedUser,
 ) -> WarpResult<FrontpageResponse> {
@@ -338,6 +277,7 @@ pub async fn diary_frontpage(
 struct ListConflictsResponse(HtmlBase<StackString, Error>);
 
 #[get("/api/list_conflicts")]
+#[openapi(description="List Conflicts")]
 pub async fn list_conflicts(
     query: Query<ConflictData>,
     #[filter = "LoggedUser::filter"] _: LoggedUser,
@@ -367,6 +307,7 @@ async fn get_conflicts_body(query: ConflictData, state: AppState) -> HttpResult<
 struct ShowConflictResponse(HtmlBase<StackString, Error>);
 
 #[get("/api/show_conflict")]
+#[openapi(description="Show Conflict")]
 pub async fn show_conflict(
     query: Query<ConflictData>,
     #[filter = "LoggedUser::filter"] _: LoggedUser,
@@ -404,6 +345,7 @@ async fn get_show_conflict(query: ConflictData, state: AppState) -> HttpResult<S
 struct RemoveConflictResponse(HtmlBase<StackString, Error>);
 
 #[delete("/api/remove_conflict")]
+#[openapi(description="Delete Conflict")]
 pub async fn remove_conflict(
     query: Query<ConflictData>,
     #[filter = "LoggedUser::filter"] _: LoggedUser,
@@ -452,6 +394,7 @@ pub struct ConflictUpdateData {
 struct UpdateConflictResponse(HtmlBase<&'static str, Error>);
 
 #[patch("/api/update_conflict")]
+#[openapi(description="Update Conflict")]
 pub async fn update_conflict(
     query: Query<ConflictUpdateData>,
     #[filter = "LoggedUser::filter"] _: LoggedUser,
@@ -477,6 +420,7 @@ async fn update_conflict_body(query: ConflictUpdateData, state: AppState) -> Htt
 struct ConflictResponse(JsonBase<ReplaceOutput, Error>);
 
 #[post("/api/commit_conflict")]
+#[openapi(description="Commit Conflict")]
 pub async fn commit_conflict(
     query: Query<CommitConflictData>,
     #[filter = "LoggedUser::filter"] _: LoggedUser,
@@ -507,6 +451,7 @@ async fn commit_conflict_body(
 struct UserResponse(JsonBase<LoggedUser, Error>);
 
 #[get("/api/user")]
+#[openapi(description="Get User Object")]
 pub async fn user(#[filter = "LoggedUser::filter"] user: LoggedUser) -> WarpResult<UserResponse> {
     Ok(JsonBase::new(user).into())
 }
