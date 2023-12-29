@@ -2,7 +2,7 @@ openapi: 3.0.1
 info:
   title: Frontend for AWS
   description: Web Frontend for AWS Services
-  version: 0.10.4
+  version: 0.10.6
 paths:
   /api/search:
     get:
@@ -94,7 +94,7 @@ paths:
         '500':
           description: Internal Server Error
   /api/sync:
-    get:
+    post:
       responses:
         '200':
           description: Sync Output
@@ -107,7 +107,7 @@ paths:
         '500':
           description: Internal Server Error
   /api/sync_api:
-    get:
+    post:
       responses:
         '200':
           description: Sync Api Response
@@ -362,7 +362,7 @@ paths:
         '500':
           description: Internal Server Error
   /api/remove_conflict:
-    get:
+    delete:
       parameters:
       - name: date
         in: query
@@ -393,7 +393,7 @@ paths:
         '500':
           description: Internal Server Error
   /api/update_conflict:
-    get:
+    patch:
       parameters:
       - name: id
         in: query
@@ -421,7 +421,7 @@ paths:
         '500':
           description: Internal Server Error
   /api/commit_conflict:
-    get:
+    post:
       parameters:
       - name: datetime
         in: query
