@@ -16,9 +16,8 @@ use super::{
     errors::error_response,
     logged_user::{fill_from_db, get_secrets, TRIGGER_DB_UPDATE},
     routes::{
-        commit_conflict, diary_frontpage, display, edit, insert, list, list_api, list_conflicts,
-        remove_conflict, replace, search, search_api, show_conflict, sync, sync_api,
-        update_conflict, user,
+        commit_conflict, diary_frontpage, display, edit, insert, list, list_conflicts,
+        remove_conflict, replace, search, show_conflict, sync, update_conflict, user,
     },
 };
 
@@ -63,13 +62,10 @@ pub async fn start_app() -> Result<(), Error> {
 
 fn get_api_path(app: &AppState) -> BoxedFilter<(impl Reply,)> {
     let search_path = search(app.clone()).boxed();
-    let search_api_path = search_api(app.clone()).boxed();
     let insert_path = insert(app.clone()).boxed();
     let sync_path = sync(app.clone()).boxed();
-    let sync_api_path = sync_api(app.clone()).boxed();
     let replace_path = replace(app.clone()).boxed();
     let list_path = list(app.clone()).boxed();
-    let list_api_path = list_api(app.clone()).boxed();
     let edit_path = edit(app.clone()).boxed();
     let display_path = display(app.clone()).boxed();
     let frontpage_path = diary_frontpage().boxed();
@@ -81,13 +77,10 @@ fn get_api_path(app: &AppState) -> BoxedFilter<(impl Reply,)> {
     let user_path = user().boxed();
 
     search_path
-        .or(search_api_path)
         .or(insert_path)
         .or(sync_path)
-        .or(sync_api_path)
         .or(replace_path)
         .or(list_path)
-        .or(list_api_path)
         .or(edit_path)
         .or(display_path)
         .or(frontpage_path)
