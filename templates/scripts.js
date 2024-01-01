@@ -2,14 +2,14 @@
     gotoEntries( 0 );
 }();
 var autosave_timeout = null;
-function updateMainArticle( url , nav_update=null, status="done", method="GET" ) {
+function updateMainArticle( url , status_message="done", method="GET", nav_update=null ) {
     let xmlhttp = new XMLHttpRequest();
     xmlhttp.onload = function f() {
-        document.getElementById("diary_status").innerHTML = status;
+        document.getElementById("diary_status").innerHTML = status_message;
         document.getElementById("main_article").innerHTML = xmlhttp.responseText;
         addTabEventHandler();
         if (nav_update) {
-            nav_update();
+            nav_update()
         } else {
             gotoEntries(0);
         }
@@ -33,7 +33,7 @@ function switchToDate( date ) {
     if (autosave_timeout) {
         clearInterval(autosave_timeout);
     }
-    updateMainArticle('../api/display?date=' + date, null, status=date)
+    updateMainArticle(`../api/display?date=${date}`, status_message=date)
 }
 function listConflicts( date ) {
     let url = '../api/list_conflicts?date=' + date;
@@ -41,7 +41,7 @@ function listConflicts( date ) {
 }
 function showConflict( date, datetime ) {
     let url = '../api/show_conflict?date=' + date + '&datetime=' + datetime;
-    updateMainArticle(url, () => listConflicts(date), status=date);
+    updateMainArticle(url, status_message=date, method="GET", nav_update=() => listConflicts(date), )
 }
 function cleanConflicts(date) {
     let url = '../api/remove_conflict?date=' + date;
@@ -73,14 +73,14 @@ function commitConflict( date, datetime ) {
 function searchDiary() {
     let text_form = document.getElementById( 'search_text' );
     let url = encodeURI('../api/search?text=' + text_form.value);
-    updateMainArticle(url, null, status=text_form.value);
+    updateMainArticle(url, status_message=text_form.value);
 }
 function searchDate() {
     let text_form = document.getElementById( 'search_date' );
     switchToDate( text_form.value );
 }
 function syncDiary() {
-    updateMainArticle('../api/sync', method="POST");
+    updateMainArticle('../api/sync', status_message="done", method="POST");
     document.getElementById("main_article").innerHTML = "syncing..."
 }
 function updateNavigation( url ) {
@@ -133,8 +133,8 @@ function autoSave( date ) {
     xmlhttp.send(data);
 }
 function switchToEditor( date ) {
-    let url = '../api/edit?date=' + date;
-    updateMainArticle(url, null, status=date);
+    let url = `../api/edit?date=${date}`;
+    updateMainArticle(url, status_message=date);
     autosave_timeout = setInterval(function() {
         autoSave(date)
     }, 60000);
