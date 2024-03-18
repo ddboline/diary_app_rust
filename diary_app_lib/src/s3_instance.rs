@@ -6,7 +6,7 @@ use aws_sdk_s3::{
     Client as S3Client,
 };
 use bytes::Bytes;
-use std::{convert::Into, fmt};
+use std::fmt;
 use time::OffsetDateTime;
 use tokio::io::AsyncReadExt;
 
