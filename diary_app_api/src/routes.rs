@@ -38,7 +38,7 @@ pub async fn search(
 ) -> WarpResult<SearchResponse> {
     let query = query.into_inner();
     let results = search_results(query, state).await?;
-    let body = search_body(results).into();
+    let body = search_body(results)?.into();
     Ok(HtmlBase::new(body).into())
 }
 
@@ -101,7 +101,7 @@ pub async fn sync(
     #[data] state: AppState,
 ) -> WarpResult<SyncResponse> {
     let results = sync_body(state).await?;
-    let body = search_body(results).into();
+    let body = search_body(results)?.into();
     Ok(HtmlBase::new(body).into())
 }
 
@@ -182,7 +182,7 @@ async fn get_body(query: ListOptions, state: &AppState) -> HttpResult<StackStrin
     } else {
         HashSet::new()
     };
-    let body = list_body(conflicts, dates, query.start).into();
+    let body = list_body(conflicts, dates, query.start)?.into();
     Ok(body)
 }
 
@@ -225,7 +225,7 @@ async fn get_edit_body(query: EditData, state: AppState) -> HttpResult<StackStri
     } else {
         Vec::new()
     };
-    let body = edit_body(diary_date, text, false).into();
+    let body = edit_body(diary_date, text, false)?.into();
     Ok(body)
 }
 
@@ -255,7 +255,7 @@ async fn display_body(query: EditData, state: AppState) -> HttpResult<StackStrin
     } else {
         Vec::new()
     };
-    let body = edit_body(diary_date, text, true).into();
+    let body = edit_body(diary_date, text, true)?.into();
     Ok(body)
 }
 
@@ -268,7 +268,7 @@ struct FrontpageResponse(HtmlBase<StackString, Error>);
 pub async fn diary_frontpage(
     #[filter = "LoggedUser::filter"] _: LoggedUser,
 ) -> WarpResult<FrontpageResponse> {
-    let body = index_body().into();
+    let body = index_body()?.into();
     Ok(HtmlBase::new(body).into())
 }
 
@@ -298,7 +298,7 @@ async fn get_conflicts_body(query: ConflictData, state: AppState) -> HttpResult<
     } else {
         Vec::new()
     };
-    let body = list_conflicts_body(query.date, conflicts).into();
+    let body = list_conflicts_body(query.date, conflicts)?.into();
     Ok(body)
 }
 
@@ -336,7 +336,7 @@ async fn get_show_conflict(query: ConflictData, state: AppState) -> HttpResult<S
     } else {
         Vec::new()
     };
-    let body = show_conflict_body(diary_date, conflicts, datetime).into();
+    let body = show_conflict_body(diary_date, conflicts, datetime)?.into();
     Ok(body)
 }
 

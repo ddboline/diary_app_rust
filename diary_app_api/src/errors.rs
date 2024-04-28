@@ -11,7 +11,11 @@ use rweb::{
     Rejection, Reply,
 };
 use serde::Serialize;
-use std::{borrow::Cow, convert::Infallible, fmt::Debug};
+use std::{
+    borrow::Cow,
+    convert::Infallible,
+    fmt::{Debug, Error as FmtError},
+};
 use thiserror::Error;
 
 use crate::logged_user::TRIGGER_DB_UPDATE;
@@ -30,6 +34,8 @@ pub enum ServiceError {
     RenderError(#[from] RenderError),
     #[error("PqError {0}")]
     PqError(#[from] PqError),
+    #[error("FmtError {0}")]
+    FmtError(#[from] FmtError),
 }
 
 impl Reject for ServiceError {}

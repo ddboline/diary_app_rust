@@ -5,5 +5,5 @@ use diary_app_bot::telegram_bot::run_bot;
 #[tokio::main]
 async fn main() {
     env_logger::init();
-    run_bot().await.unwrap();
+    Box::pin(run_bot()).await.unwrap();
 }

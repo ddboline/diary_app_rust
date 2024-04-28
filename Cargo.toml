@@ -1,6 +1,6 @@
 [package]
 name = "diary_app_rust"
-version = "0.10.8"
+version = "0.10.9"
 authors = ["Daniel Boline <ddboline@gmail.com>"]
 edition = "2018"
 
@@ -22,7 +22,7 @@ diary_app_bot = {path="diary_app_bot"}
 dirs = "5.0"
 env_logger = {version="0.11", features=["color", "humantime", "regex"], default_features = false}
 time = {version="0.3", features=["serde-human-readable", "macros", "formatting"]}
-tokio = {version="1.35", features=["rt", "macros", "rt-multi-thread"]}
+tokio = {version="1.37", features=["rt", "macros", "rt-multi-thread"]}
 
 [workspace]
 members = [

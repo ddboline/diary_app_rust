@@ -1,6 +1,5 @@
 use dioxus::prelude::{
-    component, dioxus_elements, rsx, Element, GlobalAttributes, IntoDynNode, Props, Scope,
-    VirtualDom,
+    component, dioxus_elements, rsx, Element, GlobalAttributes, IntoDynNode, Props, VirtualDom,
 };
 use rweb_helper::DateType;
 use stack_string::StackString;
@@ -10,15 +9,24 @@ use time_tz::OffsetDateTimeExt;
 
 use diary_app_lib::{date_time_wrapper::DateTimeWrapper, models::DiaryConflict};
 
-pub fn index_body() -> String {
+use crate::errors::ServiceError as Error;
+
+/// # Errors
+/// Returns error if formatting fails
+pub fn index_body() -> Result<String, Error> {
     let mut app = VirtualDom::new(IndexElement);
-    drop(app.rebuild());
-    dioxus_ssr::render(&app)
+    app.rebuild_in_place();
+    let mut renderer = dioxus_ssr::Renderer::default();
+    let mut buffer = String::new();
+    renderer
+        .render_to(&mut buffer, &app)
+        .map_err(Into::<Error>::into)?;
+    Ok(buffer)
 }
 
 #[component]
-fn IndexElement(cx: Scope) -> Element {
-    cx.render(rsx! {
+fn IndexElement() -> Element {
+    rsx! {
         head {
             style {
                 dangerous_inner_html: include_str!("../../templates/style.css")
@@ -79,14 +87,16 @@ fn IndexElement(cx: Scope) -> Element {
                 dangerous_inner_html: include_str!("../../templates/scripts.js")
             }
         }
-    })
+    }
 }
 
+/// # Errors
+/// Returns error if formatting fails
 pub fn list_body(
     conflicts: HashSet<DateType>,
     dates: Vec<DateType>,
     start: Option<usize>,
-) -> String {
+) -> Result<String, Error> {
     let mut app = VirtualDom::new_with_props(
         DateListElement,
         DateListElementProps {
@@ -95,13 +105,17 @@ pub fn list_body(
             start,
         },
     );
-    drop(app.rebuild());
-    dioxus_ssr::render(&app)
+    app.rebuild_in_place();
+    let mut renderer = dioxus_ssr::Renderer::default();
+    let mut buffer = String::new();
+    renderer
+        .render_to(&mut buffer, &app)
+        .map_err(Into::<Error>::into)?;
+    Ok(buffer)
 }
 
 #[component]
 fn DateListElement(
-    cx: Scope,
     conflicts: HashSet<DateType>,
     dates: Vec<DateType>,
     start: Option<usize>,
@@ -128,8 +142,8 @@ fn DateListElement(
             }
         }
     };
-    cx.render(rsx! {
-        dates.iter().enumerate().map(|(idx, t)| {
+    rsx! {
+        {dates.iter().enumerate().map(|(idx, t)| {
             let d: Date = (*t).into();
             let c = if conflicts.contains(t) {
                 Some(rsx! {
@@ -151,37 +165,43 @@ fn DateListElement(
                         name: "{d}",
                         value: "{d}",
                         "onclick": "switchToDate( '{d}' )",
-                        c
+                        {c}
                     },
                     br {},
                 }
             }
-        })
-        buttons,
-    })
+        })},
+        {buttons},
+    }
 }
 
-pub fn list_conflicts_body(date: Option<DateType>, conflicts: Vec<DateTimeWrapper>) -> String {
+/// # Errors
+/// Returns error if formatting fails
+pub fn list_conflicts_body(
+    date: Option<DateType>,
+    conflicts: Vec<DateTimeWrapper>,
+) -> Result<String, Error> {
     let mut app = VirtualDom::new_with_props(
         ListConflictsElement,
         ListConflictsElementProps { date, conflicts },
     );
-    drop(app.rebuild());
-    dioxus_ssr::render(&app)
+    app.rebuild_in_place();
+    let mut renderer = dioxus_ssr::Renderer::default();
+    let mut buffer = String::new();
+    renderer
+        .render_to(&mut buffer, &app)
+        .map_err(Into::<Error>::into)?;
+    Ok(buffer)
 }
 
 #[component]
-fn ListConflictsElement(
-    cx: Scope,
-    date: Option<DateType>,
-    conflicts: Vec<DateTimeWrapper>,
-) -> Element {
+fn ListConflictsElement(date: Option<DateType>, conflicts: Vec<DateTimeWrapper>) -> Element {
     let local = DateTimeWrapper::local_tz();
     let clean_conflicts = if let Some(date) = date {
         if conflicts.is_empty() {
             None
         } else {
-            let date: Date = (*date).into();
+            let date: Date = (date).into();
             Some(rsx! {
                 button {
                     "type": "submit",
@@ -193,8 +213,8 @@ fn ListConflictsElement(
     } else {
         None
     };
-    cx.render(rsx! {
-        conflicts.iter().enumerate().map(|(idx, t)| {
+    rsx! {
+        {conflicts.iter().enumerate().map(|(idx, t)| {
             let d: Date = date.unwrap_or_else(|| OffsetDateTime::now_utc().to_timezone(local).date().into()).into();
             rsx! {
                 input {
@@ -205,28 +225,35 @@ fn ListConflictsElement(
                     "onclick": "showConflict( '{d}', '{t}' )",
                 }
             }
-        }),
+        })},
         br {
-            clean_conflicts,
+            {clean_conflicts},
             button {
                 "type": "submit",
                 "onclick": "switchToList()",
                 "List",
             },
         },
-    })
+    }
 }
 
-pub fn search_body(results: Vec<StackString>) -> String {
+/// # Errors
+/// Returns error if formatting fails
+pub fn search_body(results: Vec<StackString>) -> Result<String, Error> {
     let mut app = VirtualDom::new_with_props(SearchElement, SearchElementProps { results });
-    drop(app.rebuild());
-    dioxus_ssr::render(&app)
+    app.rebuild_in_place();
+    let mut renderer = dioxus_ssr::Renderer::default();
+    let mut buffer = String::new();
+    renderer
+        .render_to(&mut buffer, &app)
+        .map_err(Into::<Error>::into)?;
+    Ok(buffer)
 }
 
 #[component]
-fn SearchElement(cx: Scope, results: Vec<StackString>) -> Element {
+fn SearchElement(results: Vec<StackString>) -> Element {
     let body = results.join("\n");
-    cx.render(rsx! {
+    rsx! {
         textarea {
             "autofocus": "true",
             readonly: "readonly",
@@ -236,10 +263,12 @@ fn SearchElement(cx: Scope, results: Vec<StackString>) -> Element {
             "cols": "100",
             "{body}",
         }
-    })
+    }
 }
 
-pub fn edit_body(date: Date, text: Vec<StackString>, edit_button: bool) -> String {
+/// # Errors
+/// Returns error if formatting fails
+pub fn edit_body(date: Date, text: Vec<StackString>, edit_button: bool) -> Result<String, Error> {
     let mut app = VirtualDom::new_with_props(
         EditElement,
         EditElementProps {
@@ -248,14 +277,19 @@ pub fn edit_body(date: Date, text: Vec<StackString>, edit_button: bool) -> Strin
             edit_button,
         },
     );
-    drop(app.rebuild());
-    dioxus_ssr::render(&app)
+    app.rebuild_in_place();
+    let mut renderer = dioxus_ssr::Renderer::default();
+    let mut buffer = String::new();
+    renderer
+        .render_to(&mut buffer, &app)
+        .map_err(Into::<Error>::into)?;
+    Ok(buffer)
 }
 
 #[component]
-fn EditElement(cx: Scope, date: Date, text: Vec<StackString>, edit_button: bool) -> Element {
+fn EditElement(date: Date, text: Vec<StackString>, edit_button: bool) -> Element {
     let text = text.join("\n");
-    let buttons = if *edit_button {
+    let buttons = if edit_button {
         rsx! {
             input {
                 "type": "button",
@@ -283,7 +317,7 @@ fn EditElement(cx: Scope, date: Date, text: Vec<StackString>, edit_button: bool)
             }
         }
     };
-    let textarea = if *edit_button {
+    let textarea = if edit_button {
         rsx! {
             textarea {
                 name: "message",
@@ -307,19 +341,21 @@ fn EditElement(cx: Scope, date: Date, text: Vec<StackString>, edit_button: bool)
             }
         }
     };
-    cx.render(rsx! {
-        textarea,
+    rsx! {
+        {textarea},
         br {
-            buttons
+            {buttons}
         }
-    })
+    }
 }
 
+/// # Errors
+/// Returns error if formatting fails
 pub fn show_conflict_body(
     date: Date,
     conflicts: Vec<DiaryConflict>,
     datetime: DateTimeWrapper,
-) -> String {
+) -> Result<String, Error> {
     let mut app = VirtualDom::new_with_props(
         ShowConflictElement,
         ShowConflictElementProps {
@@ -328,13 +364,17 @@ pub fn show_conflict_body(
             datetime,
         },
     );
-    drop(app.rebuild());
-    dioxus_ssr::render(&app)
+    app.rebuild_in_place();
+    let mut renderer = dioxus_ssr::Renderer::default();
+    let mut buffer = String::new();
+    renderer
+        .render_to(&mut buffer, &app)
+        .map_err(Into::<Error>::into)?;
+    Ok(buffer)
 }
 
 #[component]
 fn ShowConflictElement(
-    cx: Scope,
     date: Date,
     conflicts: Vec<DiaryConflict>,
     datetime: DateTimeWrapper,
@@ -411,9 +451,9 @@ fn ShowConflictElement(
             "[year]-[month]-[day]T[hour]:[minute]:[second].[subsecond]Z"
         ))
         .unwrap_or_else(|_| String::new());
-    cx.render(rsx! {
+    rsx! {
         div {
-            conflict_text.into_iter(),
+            {conflict_text.into_iter()},
         }
         input {
             "type": "button",
@@ -439,5 +479,5 @@ fn ShowConflictElement(
             value: "Edit",
             "onclick": "switchToEditor('{date}')",
         },
-    })
+    }
 }
