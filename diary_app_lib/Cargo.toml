@@ -1,6 +1,6 @@
 [package]
 name = "diary_app_lib"
-version = "0.10.9"
+version = "0.10.10"
 authors = ["Daniel Boline <ddboline@gmail.com>"]
 edition = "2018"
 
@@ -13,7 +13,7 @@ clap = {version="4.0", features=["derive"]}
 crossbeam-channel = "0.5"
 crossbeam-utils = "0.8"
 deadqueue = "0.2"
-deadpool = { version = "0.11", features=["serde", "rt_tokio_1"] }
+deadpool = { version = "0.12", features=["serde", "rt_tokio_1"] }
 deadpool-postgres = { version = "0.13", features=["serde"] }
 derive_more = "0.99"
 difference = "2.0"
