@@ -301,7 +301,7 @@ mod tests {
     async fn test_validate_s3() -> Result<(), Error> {
         let config = Config::init_config()?;
         let sdk_config = aws_config::load_from_env().await;
-        let pool = PgPool::new(&config.database_url);
+        let pool = PgPool::new(&config.database_url)?;
         let s3 = S3Interface::new(config, &sdk_config, pool);
         let results = s3.validate_s3().await?;
         for (date, backup_len, diary_len) in results.iter() {

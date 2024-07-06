@@ -51,7 +51,7 @@ pub async fn start_app() -> Result<(), Error> {
 
     let config = Config::init_config()?;
     get_secrets(&config.secret_path, &config.jwt_secret_path).await?;
-    let pool = PgPool::new(&config.database_url);
+    let pool = PgPool::new(&config.database_url)?;
     let sdk_config = aws_config::load_from_env().await;
     let dapp = DiaryAppActor(DiaryAppInterface::new(config.clone(), &sdk_config, pool));
 
@@ -169,7 +169,7 @@ mod tests {
         let test_port: u32 = 12345;
         set_var("PORT", test_port.to_string());
         let config = Config::init_config()?;
-        let pool = PgPool::new(&config.database_url);
+        let pool = PgPool::new(&config.database_url)?;
         let sdk_config = aws_config::load_from_env().await;
         let dapp = DiaryAppActor(DiaryAppInterface::new(config.clone(), &sdk_config, pool));
 

@@ -77,7 +77,7 @@ impl DiaryAppOpts {
         let opts = Self::parse();
 
         let config = Config::init_config()?;
-        let pool = PgPool::new(&config.database_url);
+        let pool = PgPool::new(&config.database_url)?;
         let sdk_config = aws_config::load_from_env().await;
         let dap = DiaryAppInterface::new(config, &sdk_config, pool);
 

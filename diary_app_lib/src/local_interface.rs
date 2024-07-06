@@ -256,7 +256,7 @@ mod tests {
 
     fn get_li(tempdir: &TempDir) -> Result<LocalInterface, Error> {
         let config = Config::get_local_config(tempdir.path())?;
-        let pool = PgPool::new(&config.database_url);
+        let pool = PgPool::new(&config.database_url)?;
         Ok(LocalInterface::new(config, pool))
     }
 

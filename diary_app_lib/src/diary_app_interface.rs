@@ -580,7 +580,7 @@ mod tests {
     async fn get_dap() -> Result<DiaryAppInterface, Error> {
         let config = Config::init_config()?;
         let sdk_config = aws_config::load_from_env().await;
-        let pool = PgPool::new(&config.database_url);
+        let pool = PgPool::new(&config.database_url)?;
         Ok(DiaryAppInterface::new(config, &sdk_config, pool))
     }
 

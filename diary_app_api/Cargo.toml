@@ -9,7 +9,7 @@ edition = "2018"
 [dependencies]
 anyhow = "1.0"
 async-trait = "0.1"
-authorized_users = { git = "https://github.com/ddboline/auth_server_rust.git", tag="0.11.14"}
+authorized_users = { git = "https://github.com/ddboline/auth_server_rust.git", tag="0.11.15"}
 aws-config = {version="1.1", features=["behavior-version-latest"]}
 diary_app_lib = {path = "../diary_app_lib"}
 dioxus = "0.5"
@@ -18,11 +18,11 @@ dioxus-ssr = "0.5"
 derive_more = "0.99"
 futures = "0.3"
 handlebars = "5.1"
-itertools = "0.12"
+itertools = "0.13"
 log = "0.4"
 maplit = "1.0"
 parking_lot = "0.12"
-postgres_query = {git = "https://github.com/ddboline/rust-postgres-query", tag = "0.3.7", features=["deadpool"]}
+postgres_query = {git = "https://github.com/ddboline/rust-postgres-query", tag = "0.3.8", features=["deadpool"]}
 rweb = {git = "https://github.com/ddboline/rweb.git", features=["openapi"], default-features=false, tag="0.15.2"}
 rweb-helper = { git = "https://github.com/ddboline/rweb_helper.git", tag="0.5.3" }
 serde = "1.0"
@@ -33,11 +33,11 @@ stack-string = { git = "https://github.com/ddboline/stack-string-rs.git", featur
 thiserror = "1.0"
 time = {version="0.3", features=["serde-human-readable", "macros", "formatting"]}
 time-tz = {version="2.0", features=["system"]}
-tokio = {version="1.37", features=["time"]}
+tokio = {version="1.38", features=["time"]}
 uuid = "1.0"
 
 [dev-dependencies]
-auth_server_http = { git = "https://github.com/ddboline/auth_server_rust.git", tag="0.11.14"}
-auth_server_lib = { git = "https://github.com/ddboline/auth_server_rust.git", tag="0.11.14"}
+auth_server_http = { git = "https://github.com/ddboline/auth_server_rust.git", tag="0.11.15"}
+auth_server_lib = { git = "https://github.com/ddboline/auth_server_rust.git", tag="0.11.15"}
 env_logger = {version="0.11", features=["color", "humantime", "regex"], default_features = false}
 reqwest = {version="0.12", features=["cookies", "json", "rustls-tls", "stream"]}

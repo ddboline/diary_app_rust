@@ -22,10 +22,10 @@ impl fmt::Debug for PgPool {
 }
 
 impl PgPool {
-    #[allow(clippy::missing_panics_doc)]
-    #[must_use]
-    pub fn new(pgurl: &str) -> Self {
-        let pgconf: PgConfig = pgurl.parse().expect("Failed to parse Url");
+    /// # Errors
+    /// Return error if pool setup fails
+    pub fn new(pgurl: &str) -> Result<Self, Error> {
+        let pgconf: PgConfig = pgurl.parse()?;
 
         let mut config = Config::default();
 
@@ -45,16 +45,14 @@ impl PgPool {
         }
 
         let pool = config
-            .builder(NoTls)
-            .unwrap_or_else(|_| panic!("failed to create builder"))
+            .builder(NoTls)?
             .max_size(4)
-            .build()
-            .unwrap_or_else(|_| panic!("Failed to create pool {}", pgurl));
+            .build()?;
 
-        Self {
+        Ok(Self {
             pgurl: Arc::new(pgurl.into()),
             pool,
-        }
+        })
     }
 
     /// # Errors

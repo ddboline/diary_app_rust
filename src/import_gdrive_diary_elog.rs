@@ -7,7 +7,7 @@ use diary_app_lib::{config::Config, models::DiaryEntries, pgpool::PgPool};
 #[tokio::main]
 async fn main() -> Result<(), Error> {
     let config = Config::init_config()?;
-    let pool = PgPool::new(&config.database_url);
+    let pool = PgPool::new(&config.database_url)?;
     let home_dir = dirs::home_dir().ok_or_else(|| format_err!("No HOME directory"))?;
     let diary_dir = home_dir.join("tmp").join("gdrive_diary_parsed");
     let elog_dir = home_dir.join("tmp").join("gdrive_elog_parsed");
