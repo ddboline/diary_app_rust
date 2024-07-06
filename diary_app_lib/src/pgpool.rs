@@ -44,10 +44,7 @@ impl PgPool {
             config.dbname.replace(db.to_string());
         }
 
-        let pool = config
-            .builder(NoTls)?
-            .max_size(4)
-            .build()?;
+        let pool = config.builder(NoTls)?.max_size(4).build()?;
 
         Ok(Self {
             pgurl: Arc::new(pgurl.into()),
