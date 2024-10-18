@@ -105,8 +105,8 @@ async fn run_app(db: DiaryAppActor, port: u32) -> Result<(), Error> {
 
     let (spec, api_path) = openapi::spec()
         .info(Info {
-            title: "Frontend for AWS".into(),
-            description: "Web Frontend for AWS Services".into(),
+            title: "Frontend for Diary".into(),
+            description: "Web Frontend for Diary Service".into(),
             version: env!("CARGO_PKG_VERSION").into(),
             ..Info::default()
         })
