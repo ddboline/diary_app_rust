@@ -83,10 +83,10 @@ impl ConfigInner {
             &default_fname
         };
 
-        dotenv::dotenv().ok();
+        dotenvy::dotenv().ok();
 
         if env_file.exists() {
-            dotenv::from_path(env_file).ok();
+            dotenvy::from_path(env_file).ok();
         }
 
         envy::from_env().map_err(Into::into)
