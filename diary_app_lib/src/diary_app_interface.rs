@@ -337,7 +337,8 @@ impl DiaryAppInterface {
                 async move {
                     let result = if diary_file.exists() {
                         let mut f = OpenOptions::new().append(true).open(&diary_file).await?;
-                        f.write_all(format_sstr!("\n\n{}\n\n", entry_string).as_bytes())
+                        let entry_text = format_sstr!("\n\n{}\n\n", entry_string);
+                        f.write_all(entry_text.as_bytes())
                             .await?;
                         None
                     } else if let Some(mut current_entry) =
@@ -535,7 +536,7 @@ impl DiaryAppInterface {
                 let backup_directory = &backup_directory;
                 async move {
                     if diary_len > backup_len {
-                        let backup_file = backup_directory.join(&format_sstr!("{date}.txt"));
+                        let backup_file = backup_directory.join(format_sstr!("{date}.txt"));
                         if backup_file.exists() {
                             remove_file(&backup_file).await?;
                         } else {

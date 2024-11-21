@@ -80,7 +80,8 @@ impl LocalInterface {
                     let entry = DiaryEntries::get_by_date(*date, &self.pool)
                         .await?
                         .ok_or_else(|| format_err!("Date should exist {date}"))?;
-                    f.write_all(format_sstr!("{date}\n\n{t}\n\n", t = entry.diary_text).as_bytes())
+                    let entry_text = format_sstr!("{date}\n\n{t}\n\n", t = entry.diary_text);
+                    f.write_all(entry_text.as_bytes())
                         .await?;
                 }
                 Ok(format_sstr!("{year} {l}", l = date_list.len()))
