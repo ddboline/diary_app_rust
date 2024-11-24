@@ -95,7 +95,7 @@ pub async fn fill_from_db(pool: &PgPool) -> Result<(), Error> {
                 email: "user@test".into(),
                 session: Uuid::new_v4(),
                 secret_key: StackString::default(),
-                created_at: Some(OffsetDateTime::now_utc())
+                created_at: OffsetDateTime::now_utc()
             }
         });
         return Ok(());
@@ -121,7 +121,7 @@ pub async fn fill_from_db(pool: &PgPool) -> Result<(), Error> {
                     email: u.email,
                     session: Uuid::new_v4(),
                     secret_key: StackString::default(),
-                    created_at: Some(u.created_at),
+                    created_at: u.created_at,
                 },
             )
         })
