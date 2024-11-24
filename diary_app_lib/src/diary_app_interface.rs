@@ -338,8 +338,7 @@ impl DiaryAppInterface {
                     let result = if diary_file.exists() {
                         let mut f = OpenOptions::new().append(true).open(&diary_file).await?;
                         let entry_text = format_sstr!("\n\n{}\n\n", entry_string);
-                        f.write_all(entry_text.as_bytes())
-                            .await?;
+                        f.write_all(entry_text.as_bytes()).await?;
                         None
                     } else if let Some(mut current_entry) =
                         DiaryEntries::get_by_date(entry_date, &self.pool).await?

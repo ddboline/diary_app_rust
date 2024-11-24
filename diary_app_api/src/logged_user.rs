@@ -1,6 +1,6 @@
 pub use authorized_users::{
-    get_random_key, get_secrets, token::Token, AuthorizedUser, AUTHORIZED_USERS, JWT_SECRET,
-    KEY_LENGTH, LOGIN_HTML, SECRET_KEY, TRIGGER_DB_UPDATE, AuthorizedUser as ExternalUser
+    get_random_key, get_secrets, token::Token, AuthorizedUser as ExternalUser, AUTHORIZED_USERS,
+    JWT_SECRET, KEY_LENGTH, LOGIN_HTML, SECRET_KEY, TRIGGER_DB_UPDATE,
 };
 use futures::TryStreamExt;
 use log::debug;
@@ -10,13 +10,13 @@ use rweb_helper::UuidWrapper;
 use serde::{Deserialize, Serialize};
 use stack_string::StackString;
 use std::{
+    collections::HashMap,
     convert::{TryFrom, TryInto},
     env::var,
     str::FromStr,
-    collections::HashMap,
 };
-use uuid::Uuid;
 use time::OffsetDateTime;
+use uuid::Uuid;
 
 use diary_app_lib::{models::AuthorizedUsers, pgpool::PgPool};
 
@@ -54,8 +54,8 @@ impl LoggedUser {
     }
 }
 
-impl From<AuthorizedUser> for LoggedUser {
-    fn from(user: AuthorizedUser) -> Self {
+impl From<ExternalUser> for LoggedUser {
+    fn from(user: ExternalUser) -> Self {
         Self {
             email: user.email,
             session: user.session.into(),
