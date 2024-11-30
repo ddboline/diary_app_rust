@@ -103,7 +103,7 @@ impl S3Interface {
             key_cache.1 = Arc::new([]);
         }
 
-        let futures: FuturesUnordered<_> = DiaryEntries::get_modified_map(&self.pool)
+        let futures: FuturesUnordered<_> = DiaryEntries::get_modified_map(&self.pool, None, None)
             .await?
             .into_iter()
             .map(|(diary_date, last_modified)| {
@@ -188,7 +188,7 @@ impl S3Interface {
     /// # Errors
     /// Return error if s3 api fails
     pub async fn import_from_s3(&self) -> Result<Vec<DiaryEntries>, Error> {
-        let existing_map = Arc::new(DiaryEntries::get_modified_map(&self.pool).await?);
+        let existing_map = Arc::new(DiaryEntries::get_modified_map(&self.pool, None, None).await?);
 
         debug!("{}", self.config.diary_bucket);
         self.fill_cache().await?;
