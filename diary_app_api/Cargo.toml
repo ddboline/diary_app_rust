@@ -1,6 +1,6 @@
 [package]
 name = "diary_app_api"
-version = "0.11.1"
+version = "0.11.2"
 authors = ["Daniel Boline <ddboline@gmail.com>"]
 edition = "2018"
 
@@ -21,6 +21,7 @@ handlebars = "6.1"
 itertools = "0.13"
 log = "0.4"
 maplit = "1.0"
+notify = "7.0"
 parking_lot = "0.12"
 postgres_query = {git = "https://github.com/ddboline/rust-postgres-query", tag = "0.3.8", features=["deadpool"]}
 rweb = {git = "https://github.com/ddboline/rweb.git", features=["openapi"], default-features=false, tag="0.15.2"}
