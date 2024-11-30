@@ -86,22 +86,9 @@ impl DiaryAppInterface {
         start: Option<usize>,
         limit: Option<usize>,
     ) -> Result<Vec<Date>, Error> {
-        let mut dates: Vec<_> = DiaryEntries::get_modified_map(&self.pool)
+        let mut dates: Vec<_> = DiaryEntries::get_modified_map(&self.pool, min_date, max_date)
             .await?
-            .into_iter()
-            .filter_map(|(d, _)| {
-                if let Some(min_date) = min_date {
-                    if d < min_date {
-                        return None;
-                    }
-                }
-                if let Some(max_date) = max_date {
-                    if d > max_date {
-                        return None;
-                    }
-                }
-                Some(d)
-            })
+            .into_keys()
             .collect();
         dates.sort();
         dates.reverse();
@@ -175,7 +162,7 @@ impl DiaryAppInterface {
     /// Return error if db query fails
     pub async fn search_text(&self, search_text: &str) -> Result<Vec<StackString>, Error> {
         let local = DateTimeWrapper::local_tz();
-        let mod_map = DiaryEntries::get_modified_map(&self.pool).await?;
+        let mod_map = DiaryEntries::get_modified_map(&self.pool, None, None).await?;
 
         let mut dates = Self::get_dates_from_search_text(&mod_map, search_text)?;
 
@@ -642,7 +629,7 @@ mod tests {
     #[tokio::test(flavor = "multi_thread")]
     async fn test_get_matching_dates() -> Result<(), Error> {
         let dap = get_dap().await?;
-        let mod_map = DiaryEntries::get_modified_map(&dap.pool).await?;
+        let mod_map = DiaryEntries::get_modified_map(&dap.pool, None, None).await?;
 
         let results = DiaryAppInterface::get_matching_dates(&mod_map, Some(2011), None, None);
         assert_eq!(results.len(), 288);
