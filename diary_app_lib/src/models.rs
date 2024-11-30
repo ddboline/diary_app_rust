@@ -464,7 +464,7 @@ impl DiaryEntries {
             constraints.push(format_sstr!("diary_date <= '{max_date}'"));
         }
         if !constraints.is_empty() {
-            query.push_str(&format_sstr!("WHERE {}", constraints.join(" AND ")));
+            query.push_str(&format_sstr!(" WHERE {}", constraints.join(" AND ")));
         }
         let query = query_dyn!(&query)?;
         let conn = pool.get().await?;
