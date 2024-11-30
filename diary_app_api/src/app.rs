@@ -1,5 +1,11 @@
 use anyhow::Error;
 use handlebars::Handlebars;
+use log::{error, info};
+use maplit::hashset;
+use notify::{
+    recommended_watcher, Event, EventHandler, EventKind, INotifyWatcher, RecursiveMode,
+    Result as NotifyResult, Watcher,
+};
 use rweb::{
     filters::BoxedFilter,
     http::header::CONTENT_TYPE,
@@ -7,14 +13,24 @@ use rweb::{
     Filter, Reply,
 };
 use stack_string::format_sstr;
-use std::{net::SocketAddr, ops::Deref, sync::Arc, time::Duration};
-use tokio::time::interval;
+use std::{
+    collections::HashSet,
+    net::SocketAddr,
+    ops::Deref,
+    path::{Path, PathBuf},
+    sync::Arc,
+    time::Duration,
+};
+use tokio::{
+    sync::watch::{channel, Receiver, Sender},
+    time::{interval, sleep},
+};
 
 use diary_app_lib::{config::Config, diary_app_interface::DiaryAppInterface, pgpool::PgPool};
 
 use super::{
     errors::error_response,
-    logged_user::{fill_from_db, get_secrets, TRIGGER_DB_UPDATE},
+    logged_user::{fill_from_db, get_secrets},
     routes::{
         commit_conflict, diary_frontpage, display, edit, insert, list, list_conflicts,
         remove_conflict, replace, search, show_conflict, sync, update_conflict, user,
@@ -38,6 +54,56 @@ pub struct AppState {
     pub hb: Arc<Handlebars<'static>>,
 }
 
+#[derive(Clone)]
+struct Notifier {
+    paths_to_check: HashSet<PathBuf>,
+    send: Sender<HashSet<PathBuf>>,
+    recv: Receiver<HashSet<PathBuf>>,
+    watcher: Option<Arc<INotifyWatcher>>,
+}
+
+impl Notifier {
+    fn new(config: &Config) -> Self {
+        let paths_to_check = hashset! {config.diary_path.clone()};
+        let (send, recv) = channel::<HashSet<PathBuf>>(HashSet::new());
+        Self {
+            paths_to_check,
+            send,
+            recv,
+            watcher: None,
+        }
+    }
+
+    fn set_watcher(mut self, directory: &Path) -> Result<Self, Error> {
+        let watcher = recommended_watcher(self.clone())
+            .and_then(|mut w| w.watch(directory, RecursiveMode::Recursive).map(|()| w))?;
+        self.watcher = Some(Arc::new(watcher));
+        Ok(self)
+    }
+}
+
+impl EventHandler for Notifier {
+    fn handle_event(&mut self, event: NotifyResult<Event>) {
+        match event {
+            Ok(event) => match event.kind {
+                EventKind::Any | EventKind::Create(_) | EventKind::Modify(_) => {
+                    if event.paths.iter().any(|p| self.paths_to_check.contains(p)) {
+                        info!("got event kind {:?} paths {:?}", event.kind, event.paths);
+                        let new_paths: HashSet<_> = event
+                            .paths
+                            .into_iter()
+                            .filter(|p| self.paths_to_check.contains(p))
+                            .collect();
+                        self.send.send_replace(new_paths);
+                    }
+                }
+                _ => (),
+            },
+            Err(e) => error!("Error {e}"),
+        }
+    }
+}
+
 /// # Errors
 /// Returns error if starting app fails
 pub async fn start_app() -> Result<(), Error> {
@@ -48,15 +114,34 @@ pub async fn start_app() -> Result<(), Error> {
             i.tick().await;
         }
     }
+    async fn run_sync(diary_app_interface: &DiaryAppInterface) {
+        if let Err(e) = diary_app_interface.local.import_from_local().await {
+            error!("got error {e}");
+        }
+    }
+    async fn check_files(dapp_interface: DiaryAppInterface, mut notifier: Notifier) {
+        run_sync(&dapp_interface).await;
+        while notifier.recv.changed().await.is_ok() {
+            sleep(Duration::from_secs(10)).await;
+            run_sync(&dapp_interface).await;
+            notifier.recv.mark_changed();
+        }
+    }
 
     let config = Config::init_config()?;
     get_secrets(&config.secret_path, &config.jwt_secret_path).await?;
     let pool = PgPool::new(&config.database_url)?;
     let sdk_config = aws_config::load_from_env().await;
     let dapp = DiaryAppActor(DiaryAppInterface::new(config.clone(), &sdk_config, pool));
+    let notifier = Notifier::new(&config).set_watcher(&config.diary_path)?;
 
     tokio::task::spawn(update_db(dapp.pool.clone()));
-
+    tokio::task::spawn({
+        let diary_app_interface = dapp.0.clone();
+        async move {
+            check_files(diary_app_interface, notifier).await;
+        }
+    });
     run_app(dapp, config.port).await
 }
 
@@ -94,8 +179,6 @@ fn get_api_path(app: &AppState) -> BoxedFilter<(impl Reply,)> {
 }
 
 async fn run_app(db: DiaryAppActor, port: u32) -> Result<(), Error> {
-    TRIGGER_DB_UPDATE.set();
-
     let mut hb = Handlebars::new();
     hb.register_template_string("id", include_str!("../../templates/index.html.hbr"))
         .expect("Failed to parse template");
