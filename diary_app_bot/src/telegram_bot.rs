@@ -1,5 +1,6 @@
 use anyhow::Error;
 use futures::{future::join, StreamExt, TryStreamExt};
+use itertools::Itertools;
 use log::debug;
 use once_cell::sync::Lazy;
 use stack_string::{format_sstr, StackString};
@@ -32,10 +33,18 @@ async fn diary_sync(
     mut recv: Receiver<()>,
 ) -> Result<(), Error> {
     while recv.recv().await.is_some() {
-        let output = dapp_interface.sync_everything().await?;
+        let output = dapp_interface
+            .sync_merge_cache_to_entries()
+            .await?
+            .into_iter()
+            .chain(dapp_interface.local.import_from_local().await?.into_iter())
+            .map(|d| format_sstr!("update {}", d.diary_date))
+            .sorted()
+            .join("\n")
+            .into();
         let mut buf = OUTPUT_BUFFER.write().await;
         buf.clear();
-        buf.push(output.join("\n").into());
+        buf.push(output);
     }
     Ok(())
 }
