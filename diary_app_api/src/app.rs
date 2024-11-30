@@ -1,7 +1,6 @@
 use anyhow::Error;
 use handlebars::Handlebars;
 use log::{error, info};
-use maplit::hashset;
 use notify::{
     recommended_watcher, Event, EventHandler, EventKind, INotifyWatcher, RecursiveMode,
     Result as NotifyResult, Watcher,
@@ -24,6 +23,10 @@ use std::{
 use tokio::{
     sync::watch::{channel, Receiver, Sender},
     time::{interval, sleep},
+};
+use time::{
+    macros::format_description,
+    Date,
 };
 
 use diary_app_lib::{config::Config, diary_app_interface::DiaryAppInterface, pgpool::PgPool};
@@ -56,18 +59,15 @@ pub struct AppState {
 
 #[derive(Clone)]
 struct Notifier {
-    paths_to_check: HashSet<PathBuf>,
     send: Sender<HashSet<PathBuf>>,
     recv: Receiver<HashSet<PathBuf>>,
     watcher: Option<Arc<INotifyWatcher>>,
 }
 
 impl Notifier {
-    fn new(config: &Config) -> Self {
-        let paths_to_check = hashset! {config.diary_path.clone()};
+    fn new() -> Self {
         let (send, recv) = channel::<HashSet<PathBuf>>(HashSet::new());
         Self {
-            paths_to_check,
             send,
             recv,
             watcher: None,
@@ -87,13 +87,16 @@ impl EventHandler for Notifier {
         match event {
             Ok(event) => match event.kind {
                 EventKind::Any | EventKind::Create(_) | EventKind::Modify(_) => {
-                    if event.paths.iter().any(|p| self.paths_to_check.contains(p)) {
+                    info!("expected event {event:?}");
+                    let new_paths: HashSet<_> = event.paths.iter().filter_map(|p| {
+                        if p.file_name().map(|f| f.to_string_lossy()).and_then(|filename| Date::parse(&filename, format_description!("[year]-[month]-[day].txt")).ok()).is_some() {
+                            Some(p.clone())
+                        } else {
+                            None
+                        }
+                    }).collect();
+                    if !new_paths.is_empty() {
                         info!("got event kind {:?} paths {:?}", event.kind, event.paths);
-                        let new_paths: HashSet<_> = event
-                            .paths
-                            .into_iter()
-                            .filter(|p| self.paths_to_check.contains(p))
-                            .collect();
                         self.send.send_replace(new_paths);
                     }
                 }
@@ -115,8 +118,9 @@ pub async fn start_app() -> Result<(), Error> {
         }
     }
     async fn run_sync(diary_app_interface: &DiaryAppInterface) {
-        if let Err(e) = diary_app_interface.local.import_from_local().await {
-            error!("got error {e}");
+        match diary_app_interface.local.import_from_local().await {
+            Ok(entries) => info!("entries: {entries:?}"),
+            Err(e) => error!("got error {e}"),
         }
     }
     async fn check_files(dapp_interface: DiaryAppInterface, mut notifier: Notifier) {
@@ -124,7 +128,6 @@ pub async fn start_app() -> Result<(), Error> {
         while notifier.recv.changed().await.is_ok() {
             sleep(Duration::from_secs(10)).await;
             run_sync(&dapp_interface).await;
-            notifier.recv.mark_changed();
         }
     }
 
@@ -133,7 +136,7 @@ pub async fn start_app() -> Result<(), Error> {
     let pool = PgPool::new(&config.database_url)?;
     let sdk_config = aws_config::load_from_env().await;
     let dapp = DiaryAppActor(DiaryAppInterface::new(config.clone(), &sdk_config, pool));
-    let notifier = Notifier::new(&config).set_watcher(&config.diary_path)?;
+    let notifier = Notifier::new().set_watcher(&config.diary_path)?;
 
     tokio::task::spawn(update_db(dapp.pool.clone()));
     tokio::task::spawn({
