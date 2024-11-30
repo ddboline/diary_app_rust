@@ -77,7 +77,8 @@ impl AuthorizedUsers {
         }
 
         let query = query!(
-            "SELECT max(created_at) as created_at, max(deleted_at) as deleted_at FROM authorized_users"
+            "SELECT max(created_at) as created_at, max(deleted_at) as deleted_at FROM \
+             authorized_users"
         );
         let conn = pool.get().await?;
         let result: Option<CreatedDeleted> = query.fetch_opt(&conn).await?;
@@ -449,8 +450,23 @@ impl DiaryEntries {
 
     /// # Errors
     /// Return error if db query fails
-    pub async fn get_modified_map(pool: &PgPool) -> Result<HashMap<Date, OffsetDateTime>, Error> {
-        let query = query!("SELECT diary_date, last_modified FROM diary_entries");
+    pub async fn get_modified_map(
+        pool: &PgPool,
+        min_date: Option<Date>,
+        max_date: Option<Date>,
+    ) -> Result<HashMap<Date, OffsetDateTime>, Error> {
+        let mut query: StackString = "SELECT diary_date, last_modified FROM diary_entries".into();
+        let mut constraints = Vec::new();
+        if let Some(min_date) = min_date {
+            constraints.push(format_sstr!("diary_date >= '{min_date}'"));
+        }
+        if let Some(max_date) = max_date {
+            constraints.push(format_sstr!("diary_date <= '{max_date}'"));
+        }
+        if !constraints.is_empty() {
+            query.push_str(&format_sstr!("WHERE {}", constraints.join(" AND ")));
+        }
+        let query = query_dyn!(&query)?;
         let conn = pool.get().await?;
         query
             .query_streaming(&conn)
