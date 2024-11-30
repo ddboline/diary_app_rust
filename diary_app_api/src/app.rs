@@ -20,13 +20,10 @@ use std::{
     sync::Arc,
     time::Duration,
 };
+use time::{macros::format_description, Date};
 use tokio::{
     sync::watch::{channel, Receiver, Sender},
     time::{interval, sleep},
-};
-use time::{
-    macros::format_description,
-    Date,
 };
 
 use diary_app_lib::{config::Config, diary_app_interface::DiaryAppInterface, pgpool::PgPool};
@@ -88,13 +85,27 @@ impl EventHandler for Notifier {
             Ok(event) => match event.kind {
                 EventKind::Any | EventKind::Create(_) | EventKind::Modify(_) => {
                     info!("expected event {event:?}");
-                    let new_paths: HashSet<_> = event.paths.iter().filter_map(|p| {
-                        if p.file_name().map(|f| f.to_string_lossy()).and_then(|filename| Date::parse(&filename, format_description!("[year]-[month]-[day].txt")).ok()).is_some() {
-                            Some(p.clone())
-                        } else {
-                            None
-                        }
-                    }).collect();
+                    let new_paths: HashSet<_> = event
+                        .paths
+                        .iter()
+                        .filter_map(|p| {
+                            if p.file_name()
+                                .map(|f| f.to_string_lossy())
+                                .and_then(|filename| {
+                                    Date::parse(
+                                        &filename,
+                                        format_description!("[year]-[month]-[day].txt"),
+                                    )
+                                    .ok()
+                                })
+                                .is_some()
+                            {
+                                Some(p.clone())
+                            } else {
+                                None
+                            }
+                        })
+                        .collect();
                     if !new_paths.is_empty() {
                         info!("got event kind {:?} paths {:?}", event.kind, event.paths);
                         self.send.send_replace(new_paths);
