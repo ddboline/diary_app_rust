@@ -1,12 +1,12 @@
 pub use authorized_users::{
     get_random_key, get_secrets, token::Token, AuthorizedUser as ExternalUser, AUTHORIZED_USERS,
-    JWT_SECRET, KEY_LENGTH, LOGIN_HTML, SECRET_KEY, TRIGGER_DB_UPDATE,
+    JWT_SECRET, KEY_LENGTH, LOGIN_HTML, SECRET_KEY,
 };
 use futures::TryStreamExt;
 use log::debug;
 use maplit::hashmap;
 use rweb::{filters::cookie::cookie, Filter, Rejection, Schema};
-use rweb_helper::UuidWrapper;
+use rweb_helper::{DateTimeType, UuidWrapper};
 use serde::{Deserialize, Serialize};
 use stack_string::StackString;
 use std::{
@@ -29,6 +29,8 @@ pub struct LoggedUser {
     pub email: StackString,
     #[schema(description = "Session Id")]
     pub session: UuidWrapper,
+    #[schema(description = "User Created At")]
+    pub created_at: DateTimeType,
 }
 
 impl LoggedUser {
@@ -59,6 +61,7 @@ impl From<ExternalUser> for LoggedUser {
         Self {
             email: user.email,
             session: user.session.into(),
+            created_at: user.created_at.into(),
         }
     }
 }
