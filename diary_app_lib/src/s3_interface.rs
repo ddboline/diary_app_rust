@@ -272,7 +272,7 @@ impl S3Interface {
                         .await?
                         .ok_or_else(|| format_err!("Date should exist {date}"))?;
                     let diary_len = entry.diary_text.len();
-                    if diary_len == *backup_len {
+                    if diary_len.abs_diff(*backup_len) <= 1 {
                         Ok(None)
                     } else {
                         Ok(Some((*date, *backup_len, diary_len)))
