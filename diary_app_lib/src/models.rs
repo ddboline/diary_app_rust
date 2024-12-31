@@ -354,7 +354,7 @@ impl DiaryEntries {
         }
     }
 
-    async fn _insert_entry<C>(&self, conn: &C) -> Result<(), Error>
+    async fn insert_entry_impl<C>(&self, conn: &C) -> Result<(), Error>
     where
         C: GenericClient + Sync,
     {
@@ -374,11 +374,11 @@ impl DiaryEntries {
     /// Return error if db query fails
     pub async fn insert_entry(&self, pool: &PgPool) -> Result<(), Error> {
         let conn = pool.get().await?;
-        self._insert_entry(&conn).await?;
+        self.insert_entry_impl(&conn).await?;
         Ok(())
     }
 
-    async fn _update_entry<C>(
+    async fn update_entry_impl<C>(
         &self,
         conn: &C,
         insert_new: bool,
@@ -387,7 +387,7 @@ impl DiaryEntries {
         C: GenericClient + Sync,
     {
         let changeset = self
-            ._get_difference(conn, insert_new)
+            .get_difference_impl(conn, insert_new)
             .await?
             .ok_or_else(|| format_err!("Not found"))?;
 
@@ -422,7 +422,7 @@ impl DiaryEntries {
         insert_new: bool,
     ) -> Result<Option<OffsetDateTime>, Error> {
         let conn = pool.get().await?;
-        self._update_entry(&conn, insert_new)
+        self.update_entry_impl(&conn, insert_new)
             .await
             .map_err(Into::into)
     }
@@ -439,9 +439,9 @@ impl DiaryEntries {
         let conn: &PgTransaction = &tran;
         let existing = Self::_get_by_date(self.diary_date, conn).await?;
         let output = if existing.is_some() {
-            self._update_entry(conn, insert_new).await?
+            self.update_entry_impl(conn, insert_new).await?
         } else {
-            self._insert_entry(conn).await?;
+            self.insert_entry_impl(conn).await?;
             None
         };
         tran.commit().await?;
@@ -522,7 +522,7 @@ impl DiaryEntries {
         query.fetch_streaming(&conn).await.map_err(Into::into)
     }
 
-    async fn _get_difference<C>(
+    async fn get_difference_impl<C>(
         &self,
         conn: &C,
         insert_new: bool,
@@ -545,7 +545,9 @@ impl DiaryEntries {
     /// Return error if db query fails
     pub async fn get_difference(&self, pool: &PgPool) -> Result<Option<Changeset>, Error> {
         let conn = pool.get().await?;
-        self._get_difference(&conn, true).await.map_err(Into::into)
+        self.get_difference_impl(&conn, true)
+            .await
+            .map_err(Into::into)
     }
 
     /// # Errors
