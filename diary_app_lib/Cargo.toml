@@ -1,6 +1,6 @@
 [package]
 name = "diary_app_lib"
-version = "0.11.2"
+version = "0.11.3"
 authors = ["Daniel Boline <ddboline@gmail.com>"]
 edition = "2018"
 
@@ -17,7 +17,7 @@ deadpool = { version = "0.12", features=["serde", "rt_tokio_1"] }
 deadpool-postgres = { version = "0.14", features=["serde"] }
 derive_more = {version="1.0", features = ["full"]}
 difference = "2.0"
-dirs = "5.0"
+dirs = "6.0"
 dotenvy = "0.15"
 envy = "0.4"
 futures = "0.3"
@@ -40,7 +40,7 @@ stdout-channel = "0.6"
 thiserror = "2.0"
 time = {version="0.3", features=["serde-human-readable", "macros", "formatting"]}
 time-tz = {version="2.0", features=["system"]}
-tokio = {version="1.42", features=["rt", "macros", "rt-multi-thread"]}
+tokio = {version="1.43", features=["rt", "macros", "rt-multi-thread"]}
 tokio-postgres = {version = "0.7", features = ["with-time-0_3", "with-uuid-1", "with-serde_json-1"]}
 url = "2.3"
 uuid = "1.0"

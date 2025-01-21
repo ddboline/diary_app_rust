@@ -1,6 +1,6 @@
 [package]
 name = "diary_app_bot"
-version = "0.11.2"
+version = "0.11.3"
 authors = ["Daniel Boline <ddboline@gmail.com>"]
 edition = "2018"
 
@@ -13,11 +13,11 @@ crossbeam-channel = "0.5"
 crossbeam-utils = "0.8"
 diary_app_lib = {path="../diary_app_lib"}
 futures = "0.3"
-itertools = "0.13"
+itertools = "0.14"
 log = "0.4"
 once_cell = "1.0"
 parking_lot = "0.12"
 stack-string = { git = "https://github.com/ddboline/stack-string-rs.git", features=["postgres_types"], tag="1.0.2" }
 thiserror = "2.0"
-tokio = {version="1.42", features=["rt", "macros", "rt-multi-thread"]}
+tokio = {version="1.43", features=["rt", "macros", "rt-multi-thread"]}
 telegram-bot = {git = "https://github.com/ddboline/telegram-bot.git", tag="0.9.0-4", default-features=false}
