@@ -1,43 +1,175 @@
-openapi: 3.0.1
+openapi: '3.1.0'
 info:
-  title: Frontend for AWS
-  description: Web Frontend for AWS Services
-  version: 0.10.6
+  title: Frontend for Diary
+  description: Web Frontend for Diary Service
+  contact:
+    name: Daniel Boline
+    email: ddboline@gmail.com
+  license:
+    name: MIT
+    identifier: MIT
+  version: '0.11.3'
 paths:
-  /api/search:
-    get:
-      description: Search Output Page
-      parameters:
-      - name: text
-        in: query
-        required: false
-        schema:
-          description: Search Text
-          nullable: true
-          type: string
-      - name: date
-        in: query
-        required: false
-        schema:
-          description: Search Date
-          format: date
-          nullable: true
-          example: 2023-01-01
-          type: string
+  /api/commit_conflict:
+    post:
+      operationId: commit_conflict
       responses:
         '200':
-          description: Search Output
+          description: Commit Conflict
+          content:
+            text/html:
+              schema:
+                type: object
+                required:
+                - entry
+                properties:
+                  entry:
+                    type: string
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - message
+                properties:
+                  message:
+                    $ref: '#/components/schemas/str'
+        '401':
+          description: Not Authorized
+          content:
+            text/html:
+              schema:
+                type: string
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - message
+                properties:
+                  message:
+                    $ref: '#/components/schemas/str'
+  /api/display:
+    get:
+      operationId: display
+      responses:
+        '200':
+          description: Display Output
           content:
             text/html:
               schema:
                 type: string
         '400':
           description: Bad Request
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - message
+                properties:
+                  message:
+                    $ref: '#/components/schemas/str'
+        '401':
+          description: Not Authorized
+          content:
+            text/html:
+              schema:
+                type: string
         '500':
           description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - message
+                properties:
+                  message:
+                    $ref: '#/components/schemas/str'
+  /api/edit:
+    get:
+      operationId: edit
+      responses:
+        '200':
+          description: Edit Output
+          content:
+            text/html:
+              schema:
+                type: string
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - message
+                properties:
+                  message:
+                    $ref: '#/components/schemas/str'
+        '401':
+          description: Not Authorized
+          content:
+            text/html:
+              schema:
+                type: string
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - message
+                properties:
+                  message:
+                    $ref: '#/components/schemas/str'
+  /api/index.html:
+    get:
+      operationId: diary_frontpage
+      responses:
+        '200':
+          description: Frontpage
+          content:
+            text/html:
+              schema:
+                type: string
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - message
+                properties:
+                  message:
+                    $ref: '#/components/schemas/str'
+        '401':
+          description: Not Authorized
+          content:
+            text/html:
+              schema:
+                type: string
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - message
+                properties:
+                  message:
+                    $ref: '#/components/schemas/str'
   /api/insert:
     post:
-      description: Insert Text into Cache
+      operationId: insert
       requestBody:
         content:
           application/json:
@@ -48,35 +180,159 @@ paths:
         '201':
           description: Insert Data Result
           content:
-            application/json:
+            text/html:
               schema:
-                properties:
-                  datetime:
-                    type: string
                 type: object
                 required:
                 - datetime
+                properties:
+                  datetime:
+                    type: string
         '400':
           description: Bad Request
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - message
+                properties:
+                  message:
+                    $ref: '#/components/schemas/str'
+        '401':
+          description: Not Authorized
+          content:
+            text/html:
+              schema:
+                type: string
         '500':
           description: Internal Server Error
-  /api/sync:
-    post:
-      description: Sync Diary
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - message
+                properties:
+                  message:
+                    $ref: '#/components/schemas/str'
+  /api/list:
+    get:
+      operationId: list
       responses:
         '200':
-          description: Sync Output
+          description: List Output
           content:
             text/html:
               schema:
                 type: string
         '400':
           description: Bad Request
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - message
+                properties:
+                  message:
+                    $ref: '#/components/schemas/str'
+        '401':
+          description: Not Authorized
+          content:
+            text/html:
+              schema:
+                type: string
         '500':
           description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - message
+                properties:
+                  message:
+                    $ref: '#/components/schemas/str'
+  /api/list_conflicts:
+    get:
+      operationId: list_conflicts
+      responses:
+        '200':
+          description: List Conflicts
+          content:
+            text/html:
+              schema:
+                type: string
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - message
+                properties:
+                  message:
+                    $ref: '#/components/schemas/str'
+        '401':
+          description: Not Authorized
+          content:
+            text/html:
+              schema:
+                type: string
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - message
+                properties:
+                  message:
+                    $ref: '#/components/schemas/str'
+  /api/remove_conflict:
+    delete:
+      operationId: remove_conflict
+      responses:
+        '200':
+          description: Remove Conflict
+          content:
+            text/html:
+              schema:
+                type: string
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - message
+                properties:
+                  message:
+                    $ref: '#/components/schemas/str'
+        '401':
+          description: Not Authorized
+          content:
+            text/html:
+              schema:
+                type: string
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - message
+                properties:
+                  message:
+                    $ref: '#/components/schemas/str'
   /api/replace:
     post:
-      description: Insert Text at Specific Date, replace existing text
+      operationId: replace
       requestBody:
         content:
           application/json:
@@ -87,178 +343,83 @@ paths:
         '201':
           description: Replace Response
           content:
-            application/json:
+            text/html:
               schema:
-                properties:
-                  entry:
-                    type: string
                 type: object
                 required:
                 - entry
+                properties:
+                  entry:
+                    type: string
         '400':
           description: Bad Request
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - message
+                properties:
+                  message:
+                    $ref: '#/components/schemas/str'
+        '401':
+          description: Not Authorized
+          content:
+            text/html:
+              schema:
+                type: string
         '500':
           description: Internal Server Error
-  /api/list:
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - message
+                properties:
+                  message:
+                    $ref: '#/components/schemas/str'
+  /api/search:
     get:
-      description: List of Date Buttons
-      parameters:
-      - name: min_date
-        in: query
-        required: false
-        schema:
-          description: Minimum Date
-          format: date
-          nullable: true
-          example: 2023-01-01
-          type: string
-      - name: max_date
-        in: query
-        required: false
-        schema:
-          description: Maximum Date
-          format: date
-          nullable: true
-          example: 2023-01-01
-          type: string
-      - name: start
-        in: query
-        required: false
-        schema:
-          description: Start Index
-          nullable: true
-          type: integer
-          minimum: 0
-      - name: limit
-        in: query
-        required: false
-        schema:
-          description: Limit
-          nullable: true
-          type: integer
-          minimum: 0
+      operationId: search
       responses:
         '200':
-          description: List Output
+          description: Search Output
           content:
             text/html:
               schema:
                 type: string
         '400':
           description: Bad Request
-        '500':
-          description: Internal Server Error
-  /api/edit:
-    get:
-      description: Diary Edit Form
-      parameters:
-      - name: date
-        in: query
-        required: true
-        schema:
-          format: date
-          example: 2023-01-01
-          type: string
-      responses:
-        '200':
-          description: Edit Output
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - message
+                properties:
+                  message:
+                    $ref: '#/components/schemas/str'
+        '401':
+          description: Not Authorized
           content:
             text/html:
               schema:
                 type: string
-        '400':
-          description: Bad Request
         '500':
           description: Internal Server Error
-  /api/display:
-    get:
-      description: Display Diary Entry
-      parameters:
-      - name: date
-        in: query
-        required: true
-        schema:
-          format: date
-          example: 2023-01-01
-          type: string
-      responses:
-        '200':
-          description: Display Output
           content:
-            text/html:
+            application/json:
               schema:
-                type: string
-        '400':
-          description: Bad Request
-        '500':
-          description: Internal Server Error
-  /api/index.html:
-    get:
-      description: Diary Main Page
-      responses:
-        '200':
-          description: Frontpage
-          content:
-            text/html:
-              schema:
-                type: string
-        '400':
-          description: Bad Request
-        '500':
-          description: Internal Server Error
-  /api/list_conflicts:
-    get:
-      description: List Conflicts
-      parameters:
-      - name: date
-        in: query
-        required: false
-        schema:
-          description: Conflict Date
-          format: date
-          nullable: true
-          example: 2023-01-01
-          type: string
-      - name: datetime
-        in: query
-        required: false
-        schema:
-          description: Conflict DateTime
-          format: date-time
-          nullable: true
-          type: string
-      responses:
-        '200':
-          description: List Conflicts
-          content:
-            text/html:
-              schema:
-                type: string
-        '400':
-          description: Bad Request
-        '500':
-          description: Internal Server Error
+                type: object
+                required:
+                - message
+                properties:
+                  message:
+                    $ref: '#/components/schemas/str'
   /api/show_conflict:
     get:
-      description: Show Conflict
-      parameters:
-      - name: date
-        in: query
-        required: false
-        schema:
-          description: Conflict Date
-          format: date
-          nullable: true
-          example: 2023-01-01
-          type: string
-      - name: datetime
-        in: query
-        required: false
-        schema:
-          description: Conflict DateTime
-          format: date-time
-          nullable: true
-          type: string
+      operationId: show_conflict
       responses:
         '200':
           description: Show Conflict
@@ -268,58 +429,73 @@ paths:
                 type: string
         '400':
           description: Bad Request
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - message
+                properties:
+                  message:
+                    $ref: '#/components/schemas/str'
+        '401':
+          description: Not Authorized
+          content:
+            text/html:
+              schema:
+                type: string
         '500':
           description: Internal Server Error
-  /api/remove_conflict:
-    delete:
-      description: Delete Conflict
-      parameters:
-      - name: date
-        in: query
-        required: false
-        schema:
-          description: Conflict Date
-          format: date
-          nullable: true
-          example: 2023-01-01
-          type: string
-      - name: datetime
-        in: query
-        required: false
-        schema:
-          description: Conflict DateTime
-          format: date-time
-          nullable: true
-          type: string
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - message
+                properties:
+                  message:
+                    $ref: '#/components/schemas/str'
+  /api/sync:
+    post:
+      operationId: sync
       responses:
         '200':
-          description: Remove Conflict
+          description: Sync Output
           content:
             text/html:
               schema:
                 type: string
         '400':
           description: Bad Request
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - message
+                properties:
+                  message:
+                    $ref: '#/components/schemas/str'
+        '401':
+          description: Not Authorized
+          content:
+            text/html:
+              schema:
+                type: string
         '500':
           description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - message
+                properties:
+                  message:
+                    $ref: '#/components/schemas/str'
   /api/update_conflict:
     patch:
-      description: Update Conflict
-      parameters:
-      - name: id
-        in: query
-        required: true
-        schema:
-          description: Conflict ID
-          format: uuid
-          example: 334518f4-1bfd-4f20-9978-bfad0dc033e1
-          type: string
-      - name: diff_type
-        in: query
-        required: true
-        schema:
-          description: Difference Type
-          type: string
+      operationId: update_conflict
       responses:
         '200':
           description: Update Conflict
@@ -329,97 +505,117 @@ paths:
                 type: string
         '400':
           description: Bad Request
-        '500':
-          description: Internal Server Error
-  /api/commit_conflict:
-    post:
-      description: Commit Conflict
-      parameters:
-      - name: datetime
-        in: query
-        required: true
-        schema:
-          format: date-time
-          type: string
-      responses:
-        '200':
-          description: Commit Conflict
           content:
             application/json:
               schema:
-                properties:
-                  entry:
-                    type: string
                 type: object
                 required:
-                - entry
-        '400':
-          description: Bad Request
+                - message
+                properties:
+                  message:
+                    $ref: '#/components/schemas/str'
+        '401':
+          description: Not Authorized
+          content:
+            text/html:
+              schema:
+                type: string
         '500':
           description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - message
+                properties:
+                  message:
+                    $ref: '#/components/schemas/str'
   /api/user:
     get:
-      description: Get User Object
+      operationId: user
       responses:
         '200':
           description: Logged in User
           content:
-            application/json:
+            text/html:
               schema:
-                $ref: '#/components/schemas/LoggedUser'
+                type: object
+                required:
+                - email
+                - session
+                - created_at
+                properties:
+                  created_at:
+                    type: string
+                    format: date-time
+                  email:
+                    $ref: '#/components/schemas/str'
+                  session:
+                    type: string
+                    format: uuid
         '400':
           description: Bad Request
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - message
+                properties:
+                  message:
+                    $ref: '#/components/schemas/str'
+        '401':
+          description: Not Authorized
+          content:
+            text/html:
+              schema:
+                type: string
         '500':
           description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - message
+                properties:
+                  message:
+                    $ref: '#/components/schemas/str'
 components:
   schemas:
     InsertData:
-      properties:
-        text:
-          description: Text to Insert
-          type: string
       type: object
       required:
       - text
-    ReplaceData:
       properties:
-        date:
-          description: Replacement Date
-          format: date
-          example: 2023-01-01
-          type: string
         text:
-          description: Replacement Text
-          type: string
-      type: object
-      required:
-      - date
-      - text
-    ConflictData:
-      properties:
-        date:
-          description: Conflict Date
-          format: date
-          nullable: true
-          example: 2023-01-01
-          type: string
-        datetime:
-          description: Conflict DateTime
-          format: date-time
-          nullable: true
-          type: string
-      type: object
+          $ref: '#/components/schemas/str'
     LoggedUser:
-      properties:
-        email:
-          description: Email Address
-          type: string
-        session:
-          description: Session Id
-          format: uuid
-          example: 334518f4-1bfd-4f20-9978-bfad0dc033e1
-          type: string
       type: object
       required:
       - email
       - session
+      - created_at
+      properties:
+        created_at:
+          type: string
+          format: date-time
+        email:
+          $ref: '#/components/schemas/str'
+        session:
+          type: string
+          format: uuid
+    ReplaceData:
+      type: object
+      required:
+      - date
+      - text
+      properties:
+        date:
+          type: string
+          format: date
+        text:
+          $ref: '#/components/schemas/str'
+    str:
+      type: string

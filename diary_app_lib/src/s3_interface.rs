@@ -1,16 +1,16 @@
-use anyhow::{format_err, Error};
+use anyhow::{Error, format_err};
 use aws_config::SdkConfig;
 use aws_sdk_s3::types::Object;
-use futures::{stream::FuturesUnordered, TryStreamExt};
+use futures::{TryStreamExt, stream::FuturesUnordered};
 use log::debug;
 use once_cell::sync::Lazy;
-use stack_string::{format_sstr, StackString};
+use stack_string::{StackString, format_sstr};
 use std::{
     collections::HashMap,
     convert::{TryFrom, TryInto},
     sync::Arc,
 };
-use time::{macros::format_description, Date, OffsetDateTime};
+use time::{Date, OffsetDateTime, macros::format_description};
 use tokio::sync::RwLock;
 
 use crate::{config::Config, models::DiaryEntries, pgpool::PgPool, s3_instance::S3Instance};

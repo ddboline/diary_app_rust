@@ -1,9 +1,9 @@
 use anyhow::Error;
 use aws_config::SdkConfig;
 use aws_sdk_s3::{
+    Client as S3Client,
     operation::list_objects::ListObjectsOutput,
     types::{Bucket, Object},
-    Client as S3Client,
 };
 use bytes::Bytes;
 use std::fmt;

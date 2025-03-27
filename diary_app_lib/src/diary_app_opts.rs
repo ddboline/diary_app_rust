@@ -1,13 +1,13 @@
-use anyhow::{format_err, Error};
+use anyhow::{Error, format_err};
 use clap::Parser;
 use futures::TryStreamExt;
 use refinery::embed_migrations;
 use stack_string::StackString;
 use std::{collections::BTreeSet, str::FromStr};
 use time::{
-    format_description::well_known::Rfc3339, macros::format_description, Date, OffsetDateTime,
+    Date, OffsetDateTime, format_description::well_known::Rfc3339, macros::format_description,
 };
-use time_tz::{timezones::db::UTC, OffsetDateTimeExt};
+use time_tz::{OffsetDateTimeExt, timezones::db::UTC};
 
 use crate::{
     config::Config,

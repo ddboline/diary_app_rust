@@ -7,6 +7,7 @@
 #![allow(clippy::unused_async)]
 #![allow(clippy::implicit_hasher)]
 #![allow(clippy::ignored_unit_patterns)]
+#![allow(clippy::similar_names)]
 
 pub mod app;
 pub mod elements;
@@ -15,29 +16,29 @@ pub mod logged_user;
 pub mod requests;
 pub mod routes;
 
-use rweb::Schema;
 use serde::{Deserialize, Serialize};
-
-use rweb_helper::{derive_rweb_schema, DateTimeType, DateType};
+use time::{Date, OffsetDateTime};
+use utoipa::ToSchema;
+use utoipa_helper::derive_utoipa_schema;
 
 use diary_app_lib::date_time_wrapper::DateTimeWrapper;
 
 #[derive(Serialize, Deserialize)]
 pub struct ConflictData {
-    pub date: Option<DateType>,
+    pub date: Option<Date>,
     pub datetime: Option<DateTimeWrapper>,
 }
 
-derive_rweb_schema!(ConflictData, _ConflictData);
+derive_utoipa_schema!(ConflictData, _ConflictData);
 
 #[allow(dead_code)]
-#[derive(Schema)]
-#[schema(component = "ConflictData")]
+#[derive(ToSchema)]
+// ConflictData
 struct _ConflictData {
-    #[schema(description = "Conflict Date")]
-    pub date: Option<DateType>,
-    #[schema(description = "Conflict DateTime")]
-    pub datetime: Option<DateTimeType>,
+    // Conflict Date
+    pub date: Option<Date>,
+    // Conflict DateTime
+    pub datetime: Option<OffsetDateTime>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -45,23 +46,23 @@ pub struct CommitConflictData {
     pub datetime: DateTimeWrapper,
 }
 
-derive_rweb_schema!(CommitConflictData, _CommitConflictData);
+derive_utoipa_schema!(CommitConflictData, _CommitConflictData);
 
 #[allow(dead_code)]
-#[derive(Schema)]
+#[derive(ToSchema)]
 struct _CommitConflictData {
-    pub datetime: DateTimeType,
+    pub datetime: OffsetDateTime,
 }
 
 #[cfg(test)]
 mod test {
-    use rweb_helper::derive_rweb_test;
+    use utoipa_helper::derive_utoipa_test;
 
-    use crate::{CommitConflictData, ConflictData, _CommitConflictData, _ConflictData};
+    use crate::{_CommitConflictData, _ConflictData, CommitConflictData, ConflictData};
 
     #[test]
     fn test_type() {
-        derive_rweb_test!(ConflictData, _ConflictData);
-        derive_rweb_test!(CommitConflictData, _CommitConflictData);
+        derive_utoipa_test!(ConflictData, _ConflictData);
+        derive_utoipa_test!(CommitConflictData, _CommitConflictData);
     }
 }

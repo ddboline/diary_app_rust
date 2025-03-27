@@ -1,12 +1,11 @@
-use anyhow::{format_err, Error};
+use anyhow::{Error, format_err};
 use futures::TryStreamExt;
 use itertools::Itertools;
-use rweb::Schema;
-use rweb_helper::DateType;
 use serde::{Deserialize, Serialize};
-use stack_string::{format_sstr, StackString};
+use stack_string::{StackString, format_sstr};
 use std::collections::BTreeSet;
 use time::Date;
+use utoipa::ToSchema;
 use uuid::Uuid;
 
 use diary_app_lib::{
@@ -16,23 +15,23 @@ use diary_app_lib::{
 
 use super::app::DiaryAppActor;
 
-#[derive(Serialize, Deserialize, Schema)]
+#[derive(Serialize, Deserialize, ToSchema)]
 pub struct SearchOptions {
-    #[schema(description = "Search Text")]
+    // Search Text")]
     pub text: Option<StackString>,
-    #[schema(description = "Search Date")]
-    pub date: Option<DateType>,
+    // Search Date")]
+    pub date: Option<Date>,
 }
 
-#[derive(Serialize, Deserialize, Default, Copy, Clone, Schema)]
+#[derive(Serialize, Deserialize, Default, Copy, Clone, ToSchema)]
 pub struct ListOptions {
-    #[schema(description = "Minimum Date")]
-    pub min_date: Option<DateType>,
-    #[schema(description = "Maximum Date")]
-    pub max_date: Option<DateType>,
-    #[schema(description = "Start Index")]
+    // Minimum Date")]
+    pub min_date: Option<Date>,
+    // Maximum Date")]
+    pub max_date: Option<Date>,
+    // Start Index")]
     pub start: Option<usize>,
-    #[schema(description = "Limit")]
+    // Limit")]
     pub limit: Option<usize>,
 }
 
@@ -43,7 +42,7 @@ pub enum DiaryAppRequests {
     Replace { date: Date, text: StackString },
     List(ListOptions),
     Display(Date),
-    ListConflicts(Option<DateType>),
+    ListConflicts(Option<Date>),
     ShowConflict(DateTimeWrapper),
     RemoveConflict(DateTimeWrapper),
     CleanConflicts(Date),
@@ -91,7 +90,7 @@ impl DiaryAppRequests {
                 let body = if let Some(text) = opts.text {
                     let results: Vec<_> = dapp.search_text(&text).await?;
                     results
-                } else if let Some(date) = opts.date.map(Into::into) {
+                } else if let Some(date) = opts.date {
                     let entry = DiaryEntries::get_by_date(date, &dapp.pool)
                         .await?
                         .ok_or_else(|| format_err!("Date should exist {}", date))?;
@@ -116,12 +115,7 @@ impl DiaryAppRequests {
             }
             DiaryAppRequests::List(opts) => {
                 let dates = dapp
-                    .get_list_of_dates(
-                        opts.min_date.map(Into::into),
-                        opts.max_date.map(Into::into),
-                        opts.start,
-                        opts.limit,
-                    )
+                    .get_list_of_dates(opts.min_date, opts.max_date, opts.start, opts.limit)
                     .await?;
                 Ok(dates.into())
             }
@@ -141,7 +135,7 @@ impl DiaryAppRequests {
                 Ok(conflicts.into())
             }
             DiaryAppRequests::ListConflicts(Some(date)) => {
-                let mut conflicts: Vec<_> = DiaryConflict::get_by_date(date.into(), &dapp.pool)
+                let mut conflicts: Vec<_> = DiaryConflict::get_by_date(date, &dapp.pool)
                     .await?
                     .try_collect()
                     .await?;

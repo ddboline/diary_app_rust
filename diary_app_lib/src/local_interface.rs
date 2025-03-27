@@ -1,8 +1,8 @@
-use anyhow::{format_err, Error};
-use futures::{future::try_join_all, stream::FuturesUnordered, TryStreamExt};
+use anyhow::{Error, format_err};
+use futures::{TryStreamExt, future::try_join_all, stream::FuturesUnordered};
 use jwalk::WalkDir;
 use log::debug;
-use stack_string::{format_sstr, StackString};
+use stack_string::{StackString, format_sstr};
 use std::{
     collections::{BTreeMap, HashMap},
     fs::metadata,
@@ -10,12 +10,12 @@ use std::{
     time::SystemTime,
 };
 use time::{
-    macros::{datetime, format_description},
     Date, Duration, OffsetDateTime,
+    macros::{datetime, format_description},
 };
 use time_tz::OffsetDateTimeExt;
 use tokio::{
-    fs::{read_to_string, remove_file, File},
+    fs::{File, read_to_string, remove_file},
     io::AsyncWriteExt,
 };
 
@@ -210,11 +210,7 @@ impl LocalInterface {
                             let metadata = entry.metadata().ok()?;
                             let modified: OffsetDateTime = metadata.modified().ok()?.into();
                             let size = metadata.len();
-                            if size == 0 {
-                                None
-                            } else {
-                                Some((d, modified))
-                            }
+                            if size == 0 { None } else { Some((d, modified)) }
                         })
                 })
             })

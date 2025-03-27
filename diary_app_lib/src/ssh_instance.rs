@@ -1,16 +1,16 @@
-use anyhow::{format_err, Error};
+use anyhow::{Error, format_err};
 use log::debug;
 use once_cell::sync::Lazy;
-use smallvec::{smallvec, SmallVec};
+use smallvec::{SmallVec, smallvec};
 use std::{collections::HashMap, fmt::Display, process::Stdio};
 use tokio::{
-    io::{stdout, AsyncBufReadExt, AsyncWriteExt, BufReader},
+    io::{AsyncBufReadExt, AsyncWriteExt, BufReader, stdout},
     process::Command,
     sync::{Mutex, RwLock},
 };
 use url::Url;
 
-use stack_string::{format_sstr, StackString};
+use stack_string::{StackString, format_sstr};
 
 static LOCK_CACHE: Lazy<RwLock<HashMap<StackString, Mutex<()>>>> =
     Lazy::new(|| RwLock::new(HashMap::new()));

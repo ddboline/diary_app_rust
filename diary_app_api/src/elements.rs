@@ -1,11 +1,10 @@
 use dioxus::prelude::{
-    component, dioxus_elements, rsx, Element, GlobalSignal, IntoDynNode, Props, Readable,
-    VirtualDom,
+    Element, GlobalSignal, IntoDynNode, Props, Readable, VirtualDom, component, dioxus_elements,
+    rsx,
 };
-use rweb_helper::DateType;
 use stack_string::StackString;
 use std::collections::{BTreeSet, HashSet};
-use time::{macros::format_description, Date, OffsetDateTime};
+use time::{Date, OffsetDateTime, macros::format_description};
 use time_tz::OffsetDateTimeExt;
 
 use diary_app_lib::{date_time_wrapper::DateTimeWrapper, models::DiaryConflict};
@@ -94,8 +93,8 @@ fn IndexElement() -> Element {
 /// # Errors
 /// Returns error if formatting fails
 pub fn list_body(
-    conflicts: HashSet<DateType>,
-    dates: Vec<DateType>,
+    conflicts: HashSet<Date>,
+    dates: Vec<Date>,
     start: Option<usize>,
 ) -> Result<String, Error> {
     let mut app = VirtualDom::new_with_props(
@@ -116,11 +115,7 @@ pub fn list_body(
 }
 
 #[component]
-fn DateListElement(
-    conflicts: HashSet<DateType>,
-    dates: Vec<DateType>,
-    start: Option<usize>,
-) -> Element {
+fn DateListElement(conflicts: HashSet<Date>, dates: Vec<Date>, start: Option<usize>) -> Element {
     let buttons = if start.is_some() {
         rsx! {
             button {
@@ -144,9 +139,8 @@ fn DateListElement(
         }
     };
     rsx! {
-        {dates.iter().enumerate().map(|(idx, t)| {
-            let d: Date = (*t).into();
-            let c = if conflicts.contains(t) {
+        {dates.iter().enumerate().map(|(idx, d)| {
+            let c = if conflicts.contains(d) {
                 Some(rsx! {
                     input {
                         "type": "submit",
@@ -179,7 +173,7 @@ fn DateListElement(
 /// # Errors
 /// Returns error if formatting fails
 pub fn list_conflicts_body(
-    date: Option<DateType>,
+    date: Option<Date>,
     conflicts: Vec<DateTimeWrapper>,
 ) -> Result<String, Error> {
     let mut app = VirtualDom::new_with_props(
@@ -196,13 +190,12 @@ pub fn list_conflicts_body(
 }
 
 #[component]
-fn ListConflictsElement(date: Option<DateType>, conflicts: Vec<DateTimeWrapper>) -> Element {
+fn ListConflictsElement(date: Option<Date>, conflicts: Vec<DateTimeWrapper>) -> Element {
     let local = DateTimeWrapper::local_tz();
     let clean_conflicts = if let Some(date) = date {
         if conflicts.is_empty() {
             None
         } else {
-            let date: Date = (date).into();
             Some(rsx! {
                 button {
                     "type": "submit",
@@ -216,7 +209,7 @@ fn ListConflictsElement(date: Option<DateType>, conflicts: Vec<DateTimeWrapper>)
     };
     rsx! {
         {conflicts.iter().enumerate().map(|(idx, t)| {
-            let d: Date = date.unwrap_or_else(|| OffsetDateTime::now_utc().to_timezone(local).date().into()).into();
+            let d: Date = date.unwrap_or_else(|| OffsetDateTime::now_utc().to_timezone(local).date());
             rsx! {
                 input {
                     key: "show-key-{idx}",

@@ -1,11 +1,11 @@
-use anyhow::{format_err, Error};
+use anyhow::{Error, format_err};
 use derive_more::Into;
 use difference::{Changeset, Difference};
 use futures::{Stream, TryStreamExt};
 use log::debug;
-use postgres_query::{client::GenericClient, query, query_dyn, Error as PqError, FromSqlRow};
+use postgres_query::{Error as PqError, FromSqlRow, client::GenericClient, query, query_dyn};
 use serde::{Deserialize, Serialize};
-use stack_string::{format_sstr, StackString};
+use stack_string::{StackString, format_sstr};
 use std::collections::HashMap;
 use time::{Date, OffsetDateTime};
 use uuid::Uuid;
@@ -422,9 +422,7 @@ impl DiaryEntries {
         insert_new: bool,
     ) -> Result<Option<OffsetDateTime>, Error> {
         let conn = pool.get().await?;
-        self.update_entry_impl(&conn, insert_new)
-            .await
-            .map_err(Into::into)
+        self.update_entry_impl(&conn, insert_new).await
     }
 
     /// # Errors
@@ -496,7 +494,7 @@ impl DiaryEntries {
     /// Return error if db query fails
     pub async fn get_by_date(date: Date, pool: &PgPool) -> Result<Option<Self>, Error> {
         let conn = pool.get().await?;
-        Self::_get_by_date(date, &conn).await.map_err(Into::into)
+        Self::_get_by_date(date, &conn).await
     }
 
     /// # Errors
@@ -511,11 +509,11 @@ impl DiaryEntries {
             .filter(|c| char::is_alphanumeric(*c) || *c == '-' || *c == '_')
             .collect();
         let query = format_sstr!(
-            r#"
+            r"
                 SELECT * FROM diary_entries
                 WHERE diary_text like '%{search_text}%'
                 ORDER BY diary_date
-            "#
+            "
         );
         let query = query_dyn!(&query)?;
         let conn = pool.get().await?;
@@ -545,9 +543,7 @@ impl DiaryEntries {
     /// Return error if db query fails
     pub async fn get_difference(&self, pool: &PgPool) -> Result<Option<Changeset>, Error> {
         let conn = pool.get().await?;
-        self.get_difference_impl(&conn, true)
-            .await
-            .map_err(Into::into)
+        self.get_difference_impl(&conn, true).await
     }
 
     /// # Errors
@@ -602,10 +598,10 @@ impl DiaryCache {
             .filter(|c| char::is_alphanumeric(*c) || *c == '-' || *c == '_')
             .collect();
         let query = format_sstr!(
-            r#"
+            r"
                 SELECT * FROM diary_cache
                 WHERE diary_text like '%{search_text}%'
-            "#
+            "
         );
         let query = query_dyn!(&query)?;
         let conn = pool.get().await?;

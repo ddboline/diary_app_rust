@@ -1,15 +1,9 @@
-use anyhow::Error;
+use axum::http::{Method, StatusCode};
 use handlebars::Handlebars;
-use log::{error, info};
+use log::{debug, error, info};
 use notify::{
-    recommended_watcher, Event, EventHandler, EventKind, INotifyWatcher, RecursiveMode,
-    Result as NotifyResult, Watcher,
-};
-use rweb::{
-    filters::BoxedFilter,
-    http::header::CONTENT_TYPE,
-    openapi::{self, Info},
-    Filter, Reply,
+    Event, EventHandler, EventKind, INotifyWatcher, RecursiveMode, Result as NotifyResult, Watcher,
+    recommended_watcher,
 };
 use stack_string::format_sstr;
 use std::{
@@ -20,21 +14,22 @@ use std::{
     sync::Arc,
     time::Duration,
 };
-use time::{macros::format_description, Date};
+use time::{Date, macros::format_description};
 use tokio::{
-    sync::watch::{channel, Receiver, Sender},
+    net::TcpListener,
+    sync::watch::{Receiver, Sender, channel},
     time::{interval, sleep},
 };
+use tower_http::cors::{Any, CorsLayer};
+use utoipa::OpenApi;
+use utoipa_axum::router::OpenApiRouter;
 
 use diary_app_lib::{config::Config, diary_app_interface::DiaryAppInterface, pgpool::PgPool};
 
 use super::{
-    errors::error_response,
+    errors::ServiceError as Error,
     logged_user::{fill_from_db, get_secrets},
-    routes::{
-        commit_conflict, diary_frontpage, display, edit, insert, list, list_conflicts,
-        remove_conflict, replace, search, show_conflict, sync, update_conflict, user,
-    },
+    routes::{ApiDoc, get_api_path},
 };
 
 #[derive(Clone)]
@@ -159,39 +154,6 @@ pub async fn start_app() -> Result<(), Error> {
     run_app(dapp, config.port).await
 }
 
-fn get_api_path(app: &AppState) -> BoxedFilter<(impl Reply,)> {
-    let search_path = search(app.clone()).boxed();
-    let insert_path = insert(app.clone()).boxed();
-    let sync_path = sync(app.clone()).boxed();
-    let replace_path = replace(app.clone()).boxed();
-    let list_path = list(app.clone()).boxed();
-    let edit_path = edit(app.clone()).boxed();
-    let display_path = display(app.clone()).boxed();
-    let frontpage_path = diary_frontpage().boxed();
-    let list_conflicts_path = list_conflicts(app.clone()).boxed();
-    let show_conflict_path = show_conflict(app.clone()).boxed();
-    let remove_conflict_path = remove_conflict(app.clone()).boxed();
-    let update_conflict_path = update_conflict(app.clone()).boxed();
-    let commit_conflict_path = commit_conflict(app.clone()).boxed();
-    let user_path = user().boxed();
-
-    search_path
-        .or(insert_path)
-        .or(sync_path)
-        .or(replace_path)
-        .or(list_path)
-        .or(edit_path)
-        .or(display_path)
-        .or(frontpage_path)
-        .or(list_conflicts_path)
-        .or(show_conflict_path)
-        .or(remove_conflict_path)
-        .or(update_conflict_path)
-        .or(commit_conflict_path)
-        .or(user_path)
-        .boxed()
-}
-
 async fn run_app(db: DiaryAppActor, port: u32) -> Result<(), Error> {
     let mut hb = Handlebars::new();
     hb.register_template_string("id", include_str!("../../templates/index.html.hbr"))
@@ -199,37 +161,46 @@ async fn run_app(db: DiaryAppActor, port: u32) -> Result<(), Error> {
     let hb = Arc::new(hb);
 
     let app = AppState { db, hb };
+    let config = &app.db.config;
 
-    let (spec, api_path) = openapi::spec()
-        .info(Info {
-            title: "Frontend for Diary".into(),
-            description: "Web Frontend for Diary Service".into(),
-            version: env!("CARGO_PKG_VERSION").into(),
-            ..Info::default()
-        })
-        .build(|| get_api_path(&app));
-    let spec = Arc::new(spec);
-    let spec_json_path = rweb::path!("api" / "openapi" / "json")
-        .and(rweb::path::end())
-        .map({
-            let spec = spec.clone();
-            move || rweb::reply::json(spec.as_ref())
-        });
+    let cors = CorsLayer::new()
+        .allow_methods([Method::GET, Method::POST])
+        .allow_headers(["content-type".try_into()?, "jwt".try_into()?])
+        .allow_origin(Any);
 
-    let spec_yaml = serde_yaml::to_string(spec.as_ref())?;
-    let spec_yaml_path = rweb::path!("api" / "openapi" / "yaml")
-        .and(rweb::path::end())
-        .map(move || {
-            let reply = rweb::reply::html(spec_yaml.clone());
-            rweb::reply::with_header(reply, CONTENT_TYPE, "text/yaml")
-        });
+    let (router, api) = OpenApiRouter::with_openapi(ApiDoc::openapi())
+        .merge(get_api_path(&app))
+        .split_for_parts();
 
-    let routes = api_path
-        .or(spec_json_path)
-        .or(spec_yaml_path)
-        .recover(error_response);
-    let addr: SocketAddr = format_sstr!("127.0.0.1:{port}").parse()?;
-    rweb::serve(routes).bind(addr).await;
+    let spec_json = serde_json::to_string_pretty(&api)?;
+    let spec_yaml = serde_yml::to_string(&api)?;
+
+    let router = router
+        .route(
+            "/api/openapi/json",
+            axum::routing::get(|| async move {
+                (
+                    StatusCode::OK,
+                    [("content-type", "application/json")],
+                    spec_json,
+                )
+            }),
+        )
+        .route(
+            "/api/openapi/yaml",
+            axum::routing::get(|| async move {
+                (StatusCode::OK, [("content-type", "text/yaml")], spec_yaml)
+            }),
+        )
+        .layer(cors);
+
+    let host = &config.host;
+
+    let addr: SocketAddr = format_sstr!("{host}:{port}").parse()?;
+    debug!("{addr:?}");
+    let listener = TcpListener::bind(&addr).await?;
+    axum::serve(listener, router.into_make_service()).await?;
+
     Ok(())
 }
 
@@ -246,13 +217,15 @@ mod tests {
     use diary_app_lib::{config::Config, diary_app_interface::DiaryAppInterface, pgpool::PgPool};
 
     use crate::{
-        app::{run_app, DiaryAppActor},
-        logged_user::{get_random_key, JWT_SECRET, KEY_LENGTH, SECRET_KEY},
+        app::{DiaryAppActor, run_app},
+        logged_user::{JWT_SECRET, KEY_LENGTH, SECRET_KEY, get_random_key},
     };
 
     #[tokio::test(flavor = "multi_thread")]
     async fn test_run_app() -> Result<(), Error> {
-        set_var("TESTENV", "true");
+        unsafe {
+            set_var("TESTENV", "true");
+        }
 
         let email = format_sstr!("{}@localhost", get_random_string(32));
         let password = get_random_string(32);
@@ -264,7 +237,9 @@ mod tests {
         SECRET_KEY.set(secret_key);
 
         let test_port: u32 = 12345;
-        set_var("PORT", test_port.to_string());
+        unsafe {
+            set_var("PORT", test_port.to_string());
+        }
         let config = Config::init_config()?;
         let pool = PgPool::new(&config.database_url)?;
         let sdk_config = aws_config::load_from_env().await;
@@ -276,8 +251,10 @@ mod tests {
         });
 
         let auth_port: u32 = 54321;
-        set_var("PORT", auth_port.to_string());
-        set_var("DOMAIN", "localhost");
+        unsafe {
+            set_var("PORT", auth_port.to_string());
+            set_var("DOMAIN", "localhost");
+        }
 
         let config = auth_server_lib::config::Config::init_config()?;
         tokio::task::spawn(async move { run_test_app(config).await.unwrap() });
@@ -309,7 +286,21 @@ mod tests {
             .text()
             .await?;
         assert!(result.contains("javascript:searchDiary"));
-        remove_var("TESTENV");
+
+        let url = format_sstr!("http://localhost:{test_port}/api/openapi/yaml");
+        let spec_yaml = client
+            .get(url.as_str())
+            .send()
+            .await?
+            .error_for_status()?
+            .text()
+            .await?;
+
+        std::fs::write("../scripts/openapi.yaml", &spec_yaml)?;
+
+        unsafe {
+            remove_var("TESTENV");
+        }
         Ok(())
     }
 }

@@ -1,18 +1,18 @@
 use anyhow::Error;
-use futures::{future::join, StreamExt, TryStreamExt};
+use futures::{StreamExt, TryStreamExt, future::join};
 use itertools::Itertools;
 use log::debug;
 use once_cell::sync::Lazy;
-use stack_string::{format_sstr, StackString};
+use stack_string::{StackString, format_sstr};
 use std::collections::HashSet;
-use telegram_bot::{types::refs::UserId, Api, CanReplySendMessage, MessageKind, UpdateKind};
+use telegram_bot::{Api, CanReplySendMessage, MessageKind, UpdateKind, types::refs::UserId};
 use tokio::{
     sync::{
-        mpsc::{channel, Receiver},
         RwLock,
+        mpsc::{Receiver, channel},
     },
     task::spawn,
-    time::{sleep, timeout, Duration},
+    time::{Duration, sleep, timeout},
 };
 
 use diary_app_lib::{

@@ -1,6 +1,6 @@
-use anyhow::{format_err, Error};
+use anyhow::{Error, format_err};
 use std::{collections::HashSet, fs::read_to_string, path::Path};
-use time::{macros::format_description, Date};
+use time::{Date, macros::format_description};
 
 use diary_app_lib::{config::Config, models::DiaryEntries, pgpool::PgPool};
 

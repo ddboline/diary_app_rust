@@ -1,20 +1,20 @@
-use anyhow::{format_err, Error};
+use anyhow::{Error, format_err};
 use aws_config::SdkConfig;
-use futures::{future::try_join_all, stream::FuturesUnordered, TryStreamExt};
+use futures::{TryStreamExt, future::try_join_all, stream::FuturesUnordered};
 use jwalk::WalkDir;
 use log::{debug, info};
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use regex::Regex;
-use stack_string::{format_sstr, StackString};
+use stack_string::{StackString, format_sstr};
 use std::{
     collections::{HashMap, HashSet},
     sync::Arc,
 };
 use stdout_channel::StdoutChannel;
-use time::{macros::format_description, Date, OffsetDateTime};
+use time::{Date, OffsetDateTime, macros::format_description};
 use time_tz::OffsetDateTimeExt;
 use tokio::{
-    fs::{remove_file, OpenOptions},
+    fs::{OpenOptions, remove_file},
     io::AsyncWriteExt,
     task::{spawn, spawn_blocking},
 };
@@ -113,9 +113,9 @@ impl DiaryAppInterface {
             .iter()
             .map(|(d, _)| *d)
             .filter(|date| {
-                year.map_or(false, |y| {
-                    month.map_or(true, |m| {
-                        day.map_or(true, |d| d as u8 == date.day())
+                year.is_some_and(|y| {
+                    month.is_none_or(|m| {
+                        day.is_none_or(|d| d as u8 == date.day())
                             && (m as u8 == u8::from(date.month()))
                     }) && (y == date.year())
                 })
