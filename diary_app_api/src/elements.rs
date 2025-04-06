@@ -1,11 +1,11 @@
-use dioxus::prelude::{
-    Element, GlobalSignal, IntoDynNode, Props, Readable, VirtualDom, component, dioxus_elements,
-    rsx,
-};
+use dioxus::prelude::{Element, IntoDynNode, Props, VirtualDom, component, dioxus_elements, rsx};
 use stack_string::StackString;
 use std::collections::{BTreeSet, HashSet};
 use time::{Date, OffsetDateTime, macros::format_description};
 use time_tz::OffsetDateTimeExt;
+
+#[cfg(debug_assertions)]
+use dioxus::prelude::{GlobalSignal, Readable};
 
 use diary_app_lib::{date_time_wrapper::DateTimeWrapper, models::DiaryConflict};
 
