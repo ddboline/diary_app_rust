@@ -333,8 +333,8 @@ impl DiaryConflict {
             .count();
 
         if n_removed_lines > 0 {
-            debug!("update_entry {:?}", removed_lines);
-            debug!("difference {}", n_removed_lines);
+            debug!("update_entry {removed_lines:?}",);
+            debug!("difference {n_removed_lines}",);
             for conflict in &removed_lines {
                 conflict.insert_conflict_conn(conn).await?;
             }

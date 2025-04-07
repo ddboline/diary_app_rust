@@ -71,7 +71,7 @@ impl SSHInstance {
     pub async fn run_command_stream_stdout(&self, cmd: &str) -> Result<Vec<StackString>, Error> {
         if let Some(host_lock) = LOCK_CACHE.read().await.get(&self.host) {
             let _guard = host_lock.lock().await;
-            debug!("run_command_stream_stdout cmd {}", cmd);
+            debug!("run_command_stream_stdout cmd {cmd}",);
             let user_host = self.get_ssh_username_host();
             let mut args: SmallVec<[&str; 4]> = user_host.iter().map(StackString::as_str).collect();
             args.push(cmd);
@@ -95,7 +95,7 @@ impl SSHInstance {
     pub async fn run_command_print_stdout(&self, cmd: &str) -> Result<(), Error> {
         if let Some(host_lock) = LOCK_CACHE.read().await.get(&self.host) {
             let _guard = host_lock.lock();
-            debug!("run_command_print_stdout cmd {}", cmd);
+            debug!("run_command_print_stdout cmd {cmd}",);
             let user_host = self.get_ssh_username_host();
             let mut args: SmallVec<[&str; 4]> = user_host.iter().map(StackString::as_str).collect();
             args.push(cmd);
@@ -134,7 +134,7 @@ impl SSHInstance {
         args.push(cmd);
         if let Some(host_lock) = LOCK_CACHE.read().await.get(&self.host) {
             let _guard = host_lock.lock().await;
-            debug!("run_command_ssh cmd {}", cmd);
+            debug!("run_command_ssh cmd {cmd}",);
             if Command::new("ssh").args(&args).status().await?.success() {
                 Ok(())
             } else {

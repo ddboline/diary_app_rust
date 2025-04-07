@@ -65,7 +65,7 @@ async fn bot_handler(dapp_interface: DiaryAppInterface) -> Result<(), Error> {
             if let MessageKind::Text { ref data, .. } = message.kind {
                 FAILURE_COUNT.check()?;
                 // Print received text message to stdout.
-                debug!("{:?}", message);
+                debug!("{message:?}",);
                 if TELEGRAM_USERIDS.read().await.contains(&message.from.id) {
                     FAILURE_COUNT.check()?;
                     let first_word = data.split_whitespace().next();

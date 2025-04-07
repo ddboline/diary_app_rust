@@ -196,7 +196,7 @@ impl DiaryAppInterface {
         } else {
             let mut diary_entries = Vec::new();
             for date in dates {
-                debug!("search date {}", date);
+                debug!("search date {date}",);
                 let entry = DiaryEntries::get_by_date(date, &self.pool)
                     .await?
                     .ok_or_else(|| format_err!("Date SHOULD exist {date}"))?;
@@ -385,7 +385,7 @@ impl DiaryAppInterface {
         {
             let item: DiaryCache = serde_json::from_str(&line)?;
             if !cache_set.contains(&item.diary_datetime) {
-                debug!("{:?}", item);
+                debug!("{item:?}",);
                 entries.push(item);
             }
         }
