@@ -1,6 +1,6 @@
 [package]
 name = "diary_app_api"
-version = "0.12.0"
+version = "0.12.1"
 authors = ["Daniel Boline <ddboline@gmail.com>"]
 edition = "2024"
 license = "MIT"
@@ -10,7 +10,7 @@ license = "MIT"
 [dependencies]
 anyhow = "1.0"
 async-trait = "0.1"
-authorized_users = { git = "https://github.com/ddboline/auth_server_rust.git", tag="0.13.0"}
+authorized_users = { git = "https://github.com/ddboline/auth_server_rust.git", tag="0.13.1"}
 aws-config = {version="1.1", features=["behavior-version-latest"]}
 axum = { version = "0.8", features = ["multipart"] }
 axum-extra = {version="0.10", features=["cookie"]}
@@ -36,7 +36,7 @@ stack-string = { version="1.1", features=["postgres_types", "utoipa_types", "axu
 thiserror = "2.0"
 time = {version="0.3", features=["serde-human-readable", "macros", "formatting"]}
 time-tz = {version="2.0", features=["system"]}
-tokio = {version="1.42", features=["time"]}
+tokio = {version="1.44", features=["time"]}
 tower-http = {version="0.6", features=["cors"]}
 utoipa = { version = "5.3", features = ["axum_extras", "yaml", "time", "uuid", "smallvec", "url", "openapi_extensions", "decimal"] }
 utoipa-helper = "0.1"
@@ -44,7 +44,7 @@ utoipa-axum = { version = "0.2" }
 uuid = "1.0"
 
 [dev-dependencies]
-auth_server_http = { git = "https://github.com/ddboline/auth_server_rust.git", tag="0.13.0"}
-auth_server_lib = { git = "https://github.com/ddboline/auth_server_rust.git", tag="0.13.0"}
+auth_server_http = { git = "https://github.com/ddboline/auth_server_rust.git", tag="0.13.1"}
+auth_server_lib = { git = "https://github.com/ddboline/auth_server_rust.git", tag="0.13.1"}
 env_logger = {version="0.11", features=["color", "humantime", "regex"], default-features = false}
 reqwest = {version="0.12", features=["cookies", "json", "rustls-tls", "stream"], default-features = false}
