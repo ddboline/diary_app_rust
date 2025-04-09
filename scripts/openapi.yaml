@@ -8,7 +8,7 @@ info:
   license:
     name: MIT
     identifier: MIT
-  version: '0.11.3'
+  version: '0.12.1'
 paths:
   /api/commit_conflict:
     post:
