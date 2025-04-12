@@ -5,8 +5,7 @@ use serde::{Deserialize, Serialize};
 use stack_string::{StackString, format_sstr};
 use std::collections::BTreeSet;
 use time::Date;
-use utoipa::ToSchema;
-use utoipa::IntoParams;
+use utoipa::{IntoParams, ToSchema};
 use uuid::Uuid;
 
 use diary_app_lib::{

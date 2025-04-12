@@ -32,7 +32,12 @@ type AxumResult<T> = Result<T, Error>;
 #[rustfmt::skip]
 struct SearchResponse(HtmlBase::<StackString>);
 
-#[utoipa::path(get, path = "/api/search", params(SearchOptions), responses(SearchResponse, Error))]
+#[utoipa::path(
+    get,
+    path = "/api/search",
+    params(SearchOptions),
+    responses(SearchResponse, Error)
+)]
 // Search Output Page
 async fn search(
     query: Query<SearchOptions>,
@@ -165,7 +170,12 @@ async fn replace_body(data: ReplaceData, state: &AppState) -> AxumResult<Vec<Sta
 #[rustfmt::skip]
 struct ListResponse(HtmlBase::<StackString>);
 
-#[utoipa::path(get, path = "/api/list", params(ListOptions), responses(ListResponse, Error))]
+#[utoipa::path(
+    get,
+    path = "/api/list",
+    params(ListOptions),
+    responses(ListResponse, Error)
+)]
 // List of Date Buttons
 async fn list(
     query: Query<ListOptions>,
@@ -209,7 +219,12 @@ struct EditData {
 #[rustfmt::skip]
 struct EditResponse(HtmlBase::<StackString>);
 
-#[utoipa::path(get, path = "/api/edit", params(EditData), responses(EditResponse, Error))]
+#[utoipa::path(
+    get,
+    path = "/api/edit",
+    params(EditData),
+    responses(EditResponse, Error)
+)]
 // Diary Edit Form
 async fn edit(
     query: Query<EditData>,
@@ -240,7 +255,12 @@ async fn get_edit_body(query: EditData, state: &AppState) -> AxumResult<StackStr
 #[rustfmt::skip]
 struct DisplayResponse(HtmlBase::<StackString>);
 
-#[utoipa::path(get, path = "/api/display", params(EditData), responses(DisplayResponse, Error))]
+#[utoipa::path(
+    get,
+    path = "/api/display",
+    params(EditData),
+    responses(DisplayResponse, Error)
+)]
 // Display Diary Entry
 async fn display(
     query: Query<EditData>,
