@@ -83,6 +83,7 @@ impl From<RenderError> for ServiceError {
 }
 #[derive(Serialize, ToSchema)]
 struct ErrorMessage {
+    #[schema(inline)]
     message: StackString,
 }
 

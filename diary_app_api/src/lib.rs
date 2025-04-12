@@ -18,8 +18,8 @@ pub mod routes;
 
 use serde::{Deserialize, Serialize};
 use time::{Date, OffsetDateTime};
-use utoipa::ToSchema;
-use utoipa_helper::derive_utoipa_schema;
+use utoipa::{IntoParams, ToSchema};
+use utoipa_helper::{derive_utoipa_params, derive_utoipa_schema};
 
 use diary_app_lib::date_time_wrapper::DateTimeWrapper;
 
@@ -30,9 +30,10 @@ pub struct ConflictData {
 }
 
 derive_utoipa_schema!(ConflictData, _ConflictData);
+derive_utoipa_params!(ConflictData, _ConflictData);
 
 #[allow(dead_code)]
-#[derive(ToSchema)]
+#[derive(ToSchema, IntoParams)]
 // ConflictData
 struct _ConflictData {
     // Conflict Date
@@ -47,9 +48,10 @@ pub struct CommitConflictData {
 }
 
 derive_utoipa_schema!(CommitConflictData, _CommitConflictData);
+derive_utoipa_params!(CommitConflictData, _CommitConflictData);
 
 #[allow(dead_code)]
-#[derive(ToSchema)]
+#[derive(ToSchema, IntoParams)]
 struct _CommitConflictData {
     pub datetime: OffsetDateTime,
 }

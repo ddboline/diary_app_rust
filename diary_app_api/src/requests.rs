@@ -6,6 +6,7 @@ use stack_string::{StackString, format_sstr};
 use std::collections::BTreeSet;
 use time::Date;
 use utoipa::ToSchema;
+use utoipa::IntoParams;
 use uuid::Uuid;
 
 use diary_app_lib::{
@@ -15,15 +16,17 @@ use diary_app_lib::{
 
 use super::app::DiaryAppActor;
 
-#[derive(Serialize, Deserialize, ToSchema)]
+#[derive(Serialize, Deserialize, ToSchema, IntoParams)]
 pub struct SearchOptions {
     // Search Text")]
+    #[param(inline)]
+    #[schema(inline)]
     pub text: Option<StackString>,
     // Search Date")]
     pub date: Option<Date>,
 }
 
-#[derive(Serialize, Deserialize, Default, Copy, Clone, ToSchema)]
+#[derive(Serialize, Deserialize, Default, Copy, Clone, ToSchema, IntoParams)]
 pub struct ListOptions {
     // Minimum Date")]
     pub min_date: Option<Date>,

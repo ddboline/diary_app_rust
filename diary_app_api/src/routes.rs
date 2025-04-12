@@ -4,7 +4,7 @@ use stack_string::StackString;
 use std::{collections::HashSet, sync::Arc};
 use time::{Date, OffsetDateTime};
 use time_tz::OffsetDateTimeExt;
-use utoipa::{OpenApi, PartialSchema, ToSchema};
+use utoipa::{IntoParams, OpenApi, PartialSchema, ToSchema};
 use utoipa_axum::{router::OpenApiRouter, routes};
 use utoipa_helper::{
     UtoipaResponse, html_response::HtmlResponse as HtmlBase,
@@ -32,8 +32,8 @@ type AxumResult<T> = Result<T, Error>;
 #[rustfmt::skip]
 struct SearchResponse(HtmlBase::<StackString>);
 
-#[utoipa::path(get, path = "/api/search", responses(SearchResponse, Error))]
-// Search Output Page")]
+#[utoipa::path(get, path = "/api/search", params(SearchOptions), responses(SearchResponse, Error))]
+// Search Output Page
 async fn search(
     query: Query<SearchOptions>,
     _: LoggedUser,
@@ -54,9 +54,10 @@ async fn search_results(query: SearchOptions, state: &AppState) -> AxumResult<Ve
 }
 
 #[derive(Serialize, Deserialize, ToSchema)]
-// InsertData")]
+// InsertData
 struct InsertData {
-    // Text to Insert")]
+    // Text to Insert
+    #[schema(inline)]
     text: StackString,
 }
 
@@ -70,8 +71,8 @@ struct InsertDataOutput {
 #[rustfmt::skip]
 struct InsertDataResponse(JsonBase::<InsertDataOutput>);
 
-#[utoipa::path(post, path = "/api/insert", responses(InsertDataResponse, Error))]
-// Insert Text into Cache")]
+#[utoipa::path(post, path = "/api/insert", request_body = InsertData, responses(InsertDataResponse, Error))]
+// Insert Text into Cache
 async fn insert(
     state: State<Arc<AppState>>,
     _: LoggedUser,
@@ -100,7 +101,7 @@ async fn insert_body(data: InsertData, state: &AppState) -> AxumResult<Vec<Stack
 struct SyncResponse(HtmlBase::<StackString>);
 
 #[utoipa::path(post, path = "/api/sync", responses(SyncResponse, Error))]
-// Sync Diary")]
+// Sync Diary
 async fn sync(_: LoggedUser, state: State<Arc<AppState>>) -> AxumResult<SyncResponse> {
     let results = sync_body(&state).await?;
     let body = search_body(results)?.into();
@@ -116,11 +117,11 @@ async fn sync_body(state: &AppState) -> AxumResult<Vec<StackString>> {
 }
 
 #[derive(Serialize, Deserialize, ToSchema)]
-// ReplaceData")]
+// ReplaceData
 struct ReplaceData {
-    // Replacement Date")]
+    // Replacement Date
     date: Date,
-    // Replacement Text")]
+    // Replacement Text
     text: StackString,
 }
 
@@ -134,8 +135,8 @@ struct ReplaceOutput {
 #[rustfmt::skip]
 struct ReplaceResponse(JsonBase::<ReplaceOutput>);
 
-#[utoipa::path(post, path = "/api/replace", responses(ReplaceResponse, Error))]
-// Insert Text at Specific Date, replace existing text")]
+#[utoipa::path(post, path = "/api/replace", request_body = ReplaceData, responses(ReplaceResponse, Error))]
+// Insert Text at Specific Date, replace existing text
 async fn replace(
     state: State<Arc<AppState>>,
     _: LoggedUser,
@@ -164,8 +165,8 @@ async fn replace_body(data: ReplaceData, state: &AppState) -> AxumResult<Vec<Sta
 #[rustfmt::skip]
 struct ListResponse(HtmlBase::<StackString>);
 
-#[utoipa::path(get, path = "/api/list", responses(ListResponse, Error))]
-// List of Date Buttons")]
+#[utoipa::path(get, path = "/api/list", params(ListOptions), responses(ListResponse, Error))]
+// List of Date Buttons
 async fn list(
     query: Query<ListOptions>,
     _: LoggedUser,
@@ -198,7 +199,7 @@ async fn list_api_body(query: ListOptions, state: &AppState) -> AxumResult<Vec<D
     }
 }
 
-#[derive(Serialize, Deserialize, ToSchema)]
+#[derive(Serialize, Deserialize, ToSchema, IntoParams)]
 struct EditData {
     date: Date,
 }
@@ -208,8 +209,8 @@ struct EditData {
 #[rustfmt::skip]
 struct EditResponse(HtmlBase::<StackString>);
 
-#[utoipa::path(get, path = "/api/edit", responses(EditResponse, Error))]
-// Diary Edit Form")]
+#[utoipa::path(get, path = "/api/edit", params(EditData), responses(EditResponse, Error))]
+// Diary Edit Form
 async fn edit(
     query: Query<EditData>,
     _: LoggedUser,
@@ -239,8 +240,8 @@ async fn get_edit_body(query: EditData, state: &AppState) -> AxumResult<StackStr
 #[rustfmt::skip]
 struct DisplayResponse(HtmlBase::<StackString>);
 
-#[utoipa::path(get, path = "/api/display", responses(DisplayResponse, Error))]
-// Display Diary Entry")]
+#[utoipa::path(get, path = "/api/display", params(EditData), responses(DisplayResponse, Error))]
+// Display Diary Entry
 async fn display(
     query: Query<EditData>,
     _: LoggedUser,
@@ -271,7 +272,7 @@ async fn display_body(query: EditData, state: &AppState) -> AxumResult<StackStri
 struct FrontpageResponse(HtmlBase::<StackString>);
 
 #[utoipa::path(get, path = "/api/index.html", responses(FrontpageResponse, Error))]
-// Diary Main Page")]
+// Diary Main Page
 async fn diary_frontpage(_: LoggedUser) -> AxumResult<FrontpageResponse> {
     let body = index_body()?.into();
     Ok(HtmlBase::new(body).into())
@@ -285,9 +286,10 @@ struct ListConflictsResponse(HtmlBase::<StackString>);
 #[utoipa::path(
     get,
     path = "/api/list_conflicts",
+    params(ConflictData),
     responses(ListConflictsResponse, Error)
 )]
-// List Conflicts")]
+// List Conflicts
 async fn list_conflicts(
     query: Query<ConflictData>,
     _: LoggedUser,
@@ -320,9 +322,10 @@ struct ShowConflictResponse(HtmlBase::<StackString>);
 #[utoipa::path(
     get,
     path = "/api/show_conflict",
+    params(ConflictData),
     responses(ShowConflictResponse, Error)
 )]
-// Show Conflict")]
+// Show Conflict
 async fn show_conflict(
     query: Query<ConflictData>,
     _: LoggedUser,
@@ -362,9 +365,10 @@ struct RemoveConflictResponse(HtmlBase::<StackString>);
 #[utoipa::path(
     delete,
     path = "/api/remove_conflict",
+    params(ConflictData),
     responses(RemoveConflictResponse, Error)
 )]
-// Delete Conflict")]
+// Delete Conflict
 async fn remove_conflict(
     query: Query<ConflictData>,
     _: LoggedUser,
@@ -400,11 +404,13 @@ async fn remove_conflict_body(query: ConflictData, state: &AppState) -> AxumResu
     Ok(body.into())
 }
 
-#[derive(Serialize, Deserialize, ToSchema)]
+#[derive(Serialize, Deserialize, ToSchema, IntoParams)]
 struct ConflictUpdateData {
-    // Conflict ID")]
+    // Conflict ID
     id: Uuid,
-    // Difference Type")]
+    // Difference Type
+    #[schema(inline)]
+    #[param(inline)]
     diff_type: StackString,
 }
 
@@ -416,9 +422,10 @@ struct UpdateConflictResponse(HtmlBase::<&'static str>);
 #[utoipa::path(
     patch,
     path = "/api/update_conflict",
+    params(ConflictUpdateData),
     responses(UpdateConflictResponse, Error)
 )]
-// Update Conflict")]
+// Update Conflict
 async fn update_conflict(
     query: Query<ConflictUpdateData>,
     _: LoggedUser,
@@ -447,9 +454,10 @@ struct ConflictResponse(JsonBase::<ReplaceOutput>);
 #[utoipa::path(
     post,
     path = "/api/commit_conflict",
+    params(CommitConflictData),
     responses(ConflictResponse, Error)
 )]
-// Commit Conflict")]
+// Commit Conflict
 async fn commit_conflict(
     query: Query<CommitConflictData>,
     _: LoggedUser,
@@ -481,7 +489,7 @@ async fn commit_conflict_body(
 struct UserResponse(JsonBase::<LoggedUser>);
 
 #[utoipa::path(get, path = "/api/user", responses(UserResponse, Error))]
-// Get User Object")]
+// Get User Object
 async fn user(user: LoggedUser) -> AxumResult<UserResponse> {
     Ok(JsonBase::new(user).into())
 }

@@ -27,6 +27,7 @@ use crate::errors::ServiceError as Error;
 // LoggedUser
 pub struct LoggedUser {
     // Email Address
+    #[schema(inline)]
     pub email: StackString,
     // Session Id
     pub session: Uuid,

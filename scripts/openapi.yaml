@@ -13,6 +13,13 @@ paths:
   /api/commit_conflict:
     post:
       operationId: commit_conflict
+      parameters:
+      - name: datetime
+        in: query
+        required: true
+        schema:
+          type: string
+          format: date-time
       responses:
         '200':
           description: Commit Conflict
@@ -35,7 +42,7 @@ paths:
                 - message
                 properties:
                   message:
-                    $ref: '#/components/schemas/str'
+                    type: string
         '401':
           description: Not Authorized
           content:
@@ -52,10 +59,17 @@ paths:
                 - message
                 properties:
                   message:
-                    $ref: '#/components/schemas/str'
+                    type: string
   /api/display:
     get:
       operationId: display
+      parameters:
+      - name: date
+        in: query
+        required: true
+        schema:
+          type: string
+          format: date
       responses:
         '200':
           description: Display Output
@@ -73,7 +87,7 @@ paths:
                 - message
                 properties:
                   message:
-                    $ref: '#/components/schemas/str'
+                    type: string
         '401':
           description: Not Authorized
           content:
@@ -90,10 +104,17 @@ paths:
                 - message
                 properties:
                   message:
-                    $ref: '#/components/schemas/str'
+                    type: string
   /api/edit:
     get:
       operationId: edit
+      parameters:
+      - name: date
+        in: query
+        required: true
+        schema:
+          type: string
+          format: date
       responses:
         '200':
           description: Edit Output
@@ -111,7 +132,7 @@ paths:
                 - message
                 properties:
                   message:
-                    $ref: '#/components/schemas/str'
+                    type: string
         '401':
           description: Not Authorized
           content:
@@ -128,7 +149,7 @@ paths:
                 - message
                 properties:
                   message:
-                    $ref: '#/components/schemas/str'
+                    type: string
   /api/index.html:
     get:
       operationId: diary_frontpage
@@ -149,7 +170,7 @@ paths:
                 - message
                 properties:
                   message:
-                    $ref: '#/components/schemas/str'
+                    type: string
         '401':
           description: Not Authorized
           content:
@@ -166,7 +187,7 @@ paths:
                 - message
                 properties:
                   message:
-                    $ref: '#/components/schemas/str'
+                    type: string
   /api/insert:
     post:
       operationId: insert
@@ -198,7 +219,7 @@ paths:
                 - message
                 properties:
                   message:
-                    $ref: '#/components/schemas/str'
+                    type: string
         '401':
           description: Not Authorized
           content:
@@ -215,10 +236,43 @@ paths:
                 - message
                 properties:
                   message:
-                    $ref: '#/components/schemas/str'
+                    type: string
   /api/list:
     get:
       operationId: list
+      parameters:
+      - name: min_date
+        in: query
+        required: false
+        schema:
+          type:
+          - string
+          - 'null'
+          format: date
+      - name: max_date
+        in: query
+        required: false
+        schema:
+          type:
+          - string
+          - 'null'
+          format: date
+      - name: start
+        in: query
+        required: false
+        schema:
+          type:
+          - integer
+          - 'null'
+          minimum: 0
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type:
+          - integer
+          - 'null'
+          minimum: 0
       responses:
         '200':
           description: List Output
@@ -236,7 +290,7 @@ paths:
                 - message
                 properties:
                   message:
-                    $ref: '#/components/schemas/str'
+                    type: string
         '401':
           description: Not Authorized
           content:
@@ -253,10 +307,27 @@ paths:
                 - message
                 properties:
                   message:
-                    $ref: '#/components/schemas/str'
+                    type: string
   /api/list_conflicts:
     get:
       operationId: list_conflicts
+      parameters:
+      - name: date
+        in: query
+        required: false
+        schema:
+          type:
+          - string
+          - 'null'
+          format: date
+      - name: datetime
+        in: query
+        required: false
+        schema:
+          type:
+          - string
+          - 'null'
+          format: date-time
       responses:
         '200':
           description: List Conflicts
@@ -274,7 +345,7 @@ paths:
                 - message
                 properties:
                   message:
-                    $ref: '#/components/schemas/str'
+                    type: string
         '401':
           description: Not Authorized
           content:
@@ -291,10 +362,27 @@ paths:
                 - message
                 properties:
                   message:
-                    $ref: '#/components/schemas/str'
+                    type: string
   /api/remove_conflict:
     delete:
       operationId: remove_conflict
+      parameters:
+      - name: date
+        in: query
+        required: false
+        schema:
+          type:
+          - string
+          - 'null'
+          format: date
+      - name: datetime
+        in: query
+        required: false
+        schema:
+          type:
+          - string
+          - 'null'
+          format: date-time
       responses:
         '200':
           description: Remove Conflict
@@ -312,7 +400,7 @@ paths:
                 - message
                 properties:
                   message:
-                    $ref: '#/components/schemas/str'
+                    type: string
         '401':
           description: Not Authorized
           content:
@@ -329,7 +417,7 @@ paths:
                 - message
                 properties:
                   message:
-                    $ref: '#/components/schemas/str'
+                    type: string
   /api/replace:
     post:
       operationId: replace
@@ -361,7 +449,7 @@ paths:
                 - message
                 properties:
                   message:
-                    $ref: '#/components/schemas/str'
+                    type: string
         '401':
           description: Not Authorized
           content:
@@ -378,10 +466,26 @@ paths:
                 - message
                 properties:
                   message:
-                    $ref: '#/components/schemas/str'
+                    type: string
   /api/search:
     get:
       operationId: search
+      parameters:
+      - name: text
+        in: query
+        required: false
+        schema:
+          oneOf:
+          - type: 'null'
+          - type: string
+      - name: date
+        in: query
+        required: false
+        schema:
+          type:
+          - string
+          - 'null'
+          format: date
       responses:
         '200':
           description: Search Output
@@ -399,7 +503,7 @@ paths:
                 - message
                 properties:
                   message:
-                    $ref: '#/components/schemas/str'
+                    type: string
         '401':
           description: Not Authorized
           content:
@@ -416,10 +520,27 @@ paths:
                 - message
                 properties:
                   message:
-                    $ref: '#/components/schemas/str'
+                    type: string
   /api/show_conflict:
     get:
       operationId: show_conflict
+      parameters:
+      - name: date
+        in: query
+        required: false
+        schema:
+          type:
+          - string
+          - 'null'
+          format: date
+      - name: datetime
+        in: query
+        required: false
+        schema:
+          type:
+          - string
+          - 'null'
+          format: date-time
       responses:
         '200':
           description: Show Conflict
@@ -437,7 +558,7 @@ paths:
                 - message
                 properties:
                   message:
-                    $ref: '#/components/schemas/str'
+                    type: string
         '401':
           description: Not Authorized
           content:
@@ -454,7 +575,7 @@ paths:
                 - message
                 properties:
                   message:
-                    $ref: '#/components/schemas/str'
+                    type: string
   /api/sync:
     post:
       operationId: sync
@@ -475,7 +596,7 @@ paths:
                 - message
                 properties:
                   message:
-                    $ref: '#/components/schemas/str'
+                    type: string
         '401':
           description: Not Authorized
           content:
@@ -492,10 +613,22 @@ paths:
                 - message
                 properties:
                   message:
-                    $ref: '#/components/schemas/str'
+                    type: string
   /api/update_conflict:
     patch:
       operationId: update_conflict
+      parameters:
+      - name: id
+        in: query
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: diff_type
+        in: query
+        required: true
+        schema:
+          type: string
       responses:
         '200':
           description: Update Conflict
@@ -513,7 +646,7 @@ paths:
                 - message
                 properties:
                   message:
-                    $ref: '#/components/schemas/str'
+                    type: string
         '401':
           description: Not Authorized
           content:
@@ -530,7 +663,7 @@ paths:
                 - message
                 properties:
                   message:
-                    $ref: '#/components/schemas/str'
+                    type: string
   /api/user:
     get:
       operationId: user
@@ -550,7 +683,7 @@ paths:
                     type: string
                     format: date-time
                   email:
-                    $ref: '#/components/schemas/str'
+                    type: string
                   session:
                     type: string
                     format: uuid
@@ -564,7 +697,7 @@ paths:
                 - message
                 properties:
                   message:
-                    $ref: '#/components/schemas/str'
+                    type: string
         '401':
           description: Not Authorized
           content:
@@ -581,7 +714,7 @@ paths:
                 - message
                 properties:
                   message:
-                    $ref: '#/components/schemas/str'
+                    type: string
 components:
   schemas:
     InsertData:
@@ -590,7 +723,7 @@ components:
       - text
       properties:
         text:
-          $ref: '#/components/schemas/str'
+          type: string
     LoggedUser:
       type: object
       required:
@@ -602,7 +735,7 @@ components:
           type: string
           format: date-time
         email:
-          $ref: '#/components/schemas/str'
+          type: string
         session:
           type: string
           format: uuid
