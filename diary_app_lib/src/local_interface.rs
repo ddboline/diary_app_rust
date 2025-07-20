@@ -117,7 +117,7 @@ impl LocalInterface {
                 {
                     let filepath = self.config.diary_path.join(filename.as_ref());
                     if date <= previous_date {
-                        debug!("{filepath:?}\n",);
+                        debug!("{}\n", filepath.display());
                         remove_file(&filepath).await?;
                     } else {
                         let metadata = metadata(&filepath)?;

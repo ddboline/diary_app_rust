@@ -3,12 +3,11 @@ use aws_config::SdkConfig;
 use aws_sdk_s3::types::Object;
 use futures::{TryStreamExt, stream::FuturesUnordered};
 use log::debug;
-use once_cell::sync::Lazy;
 use stack_string::{StackString, format_sstr};
 use std::{
     collections::HashMap,
     convert::{TryFrom, TryInto},
-    sync::Arc,
+    sync::{Arc, LazyLock},
 };
 use time::{Date, OffsetDateTime, macros::format_description};
 use tokio::sync::RwLock;
@@ -17,8 +16,8 @@ use crate::{config::Config, models::DiaryEntries, pgpool::PgPool, s3_instance::S
 
 const TIME_BUFFER: i64 = 60;
 
-static KEY_CACHE: Lazy<RwLock<(OffsetDateTime, Arc<[KeyMetaData]>)>> =
-    Lazy::new(|| RwLock::new((OffsetDateTime::now_utc(), Arc::new([]))));
+static KEY_CACHE: LazyLock<RwLock<(OffsetDateTime, Arc<[KeyMetaData]>)>> =
+    LazyLock::new(|| RwLock::new((OffsetDateTime::now_utc(), Arc::new([]))));
 
 #[derive(Debug, Clone)]
 struct KeyMetaData {
