@@ -221,11 +221,12 @@ impl DiaryConflict {
     /// # Errors
     /// Return error if db query fails
     pub async fn get_first_conflict(pool: &PgPool) -> Result<Option<OffsetDateTime>, Error> {
-        if let Some(first_date) = Self::get_first_date(pool).await? {
-            if let Some(first_conflict) = Self::get_first_by_date(first_date, pool).await? {
-                return Ok(Some(first_conflict));
-            }
+        if let Some(first_date) = Self::get_first_date(pool).await?
+            && let Some(first_conflict) = Self::get_first_by_date(first_date, pool).await?
+        {
+            return Ok(Some(first_conflict));
         }
+
         Ok(None)
     }
 

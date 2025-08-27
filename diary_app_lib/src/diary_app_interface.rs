@@ -92,11 +92,12 @@ impl DiaryAppInterface {
             .collect();
         dates.sort();
         dates.reverse();
-        if let Some(start) = start {
-            if start <= dates.len() {
-                dates = dates.split_off(start);
-            }
+        if let Some(start) = start
+            && start <= dates.len()
+        {
+            dates = dates.split_off(start);
         }
+
         if let Some(limit) = limit {
             dates.truncate(limit);
         }
@@ -110,8 +111,8 @@ impl DiaryAppInterface {
         day: Option<u32>,
     ) -> Vec<Date> {
         mod_map
-            .iter()
-            .map(|(d, _)| *d)
+            .keys()
+            .copied()
             .filter(|date| {
                 year.is_some_and(|y| {
                     month.is_none_or(|m| {
@@ -426,12 +427,13 @@ impl DiaryAppInterface {
         });
         let inserted_entries: Result<Vec<_>, Error> = try_join_all(futures).await;
         let inserted_entries = inserted_entries?;
-        if !inserted_entries.is_empty() {
-            if let Some(inst) = SSHInstance::from_url(&ssh_url).await {
-                inst.run_command_ssh("/usr/bin/diary-app-rust clear")
-                    .await?;
-            }
+        if !inserted_entries.is_empty()
+            && let Some(inst) = SSHInstance::from_url(&ssh_url).await
+        {
+            inst.run_command_ssh("/usr/bin/diary-app-rust clear")
+                .await?;
         }
+
         Ok(inserted_entries)
     }
 
@@ -528,11 +530,12 @@ impl DiaryAppInterface {
                         } else {
                             return Ok(None);
                         }
-                        if let Some(entry) = self.s3.download_entry(date).await? {
-                            if entry.diary_text.len() == diary_len {
-                                return Ok(None);
-                            }
+                        if let Some(entry) = self.s3.download_entry(date).await?
+                            && entry.diary_text.len() == diary_len
+                        {
+                            return Ok(None);
                         }
+
                         if self.s3.upload_entry(date).await?.is_some() {
                             return Ok(Some(format_sstr!(
                                 "date {date} backup_len {backup_len} diary_len {diary_len}"

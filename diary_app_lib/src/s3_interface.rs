@@ -229,17 +229,19 @@ impl S3Interface {
                         }
                         None => true,
                     };
-                    if obj.size > 0 && should_modify {
-                        if let Some(entry) = self.download_entry(obj.date).await? {
-                            debug!(
-                                "import s3 date {} lines {}",
-                                entry.diary_date,
-                                entry.diary_text.matches('\n').count()
-                            );
-                            entry.upsert_entry(&self.pool, insert_new).await?;
-                            return Ok(Some(entry));
-                        }
+                    if obj.size > 0
+                        && should_modify
+                        && let Some(entry) = self.download_entry(obj.date).await?
+                    {
+                        debug!(
+                            "import s3 date {} lines {}",
+                            entry.diary_date,
+                            entry.diary_text.matches('\n').count()
+                        );
+                        entry.upsert_entry(&self.pool, insert_new).await?;
+                        return Ok(Some(entry));
                     }
+
                     Ok(None)
                 }
             })

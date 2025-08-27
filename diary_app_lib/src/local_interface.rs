@@ -67,16 +67,15 @@ impl LocalInterface {
                     .config
                     .diary_path
                     .join(format_sstr!("diary_{year}.txt"));
-                if filepath.exists() {
-                    if let Ok(metadata) = filepath.metadata() {
-                        if let Ok(modified) = metadata.modified() {
-                            let modified: OffsetDateTime = modified.into();
-                            if let Some(maxmod) = year_mod_map.get(&year) {
-                                if modified >= *maxmod {
-                                    return Ok(format_sstr!("{year} 0"));
-                                }
-                            }
-                        }
+                if filepath.exists()
+                    && let Ok(metadata) = filepath.metadata()
+                    && let Ok(modified) = metadata.modified()
+                {
+                    let modified: OffsetDateTime = modified.into();
+                    if let Some(maxmod) = year_mod_map.get(&year)
+                        && modified >= *maxmod
+                    {
+                        return Ok(format_sstr!("{year} 0"));
                     }
                 }
 
@@ -145,25 +144,24 @@ impl LocalInterface {
         for current_date in (0..4).map(|i| (current_date - Duration::days(i))) {
             if let Some((file_mod, file_size)) = dates.get(&current_date) {
                 if let Some(db_mod) = existing_map.get(&current_date) {
-                    if file_mod < db_mod {
-                        if let Some(existing_entry) =
+                    if file_mod < db_mod
+                        && let Some(existing_entry) =
                             DiaryEntries::get_by_date(current_date, &self.pool).await?
-                        {
-                            let existing_size = existing_entry.diary_text.len();
-                            if existing_size > *file_size {
-                                debug!("file db diff {file_mod} {db_mod}",);
-                                debug!("file db size {file_size} {existing_size}",);
-                                let current_date_str = StackString::from_display(current_date);
-                                let filepath = self
-                                    .config
-                                    .diary_path
-                                    .join(current_date_str)
-                                    .with_extension("txt");
-                                let mut f = File::create(&filepath).await?;
-                                f.write_all(existing_entry.diary_text.as_bytes()).await?;
-                            }
-                            entries.push(existing_entry);
+                    {
+                        let existing_size = existing_entry.diary_text.len();
+                        if existing_size > *file_size {
+                            debug!("file db diff {file_mod} {db_mod}",);
+                            debug!("file db size {file_size} {existing_size}",);
+                            let current_date_str = StackString::from_display(current_date);
+                            let filepath = self
+                                .config
+                                .diary_path
+                                .join(current_date_str)
+                                .with_extension("txt");
+                            let mut f = File::create(&filepath).await?;
+                            f.write_all(existing_entry.diary_text.as_bytes()).await?;
                         }
+                        entries.push(existing_entry);
                     }
                 } else {
                     let d = DiaryEntries::new(current_date, "");
