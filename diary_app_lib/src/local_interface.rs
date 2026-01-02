@@ -141,7 +141,7 @@ impl LocalInterface {
         let current_date = OffsetDateTime::now_utc().to_timezone(local).date();
 
         let mut entries = Vec::new();
-        for current_date in (0..4).map(|i| (current_date - Duration::days(i))) {
+        for current_date in (0..4).map(|i| current_date - Duration::days(i)) {
             if let Some((file_mod, file_size)) = dates.get(&current_date) {
                 if let Some(db_mod) = existing_map.get(&current_date) {
                     if file_mod < db_mod

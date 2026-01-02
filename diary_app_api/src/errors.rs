@@ -8,12 +8,11 @@ use axum::{
     response::{IntoResponse, Response},
 };
 use handlebars::RenderError;
-use log::error;
 use notify::Error as NotifyError;
 use postgres_query::Error as PqError;
 use serde::Serialize;
 use serde_json::Error as SerdeJsonError;
-use serde_yml::Error as SerdeYamlError;
+use serde_yaml_ng::Error as SerdeYamlError;
 use stack_string::{StackString, format_sstr};
 use std::{
     fmt::{Debug, Error as FmtError},
@@ -166,7 +165,7 @@ mod test {
     use notify::Error as NotifyError;
     use postgres_query::Error as PqError;
     use serde_json::Error as SerdeJsonError;
-    use serde_yml::Error as SerdeYamlError;
+    use serde_yaml_ng::Error as SerdeYamlError;
     use stack_string::StackString;
     use std::{fmt::Error as FmtError, net::AddrParseError};
     use time_tz::system::Error as TzError;

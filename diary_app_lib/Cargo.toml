@@ -1,6 +1,6 @@
 [package]
 name = "diary_app_lib"
-version = "0.12.4"
+version = "0.12.5"
 authors = ["Daniel Boline <ddboline@gmail.com>"]
 edition = "2024"
 license = "MIT"
@@ -8,8 +8,8 @@ license = "MIT"
 [dependencies]
 anyhow = "1.0"
 aws-config = {version="1.8", features=["behavior-version-latest"]}
-aws-sdk-s3 = "1.103"
-bytes = "1.1"
+aws-sdk-s3 = "1.119"
+bytes = "1.11"
 clap = {version="4.0", features=["derive"]}
 crossbeam-channel = "0.5"
 crossbeam-utils = "0.8"
@@ -30,7 +30,7 @@ postgres-types = "0.2"
 postgres_query = {git = "https://github.com/ddboline/rust-postgres-query", tag = "0.3.8", features=["deadpool"]}
 rand = "0.9"
 rayon = "1.5"
-refinery = {version="0.8", features=["tokio-postgres"]}
+refinery = {version="0.9", features=["tokio-postgres"]}
 regex = {version = "1.4", default-features = false}
 serde = "1.0"
 serde_derive = "1.0"
@@ -41,7 +41,7 @@ stdout-channel = "0.6"
 thiserror = "2.0"
 time = {version="0.3", features=["serde-human-readable", "macros", "formatting"]}
 time-tz = {version="2.0", features=["system"]}
-tokio = {version="1.47", features=["rt", "macros", "rt-multi-thread"]}
+tokio = {version="1.48", features=["rt", "macros", "rt-multi-thread"]}
 tokio-postgres = {version = "0.7", features = ["with-time-0_3", "with-uuid-1", "with-serde_json-1"]}
 url = "2.3"
 uuid = "1.0"
