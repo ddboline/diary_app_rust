@@ -36,7 +36,7 @@ async fn diary_sync(
             .sync_merge_cache_to_entries()
             .await?
             .into_iter()
-            .chain(dapp_interface.local.import_from_local().await?.into_iter())
+            .chain(dapp_interface.local.import_from_local().await?)
             .map(|d| format_sstr!("update {}", d.diary_date))
             .sorted()
             .join("\n")
@@ -64,7 +64,7 @@ async fn bot_handler(dapp_interface: DiaryAppInterface) -> Result<(), Error> {
             if let MessageKind::Text { ref data, .. } = message.kind {
                 FAILURE_COUNT.check()?;
                 // Print received text message to stdout.
-                debug!("{message:?}",);
+                debug!("{message:?}");
                 if TELEGRAM_USERIDS.read().await.contains(&message.from.id) {
                     FAILURE_COUNT.check()?;
                     let first_word = data.split_whitespace().next();
@@ -157,7 +157,7 @@ async fn telegram_worker(dapp: DiaryAppInterface) -> Result<(), Error> {
         FAILURE_COUNT.check()?;
         let d = dapp.clone();
 
-        match timeout(Duration::from_secs(3600), bot_handler(d)).await {
+        match timeout(Duration::from_hours(1), bot_handler(d)).await {
             Err(_) | Ok(Ok(())) => FAILURE_COUNT.reset()?,
             Ok(Err(_)) => FAILURE_COUNT.increment()?,
         }
@@ -178,7 +178,7 @@ async fn fill_telegram_user_ids(pool: PgPool) -> Result<(), Error> {
         } else {
             FAILURE_COUNT.increment()?;
         }
-        sleep(Duration::from_secs(60)).await;
+        sleep(Duration::from_mins(1)).await;
     }
 }
 
