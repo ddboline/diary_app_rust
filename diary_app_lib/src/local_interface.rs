@@ -150,8 +150,8 @@ impl LocalInterface {
                     {
                         let existing_size = existing_entry.diary_text.len();
                         if existing_size > *file_size {
-                            debug!("file db diff {file_mod} {db_mod}",);
-                            debug!("file db size {file_size} {existing_size}",);
+                            debug!("file db diff {file_mod} {db_mod}");
+                            debug!("file db size {file_size} {existing_size}");
                             let current_date_str = StackString::from_display(current_date);
                             let filepath = self
                                 .config
