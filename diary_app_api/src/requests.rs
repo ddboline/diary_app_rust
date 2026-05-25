@@ -95,7 +95,7 @@ impl DiaryAppRequests {
                 } else if let Some(date) = opts.date {
                     let entry = DiaryEntries::get_by_date(date, &dapp.pool)
                         .await?
-                        .ok_or_else(|| format_err!("Date should exist {}", date))?;
+                        .ok_or_else(|| format_err!("Date should exist {date}"))?;
                     vec![entry.diary_text]
                 } else {
                     vec!["".into()]
@@ -124,7 +124,7 @@ impl DiaryAppRequests {
             DiaryAppRequests::Display(date) => {
                 let entry = DiaryEntries::get_by_date(date, &dapp.pool)
                     .await?
-                    .ok_or_else(|| format_err!("Date should exist {}", date))?;
+                    .ok_or_else(|| format_err!("Date should exist {date}"))?;
                 Ok(vec![entry.diary_text].into())
             }
             DiaryAppRequests::ListConflicts(None) => {
@@ -177,7 +177,7 @@ impl DiaryAppRequests {
                 let new_diff_type = match diff_text.as_str() {
                     "rem" => "rem",
                     "add" => "add",
-                    _ => return Err(format_err!("Bad diff type {}", diff_text)),
+                    _ => return Err(format_err!("Bad diff type {diff_text}")),
                 };
                 DiaryConflict::update_by_id(id, new_diff_type, &dapp.pool).await?;
                 let body: StackString = "updated".into();
@@ -192,12 +192,11 @@ impl DiaryAppRequests {
                     conflicts.iter().map(|entry| entry.diary_date).collect();
                 if diary_dates.len() > 1 {
                     return Err(format_err!(
-                        "Something has gone horribly wrong {:?}",
-                        conflicts
+                        "Something has gone horribly wrong {conflicts:?}"
                     ));
                 }
                 let date = diary_dates.into_iter().next().ok_or_else(|| {
-                    format_err!("Something has gone horribly wrong {:?}", conflicts)
+                    format_err!("Something has gone horribly wrong {conflicts:?}")
                 })?;
 
                 let additions = conflicts
