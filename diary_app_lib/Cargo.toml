@@ -8,15 +8,15 @@ license = "MIT"
 [dependencies]
 anyhow = "1.0"
 aws-config = {version="1.8", features=["behavior-version-latest"]}
-aws-sdk-s3 = "1.119"
+aws-sdk-s3 = "1.133"
 bytes = "1.11"
-clap = {version="4.0", features=["derive"]}
+clap = {version="4.6", features=["derive"]}
 crossbeam-channel = "0.5"
 crossbeam-utils = "0.8"
 deadqueue = "0.2"
-deadpool = { version = "0.12", features=["serde", "rt_tokio_1"] }
+deadpool = { version = "0.13", features=["serde", "rt_tokio_1"] }
 deadpool-postgres = { version = "0.14", features=["serde"] }
-derive_more = {version="2.0", features = ["full"]}
+derive_more = {version="2.1", features = ["full"]}
 difference = "2.0"
 dirs = "6.0"
 dotenvy = "0.15"
@@ -24,27 +24,26 @@ envy = "0.4"
 futures = "0.3"
 jwalk = "0.8"
 log = "0.4"
-once_cell = "1.0"
 parking_lot = "0.12"
 postgres-types = "0.2"
-postgres_query = {git = "https://github.com/ddboline/rust-postgres-query", tag = "0.3.8", features=["deadpool"]}
-rand = "0.9"
-rayon = "1.5"
+postgres_query = {git = "https://github.com/ddboline/rust-postgres-query", tag = "0.3.9", features=["deadpool"]}
+rand = "0.10"
+rayon = "1.12"
 refinery = {version="0.9", features=["tokio-postgres"]}
-regex = {version = "1.4", default-features = false}
+regex = {version = "1.12", default-features = false}
 serde = "1.0"
 serde_derive = "1.0"
 serde_json = "1.0"
-smallvec = "1.6"
+smallvec = "1.15"
 stack-string = { version="1.1", features=["postgres_types"] }
 stdout-channel = "0.6"
 thiserror = "2.0"
 time = {version="0.3", features=["serde-human-readable", "macros", "formatting"]}
 time-tz = {version="2.0", features=["system"]}
-tokio = {version="1.48", features=["rt", "macros", "rt-multi-thread"]}
+tokio = {version="1.52", features=["rt", "macros", "rt-multi-thread"]}
 tokio-postgres = {version = "0.7", features = ["with-time-0_3", "with-uuid-1", "with-serde_json-1"]}
-url = "2.3"
-uuid = "1.0"
+url = "2.5"
+uuid = "1.23"
 
 [dev-dependencies]
 tempdir = "0.3"
