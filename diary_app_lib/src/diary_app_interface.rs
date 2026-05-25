@@ -446,7 +446,7 @@ impl DiaryAppInterface {
             .join("epistle_backup")
             .join("backup");
         if !backup_directory.exists() {
-            return Err(format_err!("{backup_directory:?} doesn't exist"));
+            return Err(format_err!("{} doesn't exist", backup_directory.display()));
         }
         let files: Result<Vec<_>, Error> = WalkDir::new(backup_directory)
             .into_iter()
