@@ -5,6 +5,7 @@
 #![allow(clippy::cast_possible_truncation)]
 #![allow(clippy::cast_possible_wrap)]
 #![allow(clippy::doc_markdown)]
+#![allow(clippy::redundant_field_names)]
 
 pub mod config;
 pub mod date_time_wrapper;
