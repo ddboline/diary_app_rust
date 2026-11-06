@@ -1,6 +1,6 @@
 [package]
 name = "diary_app_bot"
-version = "0.12.6"
+version = "0.12.7"
 authors = ["Daniel Boline <ddboline@gmail.com>"]
 edition = "2024"
 license = "MIT"
@@ -9,15 +9,15 @@ license = "MIT"
 
 [dependencies]
 anyhow = "1.0"
-aws-config = {version="1.8", features=["behavior-version-latest"]}
+aws-config = {version="1.13", features=["behavior-version-latest"]}
 crossbeam-channel = "0.5"
 crossbeam-utils = "0.8"
 diary_app_lib = {path="../diary_app_lib"}
 futures = "0.3"
-itertools = "0.14"
+itertools = "0.15"
 log = "0.4"
-parking_lot = "0.12"
-stack-string = { version="1.1", features=["postgres_types"] }
+parking_lot = "0.13"
+stack-string = { version="1.2", features=["postgres_types"] }
 thiserror = "2.0"
-tokio = {version="1.52", features=["rt", "macros", "rt-multi-thread"]}
+tokio = {version="1.54", features=["rt", "macros", "rt-multi-thread"]}
 telegram-bot = {git = "https://github.com/ddboline/telegram-bot.git", tag="0.9.0-4", default-features=false}
